@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>苍井寿司 · 食品安全巡检看板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,"Microsoft YaHei",sans-serif;margin:0;background:#f5f6f8;color:#222}
+header{position:sticky;top:0;background:#fff;border-bottom:1px solid #e3e5e9;padding:12px 16px;z-index:10}
+.header-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+h1{font-size:18px;margin:0;color:#111}
+.subtitle{font-size:13px;color:#666;margin-top:4px}
+.tabs{display:flex;gap:8px;margin-top:10px;overflow-x:auto}
+.tab{border:1px solid #c9ccd2;background:#fff;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:14px;white-space:nowrap}
+.tab.active{background:#2f6fed;color:#fff;border-color:#2f6fed}
+.status-pill{font-size:12px;padding:4px 10px;border-radius:12px;background:#e6f7ec;color:#1a7f37}
+.status-pill.loading{background:#fff2e8;color:#873800}
+.status-pill.error{background:#fdecea;color:#c0392b}
+.datebar{display:flex;align-items:center;gap:6px;background:#f8f9fb;padding:6px 10px;border-radius:20px;border:1px solid #e3e5e9}
+.datebar label{font-size:12px;color:#666;margin-left:4px}
+.datebar input[type=date]{border:1px solid #c9ccd2;border-radius:12px;padding:4px 8px;font-size:13px;font-family:inherit;outline:none}
+.datebar input[type=date]:focus{border-color:#2f6fed}
+.subtabs{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid #eef0f3;flex-wrap:wrap;background:#fff}
+.subtab{border:1px solid #c9ccd2;background:#fff;padding:6px 14px;border-radius:16px;cursor:pointer;font-size:13px}
+.subtab.active{background:#2f6fed;color:#fff;border-color:#2f6fed}
+.pt{font-size:18px;margin:18px 16px 10px}
+.note{font-size:13px;color:#666;margin:0 16px 14px;line-height:1.6}
+.panel{display:none;padding-bottom:24px}
+.panel.active{display:block}
+.module-panel{display:none}
+.module-panel.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:0 16px}
+.card{background:#fff;border:1px solid #e3e5e9;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.card-h{font-size:13px;color:#666;margin-bottom:8px}
+.card-v{font-size:26px;font-weight:700;color:#2f6fed;line-height:1.2}
+.card-sub{font-size:12px;color:#888;margin-top:4px}
+.pos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;padding:0 16px}
+.pos-card{background:#fff;border:1px solid #e3e5e9;border-radius:10px;padding:16px}
+.pos-title{font-size:15px;font-weight:700;margin-bottom:12px;padding-left:10px;border-left:4px solid #2f6fed;display:flex;align-items:center;gap:8px}
+.scope-tag{font-size:inherit;font-weight:600;white-space:nowrap}
+.scope-cg{color:#c0502a}
+.scope-zj{color:#2f6fed}
+.scope-sp{background:#f3e9fb;color:#7d3c9e;border:1px solid #dcc0ef}
+.pos-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.pos-meta div{text-align:center;padding:8px 4px;background:#f8f9fb;border-radius:8px}
+.pos-meta .pv{display:block;font-size:20px;font-weight:700;color:#2f6fed;line-height:1.2}
+.pos-meta .pl{display:block;font-size:12px;color:#444;margin-top:4px;font-weight:500}
+.pos-subtitle{font-size:12px;color:#888;margin-top:4px}
+.trend-wrap{display:grid;grid-template-columns:260px 1fr;gap:12px;padding:0 16px;align-items:start}
+@media(max-width:900px){.trend-wrap{grid-template-columns:1fr}}
+.trend-kpi{display:grid;grid-template-columns:1fr;gap:12px}
+.trend-kpi .card{margin:0}
+.trend-chart{background:#fff;border:1px solid #e3e5e9;border-radius:10px;padding:16px;min-height:360px}
+#selfTrendChart,#videoTrendChart{width:100%;height:360px}
+.reg-tags{display:flex;flex-wrap:wrap;gap:6px}
+.reg-tag{font-size:12px;color:#555;background:#f0f2f5;padding:3px 10px;border-radius:12px}
+.filterbar{background:#fff;padding:10px 16px;border-bottom:1px solid #eef0f3;display:flex;flex-wrap:wrap;gap:8px;align-items:center;position:sticky;top:105px;z-index:5}
+.search{flex:1;min-width:180px;max-width:320px;padding:6px 12px;border:1px solid #c9ccd2;border-radius:16px;font-size:14px}
+.fbtn{border:1px solid #c9ccd2;background:#fff;padding:5px 14px;border-radius:16px;cursor:pointer;font-size:13px;display:inline-block;text-decoration:none;color:#222}
+.fbtn.active,.fbtn:active{background:#2f6fed;color:#fff;border-color:#2f6fed;box-shadow:0 2px 8px rgba(47,111,237,.4);font-weight:700}
+.fbtn:hover:not(.active){background:#f0f4ff;border-color:#a8c0ee;color:#2f6fed}
+.fbtn-refresh{background:#fff7e6;border-color:#ffb547;color:#a35a00;font-weight:600;margin-left:2px}
+.fbtn-refresh:hover:not(:disabled){background:#ffe9c2}
+.fbtn-refresh:disabled{opacity:.6;cursor:progress}
+.rank-wrap{padding:0 16px;overflow-x:auto}
+.rank{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e3e5e9;border-radius:8px;overflow:hidden;min-width:780px}
+.rank th{background:#f0f2f5;padding:10px 12px;text-align:left;font-size:14px;border-bottom:1px solid #e3e5e9;white-space:nowrap}
+.rank td{padding:10px 12px;font-size:14px;border-bottom:1px solid #f0f2f5;white-space:nowrap}
+#regionModalTable{min-width:0;width:100%;table-layout:auto}
+#regionModalTable th,#regionModalTable td{white-space:normal;word-break:break-all;min-width:80px}
+.rank tr:hover{background:#f8f9fa}
+.rank td:first-child{white-space:normal;min-width:140px}
+.score-good{color:#1a7f37;font-weight:700}
+.score-bad{color:#c0392b;font-weight:700}
+.score-mid{color:#e0603a;font-weight:700}
+.rate-good{color:#1a7f37;font-weight:700}
+.rate-mid{color:#e0603a;font-weight:700}
+.rate-bad{color:#c0392b;font-weight:700}
+.empty{padding:40px 16px;text-align:center;color:#888}
+.loading{text-align:center;padding:60px 16px;color:#666}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid #e3e5e9;border-top-color:#2f6fed;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+footer{padding:24px 16px;color:#999;font-size:12px;text-align:center}
+.barfill{display:inline-block;height:12px;background:linear-gradient(90deg,#2f6fed,#5b8def);border-radius:3px;vertical-align:middle;min-width:2px}
+.bar-bg{display:inline-block;width:100px;height:12px;background:#eef0f3;border-radius:3px;vertical-align:middle;margin-right:6px}
+.top-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#2f6fed;color:#fff;font-size:13px;font-weight:700;margin-right:8px}
+.top-num.gold{background:#ffb800}
+.top-num.silver{background:#a0a0a0}
+.top-num.bronze{background:#cd7f32}
+.pos-filter{display:flex;gap:6px;flex-wrap:wrap}
+.rank-region-filter{display:flex;gap:6px;flex-wrap:wrap;margin:0 16px 12px;padding:8px 12px;background:#f4f7ff;border-radius:8px;border-left:3px solid #2f6fed}
+.rank-region-filter:empty{display:none}
+.tip{font-size:12px;color:#999;background:#f8f9fb;padding:8px 12px;border-radius:8px;margin:0 16px 12px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal.active{display:flex}
+.modal-box{background:#fff;border-radius:12px;width:96vw;max-width:1100px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.15)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #e3e5e9}
+.modal-title{font-size:16px;font-weight:700;margin:0}
+.modal-close{font-size:22px;line-height:1;cursor:pointer;color:#666;background:none;border:none;padding:0 4px}
+.modal-body{padding:14px 18px;overflow:auto;flex:1;max-height:calc(92vh - 70px)}
+.modal-sub{font-size:13px;color:#666;margin-bottom:12px}
+.clickable-region{cursor:pointer;color:#2f6fed;text-decoration:underline}
+.clickable-region:hover{opacity:.8}
+.link-btn{cursor:pointer;color:#2f6fed;text-decoration:underline;white-space:nowrap}
+.link-btn:hover{opacity:.8}
+.badge-ok{display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;background:#e6f6ec;color:#1a7f37;border:1px solid #b7e2c6}
+.badge-no{display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;background:#fdecea;color:#c0392b;border:1px solid #f5c2bd}
+.badge-mid{display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;background:#fff7e6;color:#a76b00;border:1px solid #f5d8a8}
+.badge-warn{display:inline-block;font-size:12px;padding:2px 8px;border-radius:10px;background:#fff4e6;color:#d46b08;border:1px solid #ffd591}
+code{font-family:monospace;background:#f0f2f5;padding:2px 6px;border-radius:4px;font-size:12px}
+a.fbtn{text-decoration:none;display:inline-block}
+.report-link{color:#2f6fed;text-decoration:underline;cursor:pointer}
+.report-link:hover{opacity:.8}
+.rd-basic{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px 18px;background:#f6f8fb;border:1px solid #e6e9ef;border-radius:10px;padding:12px 16px;margin-bottom:14px}
+.rd-row{font-size:14px;display:flex;flex-direction:column;gap:2px}
+.rd-row span{font-size:12px;color:#888}
+.rd-row b{font-size:15px;color:#222;font-weight:600}
+.rd-h{font-size:15px;margin:6px 0 10px;color:#222}
+.rd-sec{margin-bottom:14px}
+.rd-sec-h{font-size:13px;color:#555;margin-bottom:6px;font-weight:600}
+.rd-detail{font-size:13px}
+.rd-detail th,.d-detail td{padding:7px 10px}
+.rd-raw{margin-top:8px}
+.rd-raw summary{cursor:pointer;color:#2f6fed;font-size:13px}
+.rd-raw pre{background:#0f1115;color:#e6e6e6;padding:12px;border-radius:8px;max-height:50vh;overflow:auto;font-size:12px;white-space:pre-wrap;word-break:break-all}
+/* fix57：原始报告 UI —— 不合格项行红色高亮 + 问题点 + 照片墙 */
+.rd-detail tr.rd-fail{background:#fff7f7}
+.rd-detail tr.rd-fail td:first-child{border-left:3px solid #c0392b}
+.rd-detail tr.rd-fail td{color:#5d1a1a}
+.rd-problem{color:#c0392b;font-size:13px;line-height:1.55;padding:2px 0 4px}
+.rd-problem:before{content:"";display:inline-block;width:0}
+.rd-note{color:#555;font-size:13px;line-height:1.55;padding:2px 0}
+.rd-photos{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.rd-photos a{display:block;width:72px;height:72px;border-radius:6px;overflow:hidden;border:1px solid #e3e5e9;background:#fafbfc}
+.rd-photos-sm a{width:54px;height:54px}
+.rd-photos img{width:100%;height:100%;object-fit:cover;display:block}
+.rd-photo-more{font-size:12px;color:#888;padding:6px 8px;background:#f3f4f6;border-radius:6px;align-self:center}
+.placeholder-box{background:#fff;border:1px solid #e3e5e9;border-radius:10px;padding:60px 16px;text-align:center;color:#888;margin:16px}
+.top-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 16px}
+@media(max-width:900px){.top-grid{grid-template-columns:1fr}}
+.top-card{background:#fff;border:1px solid #e3e5e9;border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.04);display:flex;flex-direction:column}
+.top-card-title{font-size:14px;font-weight:700;margin-bottom:12px;padding-left:10px;border-left:4px solid #2f6fed;line-height:1.3}
+.top-card.self .top-card-title{border-left-color:#2f6fed}
+.top-card.video .top-card-title{border-left-color:#8e44ad}
+.top-card.regular .top-card-title{border-left-color:#e0603a}
+.top-list{list-style:none;margin:0;padding:0;flex:1}
+.top-list li{display:block;padding:7px 0;border-bottom:1px dashed #f0f2f5}
+.top-list li:last-child{border-bottom:none}
+.top-list .trow{display:flex;align-items:center;gap:8px}
+.top-list .tno{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#2f6fed;color:#fff;font-size:12px;font-weight:700;flex:none}
+.top-list li:nth-child(1) .tno{background:#ffb800}
+.top-list li:nth-child(2) .tno{background:#a0a0a0}
+.top-list li:nth-child(3) .tno{background:#cd7f32}
+.top-list .tname{flex:1;font-size:13px;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top-list .tpct{font-size:13px;color:#666;flex:none;min-width:52px;text-align:right}
+.top-list .tbar{display:block;height:4px;background:#eef0f3;border-radius:2px;margin-top:4px;overflow:hidden}
+.top-list .tbar i{display:block;height:100%;background:linear-gradient(90deg,#2f6fed,#5b8def)}
+.chipbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid #c9ccd2;background:#fff;padding:5px 14px;border-radius:16px;cursor:pointer;font-size:13px}
+.chip.active{background:#2f6fed;color:#fff;border-color:#2f6fed}
+
+/* 区间提示条 */
+.range-banner{display:none;align-items:center;gap:8px;padding:8px 16px;font-size:13px;line-height:1.5;border-bottom:1px solid #e3e5e9}
+.range-banner.ok{background:#eef6ff;color:#1c4fa1;border-bottom-color:#cfe0fb}
+.range-banner.warn{background:#fff7e6;color:#874d00;border-bottom-color:#ffe0a3}
+.range-banner .rb-dot{width:7px;height:7px;border-radius:50%;flex:none;background:currentColor}
+
+/* 不合格明细 - 卡片视图 */
+.unq-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;padding:0 16px}
+@media(max-width:900px){.unq-card-grid{grid-template-columns:1fr}}
+.unq-card{background:#fff;border:1px solid #e3e5e9;border-radius:10px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.unq-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.unq-card-title{font-size:15px;font-weight:700;color:#222;line-height:1.4;flex:1}
+.unq-card-meta{font-size:12px;color:#666;margin-top:2px}
+.unq-card-badge{font-size:12px;font-weight:600;color:#c0392b;background:#fdecea;border:1px solid #f5c2bd;border-radius:10px;padding:2px 8px;white-space:nowrap}
+.unq-card-badge.green{color:#1a7f37;background:#e6f6ec;border-color:#b7e2c6}
+.unq-card-stats{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:#555;margin-bottom:10px}
+.unq-card-stats span{display:flex;align-items:center;gap:4px}
+.unq-card-stats b{color:#222}
+.unq-card-items{display:flex;flex-direction:column;gap:8px}
+.unq-item-row{display:flex;gap:10px;align-items:flex-start;padding:8px;background:#f8f9fb;border-radius:8px}
+.unq-item-row:hover{background:#f0f2f5}
+.unq-item-img{width:72px;height:72px;object-fit:cover;border-radius:6px;flex:none;background:#eef0f3;cursor:pointer;display:block;position:relative}
+.unq-item-img.no-img{display:flex;align-items:center;justify-content:center;font-size:11px;color:#999;cursor:default}
+.unq-img-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#eef0f3;color:#999;font-size:11px;border-radius:6px;line-height:1.2;text-align:center}
+.unq-item-body{flex:1;min-width:0}
+.unq-item-title{font-size:13px;font-weight:600;color:#222;margin-bottom:3px;line-height:1.3}
+.unq-item-cat{font-size:12px;color:#2f6fed;background:#eaf2ff;border-radius:10px;padding:1px 8px;display:inline-block;margin-bottom:4px}
+.unq-item-desc{font-size:12px;color:#666;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.unq-card-actions{display:flex;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #f0f2f5}
+.unq-filter-chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px}
+.unq-region-section{margin-bottom:16px}
+.unq-region-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;margin:0 16px 10px}
+.unq-region-title .count{font-size:12px;color:#666;font-weight:400}
+.unq-region-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;padding:0 16px}
+.unq-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-top:8px}
+.unq-photo-grid img{width:100%;height:90px;object-fit:cover;border-radius:6px;background:#eef0f3;cursor:pointer}
+.unq-expand{display:none;margin-top:10px;padding:10px;background:#f8f9fb;border-radius:8px}
+.unq-expand.active{display:block}
+.unq-item-img.loading{background:#eef0f3;animation:unqPulse 1.4s ease-in-out infinite}
+@keyframes unqPulse{0%{opacity:1}50%{opacity:.55}100%{opacity:1}}
+.unq-item-img.no-photo{background:#eef0f3}
+
+/* fix49：不合格面板快照区间提示条 */
+.unq-snapshot-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 16px 12px;padding:8px 12px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;font-size:12px;color:#7a5d00}
+.unq-snapshot-bar .badge{background:#fff3c4;border:1px solid #ffd966;border-radius:10px;padding:1px 8px;font-weight:600}
+.unq-snapshot-bar.warn{background:#fff0f0;border-color:#ffc1c1;color:#a13c3c}
+.unq-snapshot-bar.warn .badge{background:#ffe3e3;border-color:#ffb0b0}
+
+/* fix49：问题图片点击放大灯箱 */
+.unq-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:12px;padding:20px}
+.unq-lightbox.show{display:flex}
+.unq-lightbox img{max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.unq-lightbox .caption{color:#fff;font-size:13px;max-width:80vw;text-align:center}
+.unq-lightbox .close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;border:none;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.unq-lightbox .close:hover{background:rgba(255,255,255,.3)}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-top">
+    <div>
+      <h1>苍井寿司 · 食品安全巡检看板</h1>
+      <div class="subtitle">覆盖四个组别：新店运营组 / 加盟营运组 / 新店筹建组 / 直营组</div>
+    </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="datebar">
+        <button class="fbtn" id="rangeLastMonthBtn" onclick="applyQuickRange('lastMonth')" title="选上月 1 号到月底并应用">上月数据</button>
+        <button class="fbtn active" id="rangeThisMonthBtn" onclick="applyQuickRange('thisMonth')" title="选本月 1 号到今天并应用">本月数据</button>
+        <button class="fbtn" id="rangeAllBtn" onclick="applyQuickRange('all')" title="全部数据（按 data.json 时间窗）">全部数据</button>
+        <label>开始</label><input type="date" id="startDate">
+        <label>结束</label><input type="date" id="endDate">
+        <button class="fbtn" id="applyDateBtn" onclick="applyDateRange()">应用</button>
+      </div>
+      <span id="statusPill" class="status-pill loading">数据加载中…</span>
+    </div>
+  </div>
+  <div class="tabs" id="mainTabs">
+    <button class="tab active" data-t="overview">总览</button>
+    <button class="tab" data-t="selfInspection">门店自检</button>
+    <button class="tab" data-t="regularInspection">常规巡检（QSC）</button>
+    <button class="tab" data-t="videoInspection">视频巡检</button>
+  <button class="tab" data-t="aiInspection">AI 慧检</button>
+    <button class="tab" data-t="unqualifiedDetail">问题高发</button>
+  </div>
+</header>
+
+<div id="loading" class="loading" style="display:none">
+  <div class="spinner"></div>
+  <div id="loadingText">正在加载已缓存的原始数据…<br><span style="font-size:12px;color:#888">原始数据每天凌晨已自动采集到仓库，仅首次访问需数秒加载。</span></div>
+</div>
+
+<div id="error" class="empty" style="display:none"></div>
+
+<!-- ============ 总览（保留原状）============ -->
+<section class="panel active" id="overview">
+  <div class="cards" id="overviewCards"></div>
+
+  <h2 class="pt"><span class="scope-tag scope-cg">常规巡检（QSC）</span> 数据分布</h2>
+  <div class="pos-grid" id="overviewPositions"></div>
+
+  <h2 class="pt" style="margin-top:28px">巡检类型高发问题</h2>
+  <div class="top-grid" id="overviewTopCategories">
+    <div class="top-card self">
+      <div class="top-card-title">门店自检 高发问题 Top3</div>
+      <ul class="top-list" id="selfTopList"><li class="empty" style="border:none">加载中…</li></ul>
+    </div>
+    <div class="top-card video">
+      <div class="top-card-title">视频巡检 高发问题 Top3</div>
+      <ul class="top-list" id="videoTopList"><li class="empty" style="border:none">加载中…</li></ul>
+    </div>
+    <div class="top-card regular">
+      <div class="top-card-title">常规巡检（QSC） 高发问题 Top10</div>
+      <ul class="top-list" id="regularTopList"><li class="empty" style="border:none">加载中…</li></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 门店自检 ============ -->
+<section class="panel" id="selfInspection">
+  <div class="subtabs" id="selfSubTabs">
+    <button class="subtab active" data-sub="selfRegions">区域汇总</button>
+    <button class="subtab" data-sub="selfPositions">组别汇总</button>
+    <button class="subtab" data-sub="selfStoreRank">门店分数排名及明细</button>
+  </div>
+
+  <div class="module-panel active" id="selfRegions">
+    <h2 class="pt">区域汇总 · 门店自检</h2>
+    <div class="filterbar">
+      <input type="text" class="search" id="selfRegionSearch" placeholder="搜索区域或组别…">
+      <div class="pos-filter" id="selfRegionPosFilter"></div>
+    </div>
+    <div class="rank-wrap">
+      <table class="rank" id="selfRegionTable"></table>
+    </div>
+  </div>
+
+  <div class="module-panel" id="selfPositions">
+    <h2 class="pt">组别汇总 · 门店自检</h2>
+    <div class="pos-grid" id="selfPositionsCards"></div>
+  </div>
+
+  <div class="module-panel" id="selfStoreRank">
+    <h2 class="pt">门店分数排名 · 门店自检</h2>
+    <div class="filterbar">
+      <input type="text" class="search" id="selfStoreRankSearch" placeholder="搜索门店…">
+      <div class="pos-filter" id="selfStoreRankPosFilter"></div>
+    </div>
+    <div class="rank-region-filter" id="selfStoreRankRegionFilter"></div>
+    <div class="rank-wrap">
+      <table class="rank" id="selfStoreRankTable"></table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 常规巡检（QSC）============ -->
+<section class="panel" id="regularInspection">
+  <div class="subtabs" id="regularSubTabs">
+    <button class="subtab active" data-sub="regularRegions">区域汇总</button>
+    <button class="subtab" data-sub="regularPositions">组别汇总</button>
+    <button class="subtab" data-sub="regularStoreRank">门店分数排名及明细</button>
+  </div>
+
+  <div class="module-panel active" id="regularRegions">
+    <h2 class="pt">区域汇总 · 常规巡检（QSC）</h2>
+    <div class="filterbar">
+      <input type="text" class="search" id="regionSearch" placeholder="搜索区域或组别…">
+      <div class="pos-filter" id="regionPosFilter"></div>
+    </div>
+    <div class="rank-wrap">
+      <table class="rank" id="regionTable"></table>
+    </div>
+  </div>
+
+  <div class="module-panel" id="regularPositions">
+    <h2 class="pt">组别汇总 · 常规巡检（QSC）</h2>
+    <div class="pos-grid" id="regularPositionsCards"></div>
+  </div>
+
+  <div class="module-panel" id="regularStoreRank">
+    <h2 class="pt">门店分数排名 · 常规巡检（QSC）</h2>
+    <div class="filterbar">
+      <input type="text" class="search" id="regularStoreRankSearch" placeholder="搜索门店…">
+      <div class="pos-filter" id="regularStoreRankPosFilter"></div>
+    </div>
+    <div class="rank-region-filter" id="regularStoreRankRegionFilter"></div>
+    <div class="rank-wrap">
+      <table class="rank" id="regularStoreRankTable"></table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 视频巡检 ============ -->
+<section class="panel" id="videoInspection">
+  <div class="subtabs" id="videoSubTabs">
+    <button class="subtab active" data-sub="videoRegions">区域汇总</button>
+    <button class="subtab" data-sub="videoPositions">组别汇总</button>
+    <button class="subtab" data-sub="videoStoreRank">门店分数排名及明细</button>
+  </div>
+
+  <div class="module-panel active" id="videoRegions">
+    <h2 class="pt">区域汇总 · 视频巡检</h2>
+    <div class="filterbar">
+      <input type="text" class="search" id="videoRegionSearch" placeholder="搜索区域或组别…" style="max-width:320px">
+      <div class="pos-filter" id="videoRegionPosFilter"></div>
+    </div>
+    <div class="rank-wrap">
+      <table class="rank" id="videoRegionTable"></table>
+    </div>
+  </div>
+
+  <div class="module-panel" id="videoPositions">
+    <h2 class="pt">组别汇总 · 视频巡检</h2>
+    <div class="pos-grid" id="videoPositionsCards"></div>
+  </div>
+
+  <div class="module-panel" id="videoStoreRank">
+    <h2 class="pt">门店分数排名 · 视频巡检</h2>
+    <div class="filterbar">
+      <input type="text" class="search" id="videoStoreRankSearch" placeholder="搜索门店…" style="max-width:320px">
+      <div class="pos-filter" id="videoStoreRankPosFilter"></div>
+    </div>
+    <div class="rank-region-filter" id="videoStoreRankRegionFilter"></div>
+    <div class="rank-wrap">
+      <table class="rank" id="videoStoreRankTable"></table>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="aiInspection">
+  <div class="subtabs" id="aiSubTabs">
+    <button class="subtab active" data-sub="aiRegions">区域汇总</button>
+    <button class="subtab" data-sub="aiPositions">组别汇总</button>
+    <button class="subtab" data-sub="aiStoreRank">门店分数排名及明细</button>
+  </div>
+  <div class="range-note" id="aiRangeNote" style="display:none"></div>
+
+  <div class="module-panel active" id="aiRegions">
+    <h2 class="pt">区域汇总 · AI 慧检</h2>
+    <div class="filterbar">
+      <input type="text" class="search" id="aiRegionSearch" placeholder="搜索区域或组别…" style="max-width:320px">
+      <div class="pos-filter" id="aiRegionPosFilter"></div>
+    </div>
+    <div class="rank-wrap">
+      <table class="rank" id="aiRegionTable"></table>
+    </div>
+  </div>
+
+  <div class="module-panel" id="aiPositions">
+    <h2 class="pt">组别汇总 · AI 慧检</h2>
+    <div class="pos-grid" id="aiPositionsCards"></div>
+  </div>
+
+  <div class="module-panel" id="aiStoreRank">
+    <h2 class="pt">门店分数排名 · AI 慧检</h2>
+    <div class="filterbar">
+      <input type="text" class="search" id="aiStoreRankSearch" placeholder="搜索门店…" style="max-width:320px">
+      <div class="pos-filter" id="aiStoreRankPosFilter"></div>
+    </div>
+    <div class="rank-wrap">
+      <table class="rank" id="aiStoreRankTable"></table>
+    </div>
+  </div>
+</section>
+
+<section class="panel" id="unqualifiedDetail">
+  <div class="subtabs" id="unqSubTabs">
+    <button class="subtab active" data-sub="unqStore">按门店分类</button>
+    <button class="subtab" data-sub="unqItem">按问题分类</button>
+    <button class="subtab" data-sub="unqRegion">按区域分类</button>
+    <button class="subtab" data-sub="unqStoreRank">门店分数排名</button>
+    <button class="subtab" data-sub="unqRegionRank">区域分数排名</button>
+    <button class="subtab" data-sub="unqStoreTop">门店高发问题</button>
+    <button class="subtab" data-sub="unqCategoryTop">巡检类型高发</button>
+  </div>
+
+  <!-- fix49：快照区间提示条（容器，渲染时填充） -->
+  <div id="unqSnapshotBar"></div>
+
+  <div class="module-panel active" id="unqStore">
+    <h2 class="pt">按门店分类 · 问题高发</h2>
+    <div class="filterbar">
+      <div class="chipbar" id="unqStoreTypeChips"></div>
+      <input type="text" class="search" id="unqStoreSearch" placeholder="搜索门店、区域…" style="max-width:320px">
+    </div>
+    <div class="unq-card-grid" id="unqStoreCards"></div>
+  </div>
+
+  <div class="module-panel" id="unqItem">
+    <h2 class="pt">按问题分类 · 问题高发</h2>
+    <div class="filterbar">
+      <div class="chipbar" id="unqItemCategoryChips"></div>
+      <input type="text" class="search" id="unqItemSearch" placeholder="搜索问题、分类…" style="max-width:320px">
+    </div>
+    <div class="unq-card-grid" id="unqItemCards"></div>
+  </div>
+
+  <div class="module-panel" id="unqRegion">
+    <h2 class="pt">按区域分类 · 问题高发</h2>
+    <div class="filterbar">
+      <div class="chipbar" id="unqRegionChips"></div>
+      <input type="text" class="search" id="unqRegionSearch" placeholder="搜索区域…" style="max-width:320px">
+    </div>
+    <div id="unqRegionCards"></div>
+  </div>
+
+  <div class="module-panel" id="unqStoreRank">
+    <h2 class="pt">门店分数排名 · 问题高发</h2>
+    <div class="filterbar">
+      <div class="chipbar" id="unqStoreRankTypeChips"></div>
+      <input type="text" class="search" id="unqStoreRankSearch" placeholder="搜索门店、区域…" style="max-width:320px">
+    </div>
+    <div class="rank-wrap"><table class="rank" id="unqStoreRankTable"></table></div>
+  </div>
+
+  <div class="module-panel" id="unqRegionRank">
+    <h2 class="pt">区域分数排名 · 问题高发</h2>
+    <div class="rank-wrap"><table class="rank" id="unqRegionRankTable"></table></div>
+  </div>
+
+  <div class="module-panel" id="unqStoreTop">
+    <h2 class="pt">门店高发问题</h2>
+    <div class="filterbar">
+      <div class="chipbar" id="unqStoreTopPositionChips"></div>
+      <input type="text" class="search" id="unqStoreTopSearch" placeholder="搜索门店…" style="max-width:320px">
+    </div>
+    <div class="rank-wrap"><table class="rank" id="unqStoreTopTable"></table></div>
+  </div>
+
+  <div class="module-panel" id="unqCategoryTop">
+    <h2 class="pt">巡检类型高发</h2>
+    <div class="filterbar">
+      <div class="chipbar" id="unqCategoryTopPositionChips"></div>
+      <input type="text" class="search" id="unqCategoryTopSearch" placeholder="搜索分类…" style="max-width:320px">
+    </div>
+    <div class="rank-wrap"><table class="rank" id="unqCategoryTopTable"></table></div>
+  </div>
+</section>
+
+<footer></footer>
+
+<div id="regionModal" class="modal" onclick="if(event.target===this)closeRegionModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title" id="regionModalTitle">区域门店详情</h3>
+      <button class="modal-close" onclick="closeRegionModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-sub" id="regionModalSub">-</p>
+      <table class="rank" id="regionModalTable"></table>
+    </div>
+  </div>
+</div>
+
+<div id="reportDetailModal" class="modal" onclick="if(event.target===this)closeReportDetailModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 class="modal-title" id="reportDetailTitle">报告详情</h3>
+      <button class="modal-close" onclick="closeReportDetailModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="reportDetailBody"></div>
+  </div>
+</div>
+
+<script>
+window.onerror = function(msg, url, line, col, err){
+  var el = document.getElementById('error');
+  if(el){
+    el.style.display = 'block';
+    el.textContent = '脚本错误：' + msg + ' (行' + line + '，文件' + (url||'').split('/').pop() + ')';
+  }
+  console.error('window.onerror', msg, url, line, col, err);
+  return false;
+};
+</script>
+<script src="aggregate.js?v=20260902fix16"></script>
+<script src="app.js?v=20260902fix16"></script>
+
+<!-- fix49：问题图片点击放大灯箱 -->
+<div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
+  <button class="close" onclick="closeUnqLightbox(event)" aria-label="关闭">×</button>
+  <img id="unqLightboxImg" src="" alt="">
+  <div class="caption" id="unqLightboxCaption"></div>
+</div>
+
+</body>
+</html>

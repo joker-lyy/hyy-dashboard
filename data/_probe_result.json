@@ -1,0 +1,998 @@
+{
+ "probedAt": "2026-09-03 17:13:23",
+ "samples": {
+  "CG": "10000000199106",
+  "ZJ": "10000001138192",
+  "SP": "10000001214705"
+ },
+ "total": 108,
+ "hits": 7,
+ "results": [
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/cg/report/info",
+   "mode": "json",
+   "endpoint": "/web/ri/cg/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/cg/report/info?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/cg/report/info",
+   "mode": "query",
+   "endpoint": "/web/ri/cg/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/cg/report/info?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/report/info",
+   "mode": "json",
+   "endpoint": "/web/ri/report/info?version=1",
+   "ok": false,
+   "err": "400 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/report/info?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/report/info",
+   "mode": "query",
+   "endpoint": "/web/ri/report/info?version=1",
+   "ok": true,
+   "dataType": "dict",
+   "dataLen": 81,
+   "sample": "{\"isPassString\": \"合格(有不合格项)\", \"summaryList\": [{\"itemId\": 1, \"hintText\": \"例如:销售情况:<br>竞品、商圈情况:<br>外卖平台分析:<br>加盟商沟通反馈:\", \"title\": \"总结分析\", \"content\": \"例如:销售情况:目前刚开业7天，开业期间堂食业绩200-2500日均\\n竞品、商圈情况:1公里以内没有竞品3公里以内有6家\\n外卖平台分析:无\\n加盟商沟通反馈:到货问题混乱，缺货漏货，7月开始就好点了\"}], \"creatorPhoto\": \"\", \"summaryImgUploadCode\": null, \"franchiseeId\": 10000000001080, \"templateId\": 10000000080226, \"summaryImg\": [], \"signId\": 100000"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/cg/report/detail",
+   "mode": "json",
+   "endpoint": "/web/ri/cg/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/cg/report/detail?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/cg/report/detail",
+   "mode": "query",
+   "endpoint": "/web/ri/cg/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/cg/report/detail?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/report/detail",
+   "mode": "json",
+   "endpoint": "/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/report/detail?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/report/detail",
+   "mode": "query",
+   "endpoint": "/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/report/detail?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/cg/report/get",
+   "mode": "json",
+   "endpoint": "/web/ri/cg/report/get?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/cg/report/get?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/cg/report/get",
+   "mode": "query",
+   "endpoint": "/web/ri/cg/report/get?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/cg/report/get?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/polling/report/info",
+   "mode": "json",
+   "endpoint": "/web/ri/polling/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/polling/report/info?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web/ri",
+   "path": "/polling/report/info",
+   "mode": "query",
+   "endpoint": "/web/ri/polling/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/polling/report/info?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/cg/report/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/cg/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/cg/report/info?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/cg/report/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/cg/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/cg/report/info?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/report/info?version=1",
+   "ok": false,
+   "err": "400 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/report/info?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/report/info?version=1",
+   "ok": true,
+   "dataType": "dict",
+   "dataLen": 81,
+   "sample": "{\"isPassString\": \"合格(有不合格项)\", \"summaryList\": [{\"itemId\": 1, \"hintText\": \"例如:销售情况:<br>竞品、商圈情况:<br>外卖平台分析:<br>加盟商沟通反馈:\", \"title\": \"总结分析\", \"content\": \"例如:销售情况:目前刚开业7天，开业期间堂食业绩200-2500日均\\n竞品、商圈情况:1公里以内没有竞品3公里以内有6家\\n外卖平台分析:无\\n加盟商沟通反馈:到货问题混乱，缺货漏货，7月开始就好点了\"}], \"creatorPhoto\": \"\", \"summaryImgUploadCode\": null, \"franchiseeId\": 10000000001080, \"templateId\": 10000000080226, \"summaryImg\": [], \"signId\": 100000"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/cg/report/detail",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/cg/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/cg/report/detail?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/cg/report/detail",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/cg/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/cg/report/detail?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/detail",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/report/detail?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/detail",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/report/detail?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/cg/report/get",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/cg/report/get?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/cg/report/get?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/cg/report/get",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/cg/report/get?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/cg/report/get?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/polling/report/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/polling/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/polling/report/info?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/statRi/web/ri",
+   "path": "/polling/report/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/polling/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/polling/report/info?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/cg/report/info",
+   "mode": "json",
+   "endpoint": "/web/cg/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/cg/report/info?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/cg/report/info",
+   "mode": "query",
+   "endpoint": "/web/cg/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/cg/report/info?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/report/info",
+   "mode": "json",
+   "endpoint": "/web/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/info?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/report/info",
+   "mode": "query",
+   "endpoint": "/web/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/info?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/cg/report/detail",
+   "mode": "json",
+   "endpoint": "/web/cg/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/cg/report/detail?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/cg/report/detail",
+   "mode": "query",
+   "endpoint": "/web/cg/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/cg/report/detail?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/report/detail",
+   "mode": "json",
+   "endpoint": "/web/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/detail?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/report/detail",
+   "mode": "query",
+   "endpoint": "/web/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/detail?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/cg/report/get",
+   "mode": "json",
+   "endpoint": "/web/cg/report/get?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/cg/report/get?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/cg/report/get",
+   "mode": "query",
+   "endpoint": "/web/cg/report/get?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/cg/report/get?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/polling/report/info",
+   "mode": "json",
+   "endpoint": "/web/polling/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/polling/report/info?version=1"
+  },
+  {
+   "planType": "CG",
+   "prefix": "/web",
+   "path": "/polling/report/info",
+   "mode": "query",
+   "endpoint": "/web/polling/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/polling/report/info?version=1&reportId=10000000199106&planType=CG&signId=10000000198617"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/report/info",
+   "mode": "json",
+   "endpoint": "/web/ri/report/info?version=1",
+   "ok": false,
+   "err": "400 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/report/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/report/info",
+   "mode": "query",
+   "endpoint": "/web/ri/report/info?version=1",
+   "ok": true,
+   "dataType": "dict",
+   "dataLen": 70,
+   "sample": "{\"tableSuffix\": \"\", \"isPassString\": \"合格\", \"planName\": \"门店开店自检\", \"creatorPhoto\": \"\", \"franchiseeId\": 10000001003623, \"templateId\": 10000000004589, \"score\": \"100.0\", \"submittedTZ\": \"+08:00\", \"reportDate\": \"2026-08-25T00:00:00+08:00\", \"nameLink\": \"总部\", \"correctDeadlineSummary\": {\"minShouldCorrected\": null, \"zgCount\": 0, \"maxShouldCorrected\": null}, \"planId\": 10000000050274, \"itemSum\": 5, \"evaluated\":"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/zj/report/info",
+   "mode": "json",
+   "endpoint": "/web/ri/zj/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/zj/report/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/zj/report/info",
+   "mode": "query",
+   "endpoint": "/web/ri/zj/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/zj/report/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/selfTest/report/info",
+   "mode": "json",
+   "endpoint": "/web/ri/selfTest/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/selfTest/report/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/selfTest/report/info",
+   "mode": "query",
+   "endpoint": "/web/ri/selfTest/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/selfTest/report/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/report/detail",
+   "mode": "json",
+   "endpoint": "/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/report/detail?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/report/detail",
+   "mode": "query",
+   "endpoint": "/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/report/detail?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/selfTestReport/info",
+   "mode": "json",
+   "endpoint": "/web/ri/selfTestReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/selfTestReport/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/selfTestReport/info",
+   "mode": "query",
+   "endpoint": "/web/ri/selfTestReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/selfTestReport/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/zj/report/detail",
+   "mode": "json",
+   "endpoint": "/web/ri/zj/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/zj/report/detail?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web/ri",
+   "path": "/zj/report/detail",
+   "mode": "query",
+   "endpoint": "/web/ri/zj/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/zj/report/detail?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/report/info?version=1",
+   "ok": false,
+   "err": "400 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/report/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/report/info?version=1",
+   "ok": true,
+   "dataType": "dict",
+   "dataLen": 70,
+   "sample": "{\"tableSuffix\": \"\", \"isPassString\": \"合格\", \"planName\": \"门店开店自检\", \"creatorPhoto\": \"\", \"franchiseeId\": 10000001003623, \"templateId\": 10000000004589, \"score\": \"100.0\", \"submittedTZ\": \"+08:00\", \"reportDate\": \"2026-08-25T00:00:00+08:00\", \"nameLink\": \"总部\", \"correctDeadlineSummary\": {\"minShouldCorrected\": null, \"zgCount\": 0, \"maxShouldCorrected\": null}, \"planId\": 10000000050274, \"itemSum\": 5, \"evaluated\":"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/zj/report/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/zj/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/zj/report/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/zj/report/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/zj/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/zj/report/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/selfTest/report/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/selfTest/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/selfTest/report/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/selfTest/report/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/selfTest/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/selfTest/report/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/detail",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/report/detail?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/detail",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/report/detail?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/selfTestReport/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/selfTestReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/selfTestReport/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/selfTestReport/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/selfTestReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/selfTestReport/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/zj/report/detail",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/zj/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/zj/report/detail?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/statRi/web/ri",
+   "path": "/zj/report/detail",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/zj/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/zj/report/detail?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/report/info",
+   "mode": "json",
+   "endpoint": "/web/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/report/info",
+   "mode": "query",
+   "endpoint": "/web/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/zj/report/info",
+   "mode": "json",
+   "endpoint": "/web/zj/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/zj/report/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/zj/report/info",
+   "mode": "query",
+   "endpoint": "/web/zj/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/zj/report/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/selfTest/report/info",
+   "mode": "json",
+   "endpoint": "/web/selfTest/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/selfTest/report/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/selfTest/report/info",
+   "mode": "query",
+   "endpoint": "/web/selfTest/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/selfTest/report/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/report/detail",
+   "mode": "json",
+   "endpoint": "/web/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/detail?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/report/detail",
+   "mode": "query",
+   "endpoint": "/web/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/detail?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/selfTestReport/info",
+   "mode": "json",
+   "endpoint": "/web/selfTestReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/selfTestReport/info?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/selfTestReport/info",
+   "mode": "query",
+   "endpoint": "/web/selfTestReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/selfTestReport/info?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/zj/report/detail",
+   "mode": "json",
+   "endpoint": "/web/zj/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/zj/report/detail?version=1"
+  },
+  {
+   "planType": "ZJ",
+   "prefix": "/web",
+   "path": "/zj/report/detail",
+   "mode": "query",
+   "endpoint": "/web/zj/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/zj/report/detail?version=1&reportId=10000001138192&planType=ZJ"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/video/report/info",
+   "mode": "json",
+   "endpoint": "/web/ri/video/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/video/report/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/video/report/info",
+   "mode": "query",
+   "endpoint": "/web/ri/video/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/video/report/info?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/sp/report/info",
+   "mode": "json",
+   "endpoint": "/web/ri/sp/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/sp/report/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/sp/report/info",
+   "mode": "query",
+   "endpoint": "/web/ri/sp/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/sp/report/info?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/report/info",
+   "mode": "json",
+   "endpoint": "/web/ri/report/info?version=1",
+   "ok": false,
+   "err": "400 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/report/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/report/info",
+   "mode": "query",
+   "endpoint": "/web/ri/report/info?version=1",
+   "ok": true,
+   "dataType": "dict",
+   "dataLen": 32,
+   "sample": "{\"template\": \"AI视频巡检（常规店）\", \"rectificationCompleted\": 1, \"createdTZ\": \"+08:00\", \"inspectionTime\": \"00:06:44\", \"shouldBeRectified\": 1, \"isStoreEmployee\": 0, \"score\": 80.0, \"submittedTZ\": \"+08:00\", \"reportDate\": \"2026-08-27 00:00:00\", \"isCorrected\": 1, \"userOrganizeId\": 1, \"isExpiredCorrected\": 0, \"transTo100pts\": 1, \"roleNmae\": \"稽核专员\", \"summary\": \"已告知店长上班需佩戴围裙\", \"employeeName\": \"赖奕毅\", \"realCorrecte"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/videoReport/info",
+   "mode": "json",
+   "endpoint": "/web/ri/videoReport/info?version=1",
+   "ok": false,
+   "err": "400 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/videoReport/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/videoReport/info",
+   "mode": "query",
+   "endpoint": "/web/ri/videoReport/info?version=1",
+   "ok": true,
+   "dataType": "dict",
+   "dataLen": 66,
+   "sample": "{\"tableSuffix\": \"\", \"isPassString\": \"合格(有不合格项)\", \"creatorPhoto\": \"\", \"franchiseeId\": 99999, \"templateId\": 10000000379561, \"summaryImg\": [], \"summaryVideo\": [], \"score\": 80.0, \"submittedTZ\": \"+08:00\", \"reportDate\": \"2026-08-27\", \"correctDeadlineSummary\": {\"minShouldCorrected\": \"2026-08-29\", \"zgCount\": 1, \"maxShouldCorrected\": \"2026-08-29\"}, \"itemSum\": 8, \"userOrganizeId\": 1, \"highlightImg\": [], \"tr"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/report/detail",
+   "mode": "json",
+   "endpoint": "/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/report/detail?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/report/detail",
+   "mode": "query",
+   "endpoint": "/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/report/detail?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/video/report/detail",
+   "mode": "json",
+   "endpoint": "/web/ri/video/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/video/report/detail?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web/ri",
+   "path": "/video/report/detail",
+   "mode": "query",
+   "endpoint": "/web/ri/video/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/ri/video/report/detail?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/video/report/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/video/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/video/report/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/video/report/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/video/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/video/report/info?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/sp/report/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/sp/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/sp/report/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/sp/report/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/sp/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/sp/report/info?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/report/info?version=1",
+   "ok": false,
+   "err": "400 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/report/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/report/info?version=1",
+   "ok": true,
+   "dataType": "dict",
+   "dataLen": 32,
+   "sample": "{\"template\": \"AI视频巡检（常规店）\", \"rectificationCompleted\": 1, \"createdTZ\": \"+08:00\", \"inspectionTime\": \"00:06:44\", \"shouldBeRectified\": 1, \"isStoreEmployee\": 0, \"score\": 80.0, \"submittedTZ\": \"+08:00\", \"reportDate\": \"2026-08-27 00:00:00\", \"isCorrected\": 1, \"userOrganizeId\": 1, \"isExpiredCorrected\": 0, \"transTo100pts\": 1, \"roleNmae\": \"稽核专员\", \"summary\": \"已告知店长上班需佩戴围裙\", \"employeeName\": \"赖奕毅\", \"realCorrecte"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/videoReport/info",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/videoReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/videoReport/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/videoReport/info",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/videoReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/videoReport/info?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/detail",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/report/detail?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/report/detail",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/report/detail?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/video/report/detail",
+   "mode": "json",
+   "endpoint": "/statRi/web/ri/video/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/video/report/detail?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/statRi/web/ri",
+   "path": "/video/report/detail",
+   "mode": "query",
+   "endpoint": "/statRi/web/ri/video/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/statRi/web/ri/video/report/detail?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/video/report/info",
+   "mode": "json",
+   "endpoint": "/web/video/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/video/report/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/video/report/info",
+   "mode": "query",
+   "endpoint": "/web/video/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/video/report/info?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/sp/report/info",
+   "mode": "json",
+   "endpoint": "/web/sp/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/sp/report/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/sp/report/info",
+   "mode": "query",
+   "endpoint": "/web/sp/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/sp/report/info?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/report/info",
+   "mode": "json",
+   "endpoint": "/web/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/report/info",
+   "mode": "query",
+   "endpoint": "/web/report/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/info?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/videoReport/info",
+   "mode": "json",
+   "endpoint": "/web/videoReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/videoReport/info?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/videoReport/info",
+   "mode": "query",
+   "endpoint": "/web/videoReport/info?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/videoReport/info?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/report/detail",
+   "mode": "json",
+   "endpoint": "/web/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/detail?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/report/detail",
+   "mode": "query",
+   "endpoint": "/web/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/report/detail?version=1&reportId=10000001214705&planType=SP"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/video/report/detail",
+   "mode": "json",
+   "endpoint": "/web/video/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/video/report/detail?version=1"
+  },
+  {
+   "planType": "SP",
+   "prefix": "/web",
+   "path": "/video/report/detail",
+   "mode": "query",
+   "endpoint": "/web/video/report/detail?version=1",
+   "ok": false,
+   "err": "404 Client Error:  for url: https://zhyyapp-en.ruipos.com/web/video/report/detail?version=1&reportId=10000001214705&planType=SP"
+  }
+ ]
+}

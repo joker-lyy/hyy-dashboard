@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 本地环境
+.env
+.env.local
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 注意：data/ 目录里的 JSON 是 GitHub Actions 生成的产物，
+# 必须提交到仓库，前端直接读取 —— 不要忽略它。
+
+# 本地工作目录/沙箱副本（不入仓）
+.workbuddy/
+backup/
+v2-fix10-upload/
+data/_diag.json
