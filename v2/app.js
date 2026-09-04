@@ -277,11 +277,20 @@ function _renderReportItemTable(name, arr, opts){
   return out;
 }
 function _renderReportKv(raw){
-  const skip = new Set(['success','error','cachedAt','meta','details','raw','endpoint','planType','reportId','signId','rectifications','token']);
+  const skip = new Set(['success','error','cachedAt','meta','details','raw','endpoint','planType','reportId','signId','rectifications','token','_renderForm','_cgNormalized','userOrganizeId','storeId','userId','isExpiredCorrected','isStoreEmployee','shouldBeRectified','shouldCorrected','realCorrected','isCorrected','highlightDesc','levelName','storeType','transTo100pts','roleNmae','fullName','orgName']);
+  // fix101：SP/VIDEO 报告字段中文映射，让弹窗更直观
+  const CN = {
+    template:'巡检模板', score:'巡检得分', templateScore:'模板满分', passScore:'合格分',
+    isPass:'合格判定', employeeName:'巡检人员', inspectionTime:'巡检时长',
+    reportDate:'报告日期', created:'创建时间', submitted:'提交时间',
+    createdTZ:'创建时区', submittedTZ:'提交时区', remarks:'备注', summary:'总结',
+    rectificationCompleted:'整改完成', orgName:'组织路径'
+  };
   const rows = [];
   for(const [k,v] of Object.entries(raw)){
     if(skip.has(k)) continue;
     if(v && typeof v === 'object') continue;
+    if(v === '' || v == null) continue;
     rows.push([k, v]);
   }
   if(!rows.length){
@@ -289,7 +298,11 @@ function _renderReportKv(raw){
   }
   let out = `<div class="rd-sec"><div class="rd-sec-h">报告信息</div><table class="rank rd-detail"><tbody>`;
   for(const [k,v] of rows){
-    out += `<tr><td class="rd-k">${html(String(k))}</td><td>${html(String(v==null?'':v))}</td></tr>`;
+    const label = CN[k] || k;
+    let displayVal = v;
+    if(k === 'isPass') displayVal = (Number(v) === 1 || v === true) ? '合格' : (Number(v) === 0 ? '不合格' : v);
+    if(k === 'rectificationCompleted') displayVal = (Number(v) === 1) ? '已完成' : (Number(v) === 0 ? '未完成' : v);
+    out += `<tr><td class="rd-k">${html(String(label))}</td><td>${html(String(displayVal==null?'':displayVal))}</td></tr>`;
   }
   out += `</tbody></table></div>`;
   return out;
@@ -626,20 +639,13 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
       // fix75：视频巡检（SP）报告的 API 本身只返回元数据（template/score/summary/employeeName 等），
       //   不返回明细检查项列表——这是慧运营 API 设计，不是我们没抓到。
       //   所以 SP 报告弹窗里没有明细项是正常的，给出明确提示并突出"打开慧运营视频报告"按钮。
-      const isVideoNoDetail = (effectivePt === 'SP') && det.raw && det.raw._renderForm === 'flat'
-        && !Array.isArray(det.raw.categoryList)
-        && !Array.isArray(det.raw.items)
-        && !Array.isArray(det.raw.details);
-      if(isVideoNoDetail){
-        body += `<h4 class="rd-h">报告明细</h4>`;
-        body += `<div class="placeholder-box" style="margin-bottom:8px">
-          ℹ 视频巡检报告本身不包含逐项明细，仅记录巡检得分、巡检人员、整改状态等元数据。
-          如需查看该视频原片、点位截图或具体巡检项，请在慧运营后台的「视频巡检」模块中查看。
-        </div>`;
-        body += renderReportRaw(det.raw);
-        } else {
-        body += `<h4 class="rd-h">报告明细</h4>` + renderReportRaw(det.raw);
-        }
+      // fix101：视频巡检（SP）报告 API 只返回元数据字段（template/score/employeeName/
+      //   passScore/isPass/inspectionTime/created/submitted 等），没有 categoryList/itemList
+      //   这类逐项明细——但 26 个字段本身都是有价值的报告信息。
+      //   旧逻辑在这里塞了一段写死的"不包含逐项明细"文案，让用户以为弹窗坏了；
+      //   现在统一走 renderReportRaw，没有列表字段时会自动 fallback 到 _renderReportKv
+      //   渲染出清晰的「报告信息」键值表（巡检人、得分、合格判定、时长、提交时间等）。
+      body += `<h4 class="rd-h">报告信息</h4>` + renderReportRaw(det.raw);
     }
   }else if(det && det.error){
     body += `<div class="placeholder-box">该报告明细云端暂未抓取到（数据刷新后将自动补齐）。可查看上方基础信息。</div>`;
