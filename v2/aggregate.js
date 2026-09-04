@@ -69,6 +69,24 @@ function rawMatchRegion(nameLink, regionNames) {
 }
 function monthKey(dateStr) { return String(dateStr || '').slice(0, 7); }
 
+/* fix97：leaves 为空的月份（如 2026-07 培训组/加盟营运组）区域聚合会整体跳过 →
+   区域汇总「无数据」。兜底：从该岗位区间内门店的组织路径末段反推区域叶子
+   （门店数未知记 0，之后由 tryAggregateRange 用 data.json 基线还原）。 */
+function synthLeavesIfEmpty(posLabel, leaves, storeBuckets) {
+  if ((leaves || []).length) return leaves;
+  const seen = new Set();
+  const synth = [];
+  for (const [key, b] of Object.entries(storeBuckets || {})) {
+    if (posLabel && key.split('||')[0] !== posLabel) continue;
+    const rname = rawMatchRegion((b && b.orgPath) || '', new Set());
+    if (rname && rname !== '未分配区域' && !seen.has(rname)) {
+      seen.add(rname);
+      synth.push({ organizeName: rname, currentStoreCount: 0 });
+    }
+  }
+  return synth.length ? synth : leaves;
+}
+
 /* fix74：跨 raw 月份构建 storeCode → {position, region, orgPath} 反查表
    给 AI 慧检聚合用：每条 AI store 拿到（岗位、区域），无对应则丢弃。
    区域：用 raw 月份的 leaves 的 organizeName 反查 orgPath 末段；
@@ -330,7 +348,9 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
   const positionSummaries = [];
   let totalStoreCount = 0;
 
-  for (const [posLabel, leaves] of Object.entries(leafMap)) {
+  for (const [posLabel, rawLeaves] of Object.entries(leafMap)) {
+    // fix97：leaves 空的月份兜底反推区域叶子（见 synthLeavesIfEmpty 注释）
+    const leaves = synthLeavesIfEmpty(posLabel, rawLeaves, storeBuckets);
     const regionNames = new Set(leaves.map(l => l.organizeName));
     const regionStores = {};
 
@@ -876,7 +896,9 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
   const positionSummaries = [];
   let totalStoreCount = 0;
 
-  for (const [posLabel, leaves] of Object.entries(leafMap)) {
+  for (const [posLabel, rawLeaves] of Object.entries(leafMap)) {
+    // fix97：leaves 空的月份兜底（与 aggregateRegular 同源）
+    const leaves = synthLeavesIfEmpty(posLabel, rawLeaves, storeBuckets);
     const regionNames = new Set(leaves.map(l => l.organizeName));
     totalStoreCount += leaves.reduce((a, l) => a + rawSafeInt(l.currentStoreCount), 0);
     const regionStores = {};

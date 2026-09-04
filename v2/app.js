@@ -566,8 +566,12 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
   // fix79：reportDetails 实际是 {success, generatedAt, source, details:{...}} 嵌套结构，
   //   顶层没有明细键；同时要兼容旧版（直接是字典）以防以后又改回
   const rdMap = (reportDetails && reportDetails.details) ? reportDetails.details : reportDetails;
+  // fix98：只有带真实 raw 的条目才算命中——旧管线残留的 VIDEO: 键往往 raw=null 且只有
+  //   error（如 "no_data_or_endpoint"），直接命中会让弹窗停在「云端暂未抓取到」或
+  //   渲染扁平元数据，永远不会触发按需加载的 SP_ 单文件。跳过它们走懒加载兜底。
   for(const k of candidates){
-    if(rdMap && rdMap[k]){ det = rdMap[k]; foundKey = k; break; }
+    const e = rdMap && rdMap[k];
+    if(e && (e.raw || (!e.error && e.reportId != null))){ det = e; foundKey = k; break; }
   }
   const effectivePt = det ? (foundKey.split(':')[0] || pt) : (pt || 'CG');
   const planLabel = {CG:'常规巡检（QSC）', ZJ:'门店自检', SP:'视频巡检', AI:'AI 慧检（视频巡检）'}[effectivePt] || effectivePt;
@@ -900,7 +904,7 @@ async function tryAggregateRange(s, e){
       });
       if(baseline.totalStores != null) data.totalStores = baseline.totalStores;
     }
-    appData = applyAiReportDateRange(data, s, e);
+    appData = await applyAiReportDateRange(data, s, e);
     renderAll();
     showRangeBanner(s, e, appData._partialMonths, appData._rawMonths);
     // fix70：右上角时间用 reportDetails.json 的 generatedAt（双击 .bat 后即时更新）
@@ -970,14 +974,39 @@ async function applyDateRange(){
   }
 }
 
+// fix97：AI 报告列表（带 reportDate）由批抓端写入 data/aiReports.json，
+// 让 AI 慧检板块真正按所选区间过滤（此前 fix95 只能回退全量快照）。
+let __aiReportsCache = null;
+async function loadAiReportsList(){
+  if(__aiReportsCache) return __aiReportsCache;
+  try{
+    const r = await fetch(cb(`${DATA_BASE}/aiReports.json`), {cache:'no-store'});
+    __aiReportsCache = r.ok ? ((await r.json()).reports || []) : [];
+  }catch(e){ __aiReportsCache = []; }
+  return __aiReportsCache;
+}
+
 // fix87：AI 慧检必须服从页面当前日期区间。
 // AI 接口汇总快照是“最新一条/店”，不能直接拿来展示 9 月页面里的 8 月报告；
-// 这里用已抓取的 AI:reportId 明细按 reportDate 过滤，并按门店保留区间内最新一份。
-function applyAiReportDateRange(data, start, end){
+// 这里用 aiReports.json（含日期的 AI 报告列表）+ 已加载的 AI:reportId 明细
+// 按 reportDate 过滤，并按门店保留区间内最新一份。
+async function applyAiReportDateRange(data, start, end){
   if(!data || !data.aiInspection || !start || !end) return data;
   const rdMap = (reportDetails && reportDetails.details) ? reportDetails.details : reportDetails;
-  if(!rdMap || typeof rdMap !== 'object') return data;
   const baseAi = data.aiInspection;
+  // fix97：合并 aiReports.json（带日期的 AI 报告列表）到扫描集。
+  // 它是弹窗明细之外唯一带 reportDate 的 AI 数据源，保证区间过滤有数据可用。
+  const aiList = await loadAiReportsList();
+  const aiRows = {};
+  (aiList || []).forEach(r=>{
+    if(r && r.reportId) aiRows['AI:' + r.reportId] = {
+      reportId: r.reportId, reportDate: r.reportDate,
+      storeCode: r.storeCode, storeName: r.storeName,
+      raw: { reportTime: r.reportDate, storeCode: r.storeCode, storeName: r.storeName,
+             score: r.score, isPass: r.isPass, taskName: r.taskName },
+    };
+  });
+  const merged = Object.assign({}, aiRows, (rdMap && typeof rdMap === 'object') ? rdMap : {});
   const baseStores = (baseAi.stores || baseAi.rankStores || []).slice();
   const metaByCode = {};
   const metaByName = {};
@@ -1000,7 +1029,7 @@ function applyAiReportDateRange(data, start, end){
     addMeta(x);
   }));
   const latest = {};
-  Object.entries(rdMap).forEach(([key, entry])=>{
+  Object.entries(merged).forEach(([key, entry])=>{
     if(!key.startsWith('AI:') || !entry) return;
     const raw = entry.raw || {};
     const date = String(entry.reportDate || raw.reportTime || '').slice(0,10);
@@ -1011,13 +1040,19 @@ function applyAiReportDateRange(data, start, end){
     if(!meta) return;
     const old = latest[code || name];
     if(old && String(old._date || '') >= date) return;
+    const r0 = entry.raw || {};
+    const inRangeScore = (r0.score != null ? Number(r0.score) : (Number(entry.score) || null));
+    const inRangePass = (r0.isPass != null ? r0.isPass : (entry.isPass != null ? entry.isPass : null));
     latest[code || name] = {
       ...meta,
       storeCode: code || meta.storeCode,
       storeName: name || meta.storeName,
-      reportId: entry.reportId || raw.reportId || meta.reportId || '',
+      reportId: entry.reportId || r0.reportId || meta.reportId || '',
       _date: date,
       reportDate: date,
+      // fix97：用区间内那份报告自己的得分/结论，不沿用快照里的旧分数
+      score: inRangeScore != null && !isNaN(inRangeScore) ? inRangeScore : meta.score,
+      isPass: inRangePass != null ? inRangePass : meta.isPass,
     };
   });
   // 没有明细日期时不悄悄混入旧快照，直接显示当前区间无 AI 报告。
@@ -1090,7 +1125,7 @@ async function loadReportDetails(){
   }catch(e){ /* 旧数据没有 refresh.json 时使用 data.json 兼容字段 */ }
   // 报告明细加载完成后，重新按当前日期区间裁剪 AI，避免 boot 先聚合、后加载明细导致仍显示旧月份。
   if(appData && currentStart && currentEnd){
-    appData = applyAiReportDateRange(appData, currentStart, currentEnd);
+    appData = await applyAiReportDateRange(appData, currentStart, currentEnd);
     renderAll();
   }
 }
@@ -1107,7 +1142,7 @@ async function loadData(force){
     if(!json.success || !json.data){
       throw new Error(json.error || '数据为空，请稍后刷新重试');
     }
-    appData = applyAiReportDateRange(json.data, currentStart, currentEnd);
+    appData = await applyAiReportDateRange(json.data, currentStart, currentEnd);
     if(appData && appData.webBase){
       HYY_WEB_BASE = appData.webBase;
     }
