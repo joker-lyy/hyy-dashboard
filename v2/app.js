@@ -1021,7 +1021,14 @@ function applyAiReportDateRange(data, start, end){
     };
   });
   // 没有明细日期时不悄悄混入旧快照，直接显示当前区间无 AI 报告。
+  // fix95：fix89 后明细改为按需加载，details 里通常没有 AI 数据 → 筛选恒为空 → 板块「无数据」。
+  // 改为：筛选为空时回退显示 baseline 快照（AI 本就是"每店最新一份"快照），并如实标注。
   const stores = Object.values(latest);
+  if (!stores.length) {
+    data.aiInspection = {...baseAi,
+      _rangeNote:`AI 慧检显示最新快照（逐份报告日期未随明细发布，无法按 ${start} ~ ${end} 精确筛选）`};
+    return data;
+  }
   const regionMap = {};
   stores.forEach(s=>{
     const pos = s.position || '未分配组别';
