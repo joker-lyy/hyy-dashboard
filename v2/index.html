@@ -6,6 +6,18 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<script>
+// fix103: cache-bust——URL 的 _ts 超过 5 分钟就自动重定向，强制浏览器拿最新 index.html + app.js + data.json
+(function(){
+  var u = new URL(location.href);
+  var ts = u.searchParams.get('_ts');
+  var now = Date.now();
+  if(!ts || (now - parseInt(ts)) > 300000){
+    u.searchParams.set('_ts', now.toString());
+    location.replace(u.toString());
+  }
+})();
+</script>
 <title>苍井寿司 · 食品安全巡检看板</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <style>
@@ -538,8 +550,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260902fix16"></script>
-<script src="app.js?v=20260902fix16"></script>
+<script src="aggregate.js?v=20260905fix103"></script>
+<script src="app.js?v=20260905fix103"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
