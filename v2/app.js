@@ -2331,7 +2331,9 @@ function renderRegularInspection(d){
             <td>${html(s.region)}</td>
             <td class="${scoreClass(s.score)}">${s.score}</td>
             <td>${s.reportCount || 0}</td>
-            <td>${reportLink(s, '查看报告', 'CG')}</td>
+            <td>${(s.reports && s.reports.length > 1)
+              ? `<span class="link-btn" onclick="showStoreInspReports('CG','${encodeURIComponent(s.storeName||'')}','${encodeURIComponent(s.position||'')}')">查看报告(${s.reports.length})</span>`
+              : reportLink(s, '查看报告', 'CG')}</td>
           </tr>
         `;
       }).join('')}
@@ -2435,7 +2437,9 @@ function renderVideoInspection(d){
             <td>${html(s.region)}</td>
             <td>${html(s.position)}</td>
             <td class="${scoreClass(s.score)}">${s.score}</td>
-            <td>${reportLink(s, '查看报告', 'SP')}</td>
+            <td>${(s.reports && s.reports.length > 1)
+              ? `<span class="link-btn" onclick="showStoreInspReports('SP','${encodeURIComponent(s.storeName||'')}','${encodeURIComponent(s.position||'')}')">查看报告(${s.reports.length})</span>`
+              : reportLink(s, '查看报告', 'SP')}</td>
           </tr>
         `;
       }).join('')}
@@ -2551,7 +2555,9 @@ function renderAiInspection(d){
             <td>${html(s.region)}</td>
             <td>${html(s.position)}</td>
             <td class="${scoreClass(s.score)}">${s.score}</td>
-            <td>${reportLink(s, '查看报告', 'AI')}</td>
+            <td>${(s.reports && s.reports.length > 1)
+              ? `<span class="link-btn" onclick="showStoreInspReports('AI','${encodeURIComponent(s.storeName||'')}','${encodeURIComponent(s.position||'')}')">查看报告(${s.reports.length})</span>`
+              : reportLink(s, '查看报告', 'AI')}</td>
           </tr>`;
       }).join('')}
       ${vrankItems.length===0?'<tr><td colspan="6" class="empty">无数据</td></tr>':''}
@@ -3301,6 +3307,58 @@ function showStoreSelfReports(storeNameEnc, positionEnc, regionEnc){
         `;
       }).join('')}
       ${reports.length===0?'<tr><td colspan="5" class="empty">该门店在当前区间内暂无自检报告</td></tr>':''}
+    </tbody>
+  `;
+  $('regionModal').classList.add('active');
+}
+
+// fix109h：常规(CG)/视频(SP)/AI 巡检门店的多份报告明细弹窗（与自检「查看报告(N)」同风格）
+function showStoreInspReports(kind, storeNameEnc, positionEnc){
+  const storeName = decodeURIComponent(storeNameEnc || '');
+  const position  = decodeURIComponent(positionEnc || '');
+  const typeLabel = kind === 'CG' ? '常规巡检（QSC）' : (kind === 'SP' ? '视频巡检' : 'AI 慧检');
+  const planType  = kind === 'CG' ? 'CG' : (kind === 'SP' ? 'SP' : 'AI');
+  // 反查门店记录（reports 数组在 raw 聚合模式下由 aggregate.js 产出）
+  let reports = [];
+  const pools = [
+    kind === 'CG' ? (appData.stores || []) : null,
+    kind === 'SP' ? ((appData.videoInspection && appData.videoInspection.stores) || []) : null,
+    kind === 'AI' ? ((appData.aiInspection && appData.aiInspection.stores) || []) : null,
+  ].filter(Boolean);
+  for(const stores of pools){
+    const target = stores.find(s => (s.storeName||'') === storeName && (!position || (s.position||'') === position));
+    if(target){ reports = (target.reports || []).slice(); if(reports.length) break; }
+  }
+  reports.sort((a,b)=> (b.d||'').localeCompare(a.d||''));
+
+  $('regionModalTitle').textContent = `${html(storeName)} · ${typeLabel}报告明细`;
+  $('regionModalSub').innerHTML =
+    `组别：${html(position)}　报告数：<b>${reports.length}</b>　<span style="color:#888">（当前查询区间）</span>`;
+
+  $('regionModalTable').innerHTML = `
+    <thead><tr>
+      <th>日期</th><th>巡检类型</th><th>结果</th><th>分数</th><th>报告</th>
+    </tr></thead>
+    <tbody>
+      ${reports.map(r=>{
+        const pass = (r.pass === true || Number(r.pass) === 1);
+        const passStyle = r.pass == null ? 'color:#999' : (pass ? 'color:#1a7f37;font-weight:600' : 'color:#c0392b;font-weight:600');
+        const passTxt = r.pass == null ? '-' : (pass ? '合格' : '不合格');
+        const scoreCls = (r.s != null && r.s > 0) ? scoreClass(r.s) : '';
+        const cell = r.rid
+          ? reportLink({ reportId: r.rid, signId: r.sid, storeName: storeName, region: '', reportDate: r.d, score: r.s, isPass: r.pass }, '查看详情', planType)
+          : '<span style="color:#999">无报告编号</span>';
+        return `
+          <tr>
+            <td>${html(r.d || '-')}</td>
+            <td>${html(r.tn || typeLabel)}</td>
+            <td style="${passStyle}">${passTxt}</td>
+            <td class="${scoreCls}">${(r.s != null && r.s > 0) ? r.s : '-'}</td>
+            <td>${cell}</td>
+          </tr>
+        `;
+      }).join('')}
+      ${reports.length===0?'<tr><td colspan="5" class="empty">该门店在当前区间内暂无报告明细</td></tr>':''}
     </tbody>
   `;
   $('regionModal').classList.add('active');

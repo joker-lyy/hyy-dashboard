@@ -342,12 +342,13 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
           position: posLabel, storeName: sname, storeCode: rep.sc, orgPath: rep.nl,
           latestScore: null, latestDate: '', scoreSum: 0, scoreCount: 0,
           reportCount: 0, tplCounts: {}, reportId: '', signId: '',
-          isPass: null, storeStatus: '',
+          isPass: null, storeStatus: '', reports: [],
         });
         b.reportCount++;
         if (rep.tid) b.tplCounts[rep.tid] = (b.tplCounts[rep.tid] || 0) + 1;
         const sc = rawSafeFloat(rep.s, null);
         if (sc != null) { b.scoreSum += sc; b.scoreCount++; }
+        b.reports.push({ rid: rep.rid || '', sid: rep.sid || '', d: rep.d || '', s: sc, pass: rep.pass, tn: rep.tn || '' });
         if (rep.d >= b.latestDate) {
           b.latestDate = rep.d;
           b.latestScore = sc;
@@ -417,6 +418,7 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
         franchiseeName: '',
         planType: 'CG',
         reportDate: b.latestDate,
+        reports: b.reports,
       };
       allStores.push(rec);
       (regionStores[region] = regionStores[region] || []).push(rec);
@@ -908,10 +910,12 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
           position: posLabel, storeName: sname, storeCode: rep.sc, orgPath: rep.nl,
           latestScore: null, latestDate: '', scoreSum: 0, scoreCount: 0,
           reportCount: 0, reportId: '', isPass: null, passCount: 0,
+          reports: [],
         });
         b.reportCount++;
         const sc = rawSafeFloat(rep.s, null);
         if (sc != null) { b.scoreSum += sc; b.scoreCount++; if (sc >= 90) b.passCount++; }
+        b.reports.push({ rid: rep.rid || '', sid: rep.sid || '', d: rep.d || '', s: sc, pass: rep.pass, tn: rep.tn || '' });
         if (rep.d >= b.latestDate) {
           b.latestDate = rep.d;
           b.latestScore = sc;
@@ -960,6 +964,7 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
         reportId: b.reportId, signId: '',
         passCount: b.passCount,
         isPass: b.isPass, planType: 'VIDEO', reportDate: b.latestDate,
+        reports: b.reports,
       };
       allStores.push(rec);
       (regionStores[rec.region] = regionStores[rec.region] || []).push(rec);
