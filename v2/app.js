@@ -971,6 +971,9 @@ async function tryAggregateRange(s, e){
     // fix109u：右上角时间与首屏同口径——优先 refresh.json（整轮刷新真实完成时间）、
     // 其次 data.json publishedAt/generatedAt；reportDetails 分片的 generatedAt 只作最后兜底
     // （分片内容不可变，其 generatedAt 可能停留在很旧的日期，曾导致显示 09-03 旧时间）
+    // fix109w：首屏 boot() 走 tryAggregateRange、根本不经过 loadData，
+    // refresh.json 曾在此路径永不请求 → 每次聚合前都拉一次刷新凭证
+    await loadRefreshToken();
     const at = toBeijing(reportRefreshCompletedAt)
       || toBeijing(data.publishedAt)
       || toBeijing(data.generatedAt)
