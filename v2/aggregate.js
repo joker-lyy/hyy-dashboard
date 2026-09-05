@@ -463,9 +463,10 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
     // fix10：优先取 raw 月份里真实门店基线（fresh、全组织树），再退到 data.json baseline（兜底）。
     // 历史：2026-09-05 用户截图"直营组只有 8 家店"——data.json baseline 里培训组=8 是历史错误值，
     //   实际 raw 2026-09 培训组 leaves（直营组）=9（中山又开了一店）。直接用 leaves 反推更准。
-    const leavesCount = leaves.reduce((a, l) => a + rawSafeInt(l.currentStoreCount), 0);
+    // fix106: 门店数口径=在营且非测试（data.json 基线已是该口径），raw leaves 是全量口径（含停业/测试）仅作兜底
     const baselineCount = (baselineStoreMap && baselineStoreMap[posLabel]) || 0;
-    const storeCount = leavesCount > 0 ? leavesCount : (baselineCount > 0 ? baselineCount : 0);
+    const leavesCount = leaves.reduce((a, l) => a + rawSafeInt(l.currentStoreCount), 0);
+    const storeCount = baselineCount > 0 ? baselineCount : (leavesCount > 0 ? leavesCount : 0);
     totalStoreCount += storeCount;
     const posItems = posStores.reduce((a, s) => a + rawSafeInt(s.sumCount), 0);
     const posNormal = posStores.reduce((a, s) => a + rawSafeInt(s.normalCount), 0);
