@@ -1,30 +1,34 @@
-import os, subprocess, sys, time
+import os
 
 SELF_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# 使用 chcp 65001 (UTF-8) + 文件写入 UTF-8 + BOM 头让 cmd 正确显示中文
+# 但其实最干净是用英文 + 不带 BOM，bat 里的中文 echo 会按 GBK 解码
+# → 改用纯 ASCII 输出，避免任何编码问题
 
 lines = [
     "@echo off",
     "chcp 65001 >nul 2>&1",
-    "title 慧运营看板 - 一键推送(重试到成功)",
+    "title HYQ Dashboard - One-Click Push",
     "cd /d \"" + SELF_DIR + "\"",
     "",
     "echo ========================================",
-    "echo   慧运营看板 GitHub Pages 一键推送",
-    "echo   (自动重试直到成功)",
+    "echo   HYQ Dashboard - One-Click Push",
+    "echo   (auto-retry until success)",
     "echo ========================================",
     "echo.",
-    "echo [1/4] 检查未提交的改动...",
+    "echo [1/4] Checking uncommitted changes...",
     "git add -A",
     "for /f \"delims=\" %%i in ('git status --porcelain') do (",
-    "    echo   发现有未提交改动，自动提交...",
+    "    echo   Found uncommitted changes, auto-committing...",
     "    git -c user.name=\"hyy-bot\" -c user.email=\"hyy@bot.local\" commit -m \"auto: quick fix push\"",
     "    goto :has_commits",
     ")",
-    "echo   工作区干净，无需自动提交。",
+    "echo   Working tree clean.",
     "",
     ":has_commits",
     "echo.",
-    "echo [2/4] 本地最近 3 条 commit:",
+    "echo [2/4] Last 3 local commits:",
     "git log --oneline -3",
     "echo.",
     "",
@@ -32,35 +36,35 @@ lines = [
     "",
     ":push_loop",
     "set /a RETRY+=1",
-    "echo [3/4] 推送到 GitHub (第 %RETRY% 次尝试)...",
+    "echo [3/4] Pushing to GitHub (attempt #%RETRY%)...",
     "git push origin main",
     "if %errorlevel% equ 0 goto :push_ok",
     "",
     "echo.",
-    "echo   第 %RETRY% 次推送失败，5 秒后自动重试...",
-    "echo   (按 Ctrl+C 可中断)",
+    "echo   Attempt #%RETRY% failed. Retrying in 5 seconds...",
+    "echo   (Press Ctrl+C to abort)",
     "timeout /t 5 /nobreak >nul 2>&1",
     "goto :push_loop",
     "",
     ":push_ok",
     "echo.",
     "echo ========================================",
-    "echo   推送成功！(共尝试 %RETRY% 次)",
+    "echo   Push OK! (Total attempts: %RETRY%)",
     "echo ========================================",
     "echo.",
-    "echo [4/4] 验证远端最新 commit:",
+    "echo [4/4] Verifying remote HEAD:",
     "git log origin/main --oneline -1",
     "echo.",
-    "echo GitHub Pages 将在 1-2 分钟内自动构建。",
-    "echo 刷新页面: https://joker-lyy.github.io/hyy-dashboard/v2/index.html",
+    "echo GitHub Pages will rebuild in 1-2 min.",
+    "echo Refresh: https://joker-lyy.github.io/hyy-dashboard/v2/index.html",
     "echo.",
     "pause",
 ]
 
 bat_path = os.path.join(SELF_DIR, "一键推送.bat")
 content = "\r\n".join(lines) + "\r\n"
+# 写入 ASCII 文件，bat 自己用 chcp 65001 不影响英文输出
 with open(bat_path, "wb") as f:
-    f.write(content.encode("gbk"))
+    f.write(content.encode("gbk", errors="replace"))
 
-print("已生成:", bat_path)
-print("文件大小:", os.path.getsize(bat_path), "bytes")
+print("regenerated:", bat_path)
