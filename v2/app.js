@@ -1180,18 +1180,24 @@ async function loadReportDetails(){
       reportDetailsGeneratedAt = rdJson.generatedAt;
     }
   }catch(e){ reportDetails = {}; }
-  // fix87：单独读取刷新凭证。它由整轮数据生成的最后一步写入，是真实完成时间。
+  await loadRefreshToken();
+  if(appData && currentStart && currentEnd){
+    appData = await applyAiReportDateRange(appData, currentStart, currentEnd);
+    renderAll();
+  }
+}
+
+async function loadRefreshToken(){
+  // fix109v：fix89 把明细分片改为按需加载后 loadReportDetails 不再被调用，
+  // refresh.json（整轮刷新真实完成时间）也随之从不请求，右上角时间全部回退到旧值。
+  // 拆成独立函数，loadData 每次加载都拉一次（小文件，几百字节）。
   try{
     const rfResp = await fetch(cb(`${DATA_BASE}/refresh.json`), {cache:'no-store'});
     const rfJson = await rfResp.json();
     if(rfJson && rfJson.refreshCompletedAt){
       reportRefreshCompletedAt = rfJson.refreshCompletedAt;
     }
-  }catch(e){ /* 旧数据没有 refresh.json 时使用 data.json 兼容字段 */ }
-  // 报告明细加载完成后，重新按当前日期区间裁剪 AI，避免 boot 先聚合、后加载明细导致仍显示旧月份。
-  if(appData && currentStart && currentEnd){
-    appData = await applyAiReportDateRange(appData, currentStart, currentEnd);
-    renderAll();
+  }catch(e){ /* 旧数据没有 refresh.json 时使用 data.json 兼容字段 */
   }
 }
 
@@ -1237,6 +1243,8 @@ async function loadData(force){
     };
     // 主数据刷新后，区域排名浏览器缓存一并失效，避免慧运营新增报告后仍显示旧数字
     regionRankData = {all:{}, regular:{}, self:{}, video:{}};
+    // fix109v：先取刷新凭证再渲染时间（loadReportDetails 已不被调用，refresh.json 曾永不请求）
+    await loadRefreshToken();
     renderAll();
     const refreshAt = toBeijing(reportRefreshCompletedAt)
       || toBeijing(json.publishedAt)
