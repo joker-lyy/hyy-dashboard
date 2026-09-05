@@ -56,6 +56,11 @@ function rawIsTestStore(name) {
   return s.indexOf('测试') >= 0 || s.indexOf('删除') >= 0;
 }
 // 镜像 server.py 的 match_region：从右往左找组织树里真实存在的区域名
+/* fix108：慧运营 report/list 账号级全组织可见，培训组桶(8/9月)混入全部 403 家门店。
+   按 nl 组织路径判断是否属于本组；orgName 即 nl 中的组织段（培训组/新店运营组/加盟营运组/新店筹建组） */
+function rawInOrgNl(nl, orgName){
+  return !nl || String(nl).indexOf(orgName) >= 0;
+}
 function rawMatchRegion(nameLink, regionNames) {
   if (!nameLink) return '未分配区域';
   const parts = String(nameLink).split('/').map(p => p.trim()).filter(Boolean);
@@ -103,6 +108,7 @@ function buildRawStoreMap(loaded, baselineStoreMap) {
       const seen = new Set();
       for (const arr of [pdata.cg || [], pdata.zj || [], pdata.sp || []]) {
         for (const r of arr) {
+          if (!rawInOrgNl(r.nl, orgName)) continue; // fix108
           const sc = String(r.sc || '');
           if (!sc || seen.has(sc)) continue;
           seen.add(sc);
@@ -290,7 +296,15 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
       if (!leafMap[posLabel]) leafMap[posLabel] = [];
       if ((pdata.leaves || []).length) leafMap[posLabel] = pdata.leaves;
 
+      // fix108：按 nl 组织路径过滤（培训组桶 8/9 月混入全部 403 家），rectification 无 nl 用本组门店名匹配
+      const orgStoreNames = new Set();
       for (const r of (pdata.storeInspection || [])) {
+        if (!rawInOrgNl(r.nl, orgName)) continue;
+        if (r.sn) orgStoreNames.add(r.sn);
+      }
+
+      for (const r of (pdata.storeInspection || [])) {
+        if (!rawInOrgNl(r.nl, orgName)) continue;
         const key = posLabel + '||' + r.sn;
         if (!r.sn) continue;
         const b = siMap[key] || (siMap[key] = { sum: 0, s: null, st: '', pass: null });
@@ -302,6 +316,7 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
       for (const r of (pdata.rectification || [])) {
         const key = posLabel + '||' + r.sn;
         if (!r.sn) continue;
+        if (orgStoreNames.size && !orgStoreNames.has(r.sn)) continue; // fix108
         const b = rectMap[key] || (rectMap[key] = { sum: 0, yzg: 0, dzg: 0, dsh: 0, yqzs: 0 });
         b.sum += rawSafeInt(r.sum);
         b.yzg += rawSafeInt(r.yzg);
@@ -321,6 +336,7 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
       for (const rep of cg) {
         const sname = (rep.sn || '').trim();
         if (!sname || rawIsTestStore(sname)) continue;
+        if (!rawInOrgNl(rep.nl, orgName)) continue; // fix108
         const key = posLabel + '||' + sname;
         const b = storeBuckets[key] || (storeBuckets[key] = {
           position: posLabel, storeName: sname, storeCode: rep.sc, orgPath: rep.nl,
@@ -547,6 +563,7 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
       for (const rep of zj) {
         const sname = (rep.sn || '').trim();
         if (!sname || rawIsTestStore(sname)) continue;
+        if (!rawInOrgNl(rep.nl, orgName)) continue; // fix108
         const region = rawMatchRegion(rep.nl, regionNames);
         const key = posLabel + '||' + sname;
         const b = storeBuckets[key] || (storeBuckets[key] = {
@@ -615,9 +632,15 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
     if (!payload) continue;
     for (const [orgName, pdata] of Object.entries(payload.positions || {})) {
       const posLabel = RAW_POSITION_LABELS[orgName] || orgName;
+      // fix108：本组门店名集合（rectification 无 nl）
+      const rectOrgSn = new Set();
+      for (const r of (pdata.storeInspection || [])) {
+        if (rawInOrgNl(r.nl, orgName) && r.sn) rectOrgSn.add(r.sn);
+      }
       for (const r of (pdata.rectification || [])) {
         const sname = (r.sn || '').trim();
         if (!sname || rawIsTestStore(sname)) continue;
+        if (rectOrgSn.size && !rectOrgSn.has(sname)) continue; // fix108
         const yzg = rawSafeInt(r.yzg);
         const dzg = rawSafeInt(r.dzg);
         const dsh = rawSafeInt(r.dsh);
@@ -859,9 +882,15 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
       if (!leafMap[posLabel]) leafMap[posLabel] = [];
       if ((pdata.leaves || []).length) leafMap[posLabel] = pdata.leaves;
 
+      // fix108：本组门店名集合（rectification 无 nl，按门店名匹配）
+      const orgSnSet = new Set();
+      for (const r of (pdata.storeInspection || [])) {
+        if (rawInOrgNl(r.nl, orgName) && r.sn) orgSnSet.add(r.sn);
+      }
       for (const r of (pdata.rectification || [])) {
         const key = posLabel + '||' + r.sn;
         if (!r.sn) continue;
+        if (orgSnSet.size && !orgSnSet.has(r.sn)) continue; // fix108
         const b = rectMap[key] || (rectMap[key] = { sum: 0, yzg: 0, dzg: 0, dsh: 0, yqzs: 0 });
         b.yzg += rawSafeInt(r.yzg);
         b.dzg += rawSafeInt(r.dzg);
@@ -873,6 +902,7 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
       for (const rep of sp) {
         const sname = (rep.sn || '').trim();
         if (!sname || rawIsTestStore(sname)) continue;
+        if (!rawInOrgNl(rep.nl, orgName)) continue; // fix108
         const key = posLabel + '||' + sname;
         const b = storeBuckets[key] || (storeBuckets[key] = {
           position: posLabel, storeName: sname, storeCode: rep.sc, orgPath: rep.nl,
