@@ -3112,7 +3112,8 @@ function renderUniformStoreRows(list, kind){
       exp = rc; cmp = rc; compRate = rc > 0 ? 100 : null;   // CG/SP 无排程应完成数，以区间内报告份数为准
       const totalItems = rawSafeInt(s.sumCount);
       avg = Number(s.score) || 0;
-      if(totalItems > 0){
+      // 有真实检查项数据才走检查项口径（raw 聚合模式 SP 的 sumCount=报告数、normalCount=0，属假数据）
+      if(totalItems > 0 && (rawSafeInt(s.normalCount) > 0 || rawSafeInt(s.unqualifiedItems) > 0)){
         // 有检查项数据 → 合格份数按检查项口径
         const normalItems = (s.normalCount != null) ? rawSafeInt(s.normalCount) : Math.max(0, totalItems - rawSafeInt(s.unqualifiedItems));
         qCount = normalItems;
