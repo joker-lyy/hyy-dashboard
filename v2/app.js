@@ -1849,7 +1849,7 @@ function showRegionStoresByName(regionEnc){
   const stores = (appData && appData.stores || []).filter(s=>(s.region||'') === region);
   const modal = $('regionModal');
   if(!modal) return;
-  $('regionModalTitle').textContent = `${html(region)} · 门店清单`;
+  regionModalSnapshot();$('regionModalTitle').textContent = `${html(region)} · 门店清单`;
   $('regionModalSub').textContent = `共 ${stores.length} 家门店`;
   $('regionModalTable').innerHTML = `
     <thead><tr><th>门店</th><th>组别</th><th>得分</th><th>报告</th></tr></thead>
@@ -2466,7 +2466,7 @@ function showAiRegionStores(region, position){
   const total = regionData.storeCount || 0;
   const inspected = stores.length;
   const uninspected = Math.max(0, total - inspected);
-  $('regionModalTitle').textContent = `${html(region)} · AI 慧检门店清单`;
+  regionModalSnapshot();$('regionModalTitle').textContent = `${html(region)} · AI 慧检门店清单`;
   $('regionModalSub').innerHTML =
     `组别：${html(position)}　区域门店总数：<b>${total}</b>　` +
     `已巡检：<b style="color:#1a7f37">${inspected}</b> 家　` +
@@ -3084,7 +3084,7 @@ function showRegionStores(region, position){
   const total = regionData.storeCount || 0;
   const inspected = stores.length;
   const uninspected = Math.max(0, total - inspected);
-  $('regionModalTitle').textContent = `${html(region)} · 常规巡检（QSC）门店清单`;
+  regionModalSnapshot();$('regionModalTitle').textContent = `${html(region)} · 常规巡检（QSC）门店清单`;
   $('regionModalSub').innerHTML =
     `组别：${html(position)}　区域门店总数：${total}　` +
     `本月已巡检：<b style="color:#1a7f37">${inspected}</b> 家　` +
@@ -3171,7 +3171,7 @@ function showVideoRegionStores(region, position){
   const uninspected = Math.max(0, total - inspected);
   const monthLabel = v.monthLabel || '本月';
 
-  $('regionModalTitle').textContent = `${html(region)} · 视频巡检门店清单`;
+  regionModalSnapshot();$('regionModalTitle').textContent = `${html(region)} · 视频巡检门店清单`;
   $('regionModalSub').innerHTML =
     `组别：${html(position)}　区域门店总数：<b>${total}</b>　` +
     `已巡检：<b style="color:#1a7f37">${inspected}</b> 家　` +
@@ -3214,7 +3214,7 @@ function showSelfRegionStores(region, position){
   const total = rows[0].storeCount || list.length;
   const enrolled = list.length;
 
-  $('regionModalTitle').textContent = `${rname} · 自检门店清单`;
+  regionModalSnapshot();$('regionModalTitle').textContent = `${rname} · 自检门店清单`;
   // fix35：删除「已提交/未提交/区间内提交」一行，只保留组别和门店统计
   $('regionModalSub').innerHTML =
     `组别：${html(pname)}　区域门店总数：${total}　参与自检任务：${enrolled}`;
@@ -3260,6 +3260,31 @@ function showSelfRegionStores(region, position){
 
 function closeRegionModal(){
   $('regionModal').classList.remove('active');
+  window.__regionModalStack = [];
+  $('regionModalBack').style.display = 'none';
+}
+
+// fix109m：regionModal 层级返回——每次填入新内容前先快照上一层，弹窗右上角"返回上一页"逐层回退
+window.__regionModalStack = [];
+function regionModalSnapshot(){
+  const modal = $('regionModal');
+  if(!modal.classList.contains('active')) return;      // 首次打开无需快照
+  const t = $('regionModalTable').innerHTML;
+  if(!t || !t.trim()) return;
+  window.__regionModalStack.push({
+    title: $('regionModalTitle').textContent,
+    sub: $('regionModalSub').innerHTML,
+    table: t
+  });
+  $('regionModalBack').style.display = '';
+}
+function regionModalBack(){
+  const prev = window.__regionModalStack.pop();
+  if(!prev){ closeRegionModal(); return; }
+  regionModalSnapshot();$('regionModalTitle').textContent = prev.title;
+  $('regionModalSub').innerHTML = prev.sub;
+  $('regionModalTable').innerHTML = prev.table;
+  $('regionModalBack').style.display = window.__regionModalStack.length ? '' : 'none';
 }
 
 // fix46：自检报告弹窗——展示单店所有自检报告明细（日期 / 类型 / 点评 / 分数）
@@ -3274,7 +3299,7 @@ function showStoreSelfReports(storeNameEnc, positionEnc, regionEnc){
   const target = stores.find(s => (s.storeName||'') === storeName && (s.position||'') === position);
   const reports = (target && target.reports) ? target.reports.slice() : [];
 
-  $('regionModalTitle').textContent = `${html(storeName)} · 自检报告明细`;
+  regionModalSnapshot();$('regionModalTitle').textContent = `${html(storeName)} · 自检报告明细`;
   $('regionModalSub').innerHTML =
     `区域：${html(region)}　组别：${html(position)}　报告数：<b>${reports.length}</b>`;
 
@@ -3331,7 +3356,7 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
   }
   reports.sort((a,b)=> (b.d||'').localeCompare(a.d||''));
 
-  $('regionModalTitle').textContent = `${html(storeName)} · ${typeLabel}报告明细`;
+  regionModalSnapshot();$('regionModalTitle').textContent = `${html(storeName)} · ${typeLabel}报告明细`;
   $('regionModalSub').innerHTML =
     `组别：${html(position)}　报告数：<b>${reports.length}</b>　<span style="color:#888">（当前查询区间）</span>`;
 
@@ -3390,7 +3415,7 @@ function showRankRegionStores(region, position, typeName){
   });
 
   const typeLabel = {all:'全部类型', regular:'常规巡检（QSC）', self:'门店自检', video:'视频巡检'}[typeName] || typeName;
-  $('regionModalTitle').textContent = `${html(region)} · ${typeLabel}门店清单`;
+  regionModalSnapshot();$('regionModalTitle').textContent = `${html(region)} · ${typeLabel}门店清单`;
   $('regionModalSub').innerHTML =
     `组别：${html(position)}　区域门店总数：<b>${total}</b>　` +
     `已做：<b style="color:#1a7f37">${inspected}</b>　` +
