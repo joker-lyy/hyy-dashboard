@@ -130,7 +130,14 @@ function reportLink(item, label, planType){
 }
 
 // fix53：报告明细弹窗（免登录查看）
-function closeReportDetailModal(){ $('reportDetailModal').classList.remove('active'); }
+function closeReportDetailModal(){
+  $('reportDetailModal').classList.remove('active');
+  // fix109m3：打开详情时会关掉外层清单弹窗(fix76)；返回时若之前有清单上下文则恢复显示
+  const rm = $('regionModal');
+  if(rm && window.__regionModalStack && window.__regionModalStack.length && ($('regionModalTable').innerHTML || '').trim()){
+    rm.classList.add('active');
+  }
+}
 
 // fix57：原始报告 UI 全面升级 —— 突出「问题点 + 现场照片 + 整改状态」
 // 用户原始诉求：一眼看出问题在哪里、整改到哪一步；不只列名+分数。
