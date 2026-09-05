@@ -667,7 +667,7 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
           if(det && det.reportId){ found = det; foundName = name; break; }
         }catch(e){ /* 404 或网络失败，试下一个候选 */ }
       }
-      if(found){
+      if(found && found.raw){
         if(!reportDetails.details) reportDetails.details = {};
         reportDetails.details[foundName.replace('_', ':')] = found;
         showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip);
@@ -675,9 +675,10 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
       }
       const box = $('rdLazyBox');
       if(!box) return; // 弹窗已被关闭或重开
-      // 单文件也没有 → 明细还没随数据一起发布，提示可后台全量加载
-      box.innerHTML = `暂无该报告的本地明细（云端本轮未抓到）。<br>
-        <button type="button" style="margin-top:12px;padding:8px 22px;background:#186BEB;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer" onclick="this.disabled=true;this.innerText='加载中…';(async()=>{await loadReportDetails();showReportDetail(${reArgs.join(',')});})()">全量加载明细</button>`;
+      // fix109j：单文件存在但 raw 为空（抓取失败占位）或确实没有 → 不再递归死循环，给出明确提示
+      box.innerHTML = found
+        ? `该报告明细此前抓取失败（云端返回异常），将在下一轮数据刷新时自动补齐。<br>`
+        : `暂无该报告的本地明细（云端本轮未抓到）。<br>`;
     })();
   }
   // fix53：关联整改单（层级检核-整改单，所有报告类型共用接口）
