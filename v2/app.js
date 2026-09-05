@@ -968,9 +968,13 @@ async function tryAggregateRange(s, e){
     appData = await applyAiReportDateRange(data, s, e);
     renderAll();
     showRangeBanner(s, e, appData._partialMonths, appData._rawMonths);
-    // fix70：右上角时间用 reportDetails.json 的 generatedAt（双击 .bat 后即时更新）
-    const rdAt = reportDetailsGeneratedAt ? toBeijing(reportDetailsGeneratedAt) : null;
-    const at = rdAt || toBeijing(data.generatedAt);
+    // fix109u：右上角时间与首屏同口径——优先 refresh.json（整轮刷新真实完成时间）、
+    // 其次 data.json publishedAt/generatedAt；reportDetails 分片的 generatedAt 只作最后兜底
+    // （分片内容不可变，其 generatedAt 可能停留在很旧的日期，曾导致显示 09-03 旧时间）
+    const at = toBeijing(reportRefreshCompletedAt)
+      || toBeijing(data.publishedAt)
+      || toBeijing(data.generatedAt)
+      || (reportDetailsGeneratedAt ? toBeijing(reportDetailsGeneratedAt) : null);
     setStatus(at ? `报表刷新于 ${at}` : '数据已加载', '');
     return true;
   }catch(err){
