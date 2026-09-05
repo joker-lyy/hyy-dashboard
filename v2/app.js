@@ -2466,24 +2466,9 @@ function showAiRegionStores(region, position){
     `组别：${html(position)}　区域门店总数：<b>${total}</b>　` +
     `已巡检：<b style="color:#1a7f37">${inspected}</b> 家　` +
     `未巡检：<b style="color:#c0392b">${uninspected}</b> 家`;
+  // fix109：与自检门店清单统一格式（10 列，平均分降序）
   const list = stores.slice().sort((a,b)=> (Number(b.score) || 0) - (Number(a.score) || 0));
-  $('regionModalTable').innerHTML = `
-    <thead><tr><th>门店名称</th><th>AI 巡检得分</th><th>报告</th></tr></thead>
-    <tbody>
-      ${list.map(s=>{
-        const reportCell = (s.reportId)
-          ? reportLink({ reportId: s.reportId, signId: s.signId, storeName: s.storeName, region: region, reportDate: s.reportDate, score: s.score, isPass: s.isPass }, '查看报告', 'AI')
-          : '<span style="color:#999">无报告</span>';
-        return `
-        <tr>
-          <td>${html(s.storeName)}</td>
-          <td class="${scoreClass(s.score)}">${s.score>0?s.score:'-'}</td>
-          <td>${reportCell}</td>
-        </tr>`;
-      }).join('')}
-      ${list.length===0?'<tr><td colspan="3" class="empty">该区域暂无 AI 慧检门店</td></tr>':''}
-    </tbody>
-  `;
+  $('regionModalTable').innerHTML = renderUniformStoreRows(list, 'AI');
   $('regionModal').classList.add('active');
 }
 
@@ -3097,43 +3082,58 @@ function showRegionStores(region, position){
     `组别：${html(position)}　区域门店总数：${total}　` +
     `本月已巡检：<b style="color:#1a7f37">${inspected}</b> 家　` +
     `未巡检：<b style="color:#c0392b">${uninspected}</b> 家`;
-  // 得分降序排列（与慧运营「层级检核」报表口径一致：高分在前）
+  // fix109：与自检门店清单统一格式（10 列，平均分降序）
   const list = stores.slice().sort((a, b)=> (Number(b.score) || 0) - (Number(a.score) || 0));
-  $('regionModalTable').innerHTML = `
-    <thead><tr>
-      <th>门店名称</th><th>得分</th>
-      <th>检测项目合格率</th><th>需整改项目数</th><th>已整改数</th>
-      <th>未整改数</th><th>整改率</th><th>逾期未整改数</th><th>查看该报表</th>
-    </tr></thead>
-    <tbody>
-      ${list.map(s=>{
-        const need = Number(s.needRectify) || 0;
-        const done = Number(s.rectified) || 0;
-        const unRect = Math.max(0, need - done);
-        const rectRate = need > 0 ? Math.round(done / need * 1000) / 10 : 0;
-        // 检测项目合格率 = 合格项 / 检查项
-        const totalItems = Number(s.sumCount) || 0;
-        const normalItems = (s.normalCount != null)
-          ? (Number(s.normalCount) || 0)
-          : Math.max(0, totalItems - (Number(s.unqualifiedItems) || 0));
-        const qRate = totalItems > 0 ? Math.round(normalItems / totalItems * 1000) / 10 : 0;
-        return `
-        <tr>
-          <td>${html(s.storeName)}</td>
-          <td class="${scoreClass(s.score)}">${s.score>0?s.score:'-'}</td>
-          <td>${totalItems > 0 ? qRate + '%' : '-'}</td>
-          <td>${need || '-'}</td>
-          <td>${done || '-'}</td>
-          <td>${need > 0 ? unRect : '-'}</td>
-          <td>${need > 0 ? rectRate + '%' : '-'}</td>
-          <td>${s.expired != null ? s.expired : '-'}</td>
-          <td>${reportLink(s, '查看该报表', s.planType || 'CG')}</td>
-        </tr>`;
-      }).join('')}
-      ${list.length===0?'<tr><td colspan="9" class="empty">本区域暂无已巡检门店</td></tr>':''}
-    </tbody>
-  `;
+  $('regionModalTable').innerHTML = renderUniformStoreRows(list, 'CG');
   $('regionModal').classList.add('active');
+}
+
+// fix109：统一门店清单格式——门店/应完成份数/已完成/完成率/合格份数/合格率/平均分/应整改单数/已整改/整改率，平均分降序
+// kind: 'CG'|'SP' → 有 reportCount/sumCount/normalCount/needRectify/rectified
+//       'AI' → 只有 score/isPass/unRectifyNum/reportId
+function renderUniformStoreRows(list, kind){
+  const head = `
+    <thead><tr>
+      <th>门店</th><th>应完成份数</th><th>已完成</th><th>完成率</th>
+      <th>合格份数</th><th>合格率</th><th>平均分</th>
+      <th>应整改单数</th><th>已整改</th><th>整改率</th>
+    </tr></thead>`;
+  const rateTxt = (v, ok)=> ok ? `<span class="${rateClass(v)}">${v}%</span>` : '-';
+  const rows = list.map(s=>{
+    let exp, cmp, compRate, qCount, qRate, avg, need, rec, rectRate;
+    if(kind === 'AI'){
+      exp = '-'; cmp = s.reportId ? 1 : 0; compRate = null;
+      qCount = s.isPass === true ? 1 : 0;
+      qRate = s.isPass === true ? 100 : (s.isPass === false ? 0 : null);
+      avg = Number(s.score) || 0;
+      need = rawSafeInt(s.unRectifyNum); rec = null; rectRate = null;
+    }else{
+      const rc = rawSafeInt(s.reportCount);
+      exp = rc; cmp = rc; compRate = rc > 0 ? 100 : null;   // CG/SP 无排程应完成数，以区间内报告份数为准
+      const totalItems = rawSafeInt(s.sumCount);
+      const normalItems = (s.normalCount != null) ? rawSafeInt(s.normalCount) : Math.max(0, totalItems - rawSafeInt(s.unqualifiedItems));
+      qCount = totalItems > 0 ? normalItems : 0;
+      qRate = totalItems > 0 ? Math.round(normalItems / totalItems * 1000) / 10 : null;
+      avg = Number(s.score) || 0;
+      rec = rawSafeInt(s.rectified);
+      need = (s.rectifyTotal != null) ? rawSafeInt(s.rectifyTotal) : (rawSafeInt(s.needRectify) + rec);
+      rectRate = need > 0 ? Math.round(rec / need * 1000) / 10 : null;
+    }
+    return `
+      <tr>
+        <td>${html(s.storeName)}</td>
+        <td>${exp}</td>
+        <td>${cmp}</td>
+        <td>${rateTxt(compRate, compRate != null)}</td>
+        <td>${qCount}</td>
+        <td>${rateTxt(qRate, qRate != null)}</td>
+        <td class="${avg>0?scoreClass(avg):''}">${avg>0?avg:'-'}</td>
+        <td>${need || 0}</td>
+        <td>${rec == null ? '-' : (rec || 0)}</td>
+        <td>${rateTxt(rectRate, rectRate != null)}</td>
+      </tr>`;
+  }).join('');
+  return head + `<tbody>${rows || `<tr><td colspan="10" class="empty">该区域暂无门店数据</td></tr>`}</tbody>`;
 }
 
 // fix51：视频巡检 · 区域汇总 → 该区域门店清单（与常规/自检一致风格，独立函数读 videoInspection.regions）
@@ -3160,41 +3160,9 @@ function showVideoRegionStores(region, position){
     `未巡检：<b style="color:#c0392b">${uninspected}</b> 家` +
     `　<span style="color:#888">（${monthLabel}）</span>`;
 
-  // 得分降序
+  // fix109：与自检门店清单统一格式（10 列，平均分降序）
   const list = stores.slice().sort((a,b)=> (Number(b.score) || 0) - (Number(a.score) || 0));
-
-  $('regionModalTable').innerHTML = `
-    <thead><tr>
-      <th>门店名称</th><th>视频巡检得分</th><th>巡检项</th><th>合格项</th><th>不合格项</th>
-      <th>合格率</th><th>已整改</th><th>逾期</th><th>报告</th>
-    </tr></thead>
-    <tbody>
-      ${list.map(s=>{
-        const totalItems  = Number(s.sumCount) || 0;
-        const normalItems = (s.normalCount != null) ? (Number(s.normalCount) || 0) : 0;
-        const unqItems    = Number(s.unqualifiedItems) || 0;
-        const qRate = totalItems > 0 ? Math.round(normalItems / totalItems * 1000) / 10 : 0;
-        const rectified = Number(s.rectified) || 0;
-        const expired   = (s.expired != null) ? s.expired : '-';
-        const reportCell = (s.reportId)
-          ? reportLink({ reportId: s.reportId, signId: s.signId, storeName: s.storeName, region: region, reportDate: s.reportDate, score: s.score, isPass: s.isPass }, '查看报告', 'SP')
-          : '<span style="color:#999">无报告</span>';
-        return `
-        <tr>
-          <td>${html(s.storeName)}</td>
-          <td class="${scoreClass(s.score)}">${s.score>0?s.score:'-'}</td>
-          <td>${totalItems > 0 ? totalItems : '-'}</td>
-          <td>${totalItems > 0 ? normalItems : '-'}</td>
-          <td>${unqItems || '-'}</td>
-          <td>${totalItems > 0 ? qRate + '%' : '-'}</td>
-          <td>${rectified || '-'}</td>
-          <td>${expired}</td>
-          <td>${reportCell}</td>
-        </tr>`;
-      }).join('')}
-      ${list.length===0?'<tr><td colspan="9" class="empty">该区域暂无视频巡检门店</td></tr>':''}
-    </tbody>
-  `;
+  $('regionModalTable').innerHTML = renderUniformStoreRows(list, 'SP');
   $('regionModal').classList.add('active');
 }
 
