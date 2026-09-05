@@ -995,9 +995,16 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
       const rname = leaf.organizeName;
       if (!rname) continue;
       const stores = regionStores[rname] || [];
+      // fix109t：门店数与常规巡检同口径——按「岗位在营基线 × 本区域占比」缩放，
+      //   剔除组织树里的测试/关店/停业门店（直营组 9×8/9=8，不再显示全量 9）
+      const _lv = rawSafeInt(leaf.currentStoreCount);
+      const _posBaseline = baselineStoreMap && baselineStoreMap[posLabel];
+      const _posLeavesSum = leaves.reduce((a, l) => a + rawSafeInt(l.currentStoreCount), 0);
+      const _storeCount = (_lv != null && _posBaseline > 0 && _posLeavesSum > 0)
+        ? Math.round(_lv * _posBaseline / _posLeavesSum) : _lv;
       const r = regionMap[rname] || (regionMap[rname] = {
         region: rname, position: posLabel,
-        storeCount: rawSafeInt(leaf.currentStoreCount),
+        storeCount: _storeCount,
         inspectedCount: 0, avgScore: 0, totalItems: 0, normalItems: 0,
         unqualifiedItems: 0, needRectify: 0, rectified: 0, expired: 0,
         submitRate: 0, qualifiedRate: 0, stores: [],
@@ -1244,6 +1251,7 @@ async function aggregateRange(start, end) {
     }
     const rawStoreMap = buildRawStoreMap(loaded, baselineStoreMap);
     // fix74：AI 区域 storeCount 用 raw 该岗位 leaves 的 currentStoreCount（与其它板块同源）
+    // fix109t：与常规巡检同口径——按「岗位在营基线 × 本区域占比」缩放，剔除测试/关店/停业
     const regionBaselineLookup = (pos, reg) => {
       for (const month of loaded) {
         const p = rawMonthCache[month];
@@ -1251,8 +1259,16 @@ async function aggregateRange(start, end) {
         for (const [orgName, pdata] of Object.entries(p.positions || {})) {
           const posLabel = RAW_POSITION_LABELS[orgName] || orgName;
           if (posLabel !== pos) continue;
-          for (const l of pdata.leaves || []) {
-            if (l.organizeName === reg) return rawSafeInt(l.currentStoreCount);
+          const lvLeaves = pdata.leaves || [];
+          for (const l of lvLeaves) {
+            if (l.organizeName !== reg) continue;
+            const lv = rawSafeInt(l.currentStoreCount);
+            const posBaseline = baselineStoreMap && baselineStoreMap[pos];
+            const posLeavesSum = lvLeaves.reduce((a, x) => a + rawSafeInt(x.currentStoreCount), 0);
+            if (lv != null && posBaseline > 0 && posLeavesSum > 0) {
+              return Math.round(lv * posBaseline / posLeavesSum);
+            }
+            return lv;
           }
         }
       }
