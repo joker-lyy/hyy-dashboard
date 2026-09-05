@@ -3119,10 +3119,15 @@ function renderUniformStoreRows(list, kind){
         qCount = normalItems;
         qRate = Math.round(normalItems / totalItems * 1000) / 10;
       }else{
-        // 无检查项数据（视频巡检等）→ 严格按平均分>=90 判合格（不用慧运营 isPass，其口径偏松）
-        const pass = (avg >= 90);
-        qCount = (rc > 0 && pass) ? rc : 0;
-        qRate = rc > 0 ? (pass ? 100 : 0) : null;
+        // 无检查项数据（视频巡检等）→ 按份数判定：优先用逐份分数统计（单份>=90 算合格一份），无逐份数据时整店按平均分>=90
+        if(s.passCount != null){
+          qCount = rawSafeInt(s.passCount);
+          qRate = rc > 0 ? Math.round(qCount / rc * 1000) / 10 : null;
+        }else{
+          const pass = (avg >= 90);
+          qCount = (rc > 0 && pass) ? rc : 0;
+          qRate = rc > 0 ? (pass ? 100 : 0) : null;
+        }
       }
       rec = rawSafeInt(s.rectified);
       need = (s.rectifyTotal != null) ? rawSafeInt(s.rectifyTotal) : (rawSafeInt(s.needRectify) + rec);

@@ -907,11 +907,11 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
         const b = storeBuckets[key] || (storeBuckets[key] = {
           position: posLabel, storeName: sname, storeCode: rep.sc, orgPath: rep.nl,
           latestScore: null, latestDate: '', scoreSum: 0, scoreCount: 0,
-          reportCount: 0, reportId: '', isPass: null,
+          reportCount: 0, reportId: '', isPass: null, passCount: 0,
         });
         b.reportCount++;
         const sc = rawSafeFloat(rep.s, null);
-        if (sc != null) { b.scoreSum += sc; b.scoreCount++; }
+        if (sc != null) { b.scoreSum += sc; b.scoreCount++; if (sc >= 90) b.passCount++; }
         if (rep.d >= b.latestDate) {
           b.latestDate = rep.d;
           b.latestScore = sc;
@@ -958,6 +958,7 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
         expired: rect ? rawSafeInt(rect.yqzs) : 0,
         rectifyTotal: rect ? (rawSafeInt(rect.yzg) + rawSafeInt(rect.dzg) + rawSafeInt(rect.dsh)) : 0,
         reportId: b.reportId, signId: '',
+        passCount: b.passCount,
         isPass: b.isPass, planType: 'VIDEO', reportDate: b.latestDate,
       };
       allStores.push(rec);
