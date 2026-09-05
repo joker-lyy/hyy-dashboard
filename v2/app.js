@@ -678,6 +678,21 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
   }else if(det && det.error){
     body += `<div class="placeholder-box">该报告明细云端暂未抓取到（数据刷新后将自动补齐）。可查看上方基础信息。</div>`;
   }else{
+    // fix109r：列表已显示「未点评」的报告（无分数）不再懒加载明细——
+    // 直接按共识显示「未点评」，避免先弹「正在读取」再卡住
+    const scRaw = (sc == null || String(sc).trim() === '' || String(sc) === '未点评') ? null : Number(sc);
+    const isZjUnreviewedClick = String(pt || '') === 'ZJ' && (scRaw == null || isNaN(scRaw));
+    if(isZjUnreviewedClick){
+      body += `<div class="rd-row"><span>总得分</span><b style="color:#999">未点评</b></div>`;
+      body += `<div class="rd-row"><span>判定</span><b style="color:#999">未点评</b></div>`;
+      body += `</div>`;
+      body += `<h4 class="rd-h">报告信息</h4><div class="placeholder-box">该报告门店已提交、但负责人未点评，各项暂无得分/结果；点评完成后数据刷新即显示真实分数。</div>`;
+      $('reportDetailBody').innerHTML = body;
+      $('reportDetailTitle').textContent = `${html(sn || '门店')} · 报告详情`;
+      ['regionModal','unqItemModal'].forEach(id=>{ const m = $(id); if(m && m.classList.contains('active')) m.classList.remove('active'); if(m && m.style && m.style.display === 'flex') m.style.display = 'none'; });
+      $('reportDetailModal').classList.add('active');
+      return;
+    }
     // fix89：优先按 reportId 直接拉仓库里的单报告小文件（几百 KB，秒开），
     //   不再让用户苦等 170MB 大分片在浏览器里下载完。
     const reArgs = [`'${ridEnc}'`, `'${sidEnc}'`, `'${pt || ''}'`, `'${snEnc}'`, `'${rgEnc}'`, `'${rdEnc}'`, `'${sc}'`, ip];
