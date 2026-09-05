@@ -378,10 +378,10 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
       const sup = siMap[key] || {};
       const rect = rectMap[key];
       // 分数口径与后端一致：优先最新一份报告分数，回退区间平均，再回退汇总接口
-      let score = 0;
-      if (b.latestScore != null && b.latestScore > 0) score = b.latestScore;
-      else if (b.scoreCount > 0) score = Math.round((b.scoreSum / b.scoreCount) * 100) / 100;
-      else if (sup.s != null) score = rawSafeFloat(sup.s, 0);
+      // fix109i：得分 = 区间内全部报告的平均分（5 份就是 5 份平均）；无明细时回退汇总接口/最新一份
+      let score = (b.scoreCount > 0) ? Math.round((b.scoreSum / b.scoreCount) * 100) / 100
+                : (sup.s != null) ? rawSafeFloat(sup.s, 0)
+                : (rawSafeFloat(b.latestScore, 0) || 0);
 
       let inspectedItems = 0;
       for (const [tid, n] of Object.entries(b.tplCounts)) {
@@ -942,9 +942,9 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
     for (const [key, b] of Object.entries(storeBuckets)) {
       if (key.split('||')[0] !== posLabel) continue;
       const rect = rectMap[key];
-      let score = 0;
-      if (b.latestScore != null && b.latestScore > 0) score = b.latestScore;
-      else if (b.scoreCount > 0) score = Math.round((b.scoreSum / b.scoreCount) * 100) / 100;
+      // fix109i：得分 = 区间内全部报告的平均分（5 份就是 5 份平均），不再用最新一份代表
+      let score = (b.scoreCount > 0) ? Math.round((b.scoreSum / b.scoreCount) * 100) / 100
+                : (rawSafeFloat(b.latestScore, 0) || 0);
       const rec = {
         position: posLabel,
         region: rawMatchRegion(b.orgPath, regionNames),
