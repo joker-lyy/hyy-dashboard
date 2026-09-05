@@ -3275,7 +3275,12 @@ function closeRegionModal(){
 window.__regionModalStack = [];
 function regionModalSnapshot(){
   const modal = $('regionModal');
-  if(!modal.classList.contains('active')) return;      // 首次打开无需快照
+  if(!modal.classList.contains('active')){
+    // fix109m4：第一层弹窗（如排名页直接打开的报告明细）也显示返回按钮，点了关闭弹窗回到页面
+    window.__regionModalStack.push({ close: true });
+    $('regionModalBack').style.display = '';
+    return;
+  }
   const t = $('regionModalTable').innerHTML;
   if(!t || !t.trim()) return;
   window.__regionModalStack.push({
@@ -3287,7 +3292,7 @@ function regionModalSnapshot(){
 }
 function regionModalBack(){
   const prev = window.__regionModalStack.pop();
-  if(!prev){ closeRegionModal(); return; }
+  if(!prev || prev.close){ closeRegionModal(); return; }
   regionModalSnapshot();$('regionModalTitle').textContent = prev.title;
   $('regionModalSub').innerHTML = prev.sub;
   $('regionModalTable').innerHTML = prev.table;
