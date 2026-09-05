@@ -241,10 +241,13 @@ function _renderReportItemTable(name, arr, opts){
     const normalizeScore = opts.normalizeScore === true && divisor > 1;
     const displayRawSc = _numScore(rawSc);
     const displaySc = normalizeScore && displayRawSc != null ? displayRawSc / divisor : displayRawSc;
-    const scv = opts.weighted100 && (actualSc != null || maxSc != null)
+    const scv = (opts.unreviewed && _numScore(_pick(it, ['realScore','actualScore','score','itemScore'])) == null)
+      ? '未点评'
+      : (opts.weighted100 && (actualSc != null || maxSc != null)
       ? `${_fmtScore(actualSc == null ? null : actualSc / divisor)} / ${_fmtScore(maxSc == null ? null : maxSc / divisor)}`
-      : _fmtScore(displaySc);
+      : _fmtScore(displaySc));
     const res = _pickResult(it);
+    if(opts.unreviewed && !res.label) res.label = '未点评';
     // 慧运营常规巡检报告的“问题描述”实际字段通常是 disQualifiedDesc；
     // 直营组等批次不会写入 description/problemDesc，漏掉该字段就会出现“不合格但问题点为空”。
     const note = _pick(it, ['disQualifiedDesc','disqualifyDesc','unqualifiedDesc','issueDescription','problemDescription','remark','note','desc','description','comment','reason','problemDesc','problem','remarkInfo','content','checkContent']);
@@ -330,6 +333,10 @@ function _looksLikeCgRaw(raw){
 }
 function renderReportRaw(raw){
   if(!raw || typeof raw !== 'object') return '';
+  // fix109n：门店自检等报告存在"未点评"状态（门店已提交、负责人未点评），
+  // 接口返回 evaluated=null / score='未点评'，检查项 itemScore/result 全空 →
+  // 前端曾显示成误导性的 0 分和 "-"，这里识别后统一展示"未点评"。
+  const unreviewed = (raw.evaluated == null) || raw.score === '未点评' || raw.isPassString === '未点评';
   // 苍井 CG 常规巡检 QSC：不同批次可能返回不同 templateScore，
   // 统一由结构识别后进入按真实权重渲染。
   if(_looksLikeCgRaw(raw)) return renderReportRawCG(raw);
@@ -346,7 +353,8 @@ function renderReportRaw(raw){
     const looksLikeSelf = itemCount > 0 && itemCount <= 20 && hasScaledItems
       && (Number(raw.templateScore) === 100 || raw.itemSum == null || Number(raw.itemSum) <= 20);
     if(looksLikeSelf){
-      return _renderReportItemTable('报告明细', raw.categoryList, {normalizeScore:true, scoreDivisor:100});
+      let out2 = unreviewed ? `<div class="placeholder-box" style="color:#8a6d3b">该报告门店已提交、但负责人<b>未点评</b>，所以各项暂无得分/结果（非数据缺失）。</div>` : '';
+      return out2 + _renderReportItemTable('报告明细', raw.categoryList, {normalizeScore:true, scoreDivisor:100, unreviewed});
     }
   }
   // 单列数组：直接当明细行
