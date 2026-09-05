@@ -3111,10 +3111,19 @@ function renderUniformStoreRows(list, kind){
       const rc = rawSafeInt(s.reportCount);
       exp = rc; cmp = rc; compRate = rc > 0 ? 100 : null;   // CG/SP 无排程应完成数，以区间内报告份数为准
       const totalItems = rawSafeInt(s.sumCount);
-      const normalItems = (s.normalCount != null) ? rawSafeInt(s.normalCount) : Math.max(0, totalItems - rawSafeInt(s.unqualifiedItems));
-      qCount = totalItems > 0 ? normalItems : 0;
-      qRate = totalItems > 0 ? Math.round(normalItems / totalItems * 1000) / 10 : null;
       avg = Number(s.score) || 0;
+      if(totalItems > 0){
+        // 有检查项数据 → 合格份数按检查项口径
+        const normalItems = (s.normalCount != null) ? rawSafeInt(s.normalCount) : Math.max(0, totalItems - rawSafeInt(s.unqualifiedItems));
+        qCount = normalItems;
+        qRate = Math.round(normalItems / totalItems * 1000) / 10;
+      }else{
+        // 无检查项数据（视频巡检等）→ 按报告判定：isPass 优先，否则平均分≥60 视为合格
+        const pass = (s.isPass != null) ? (s.isPass === true || Number(s.isPass) === 1)
+                   : (avg >= 60);
+        qCount = (rc > 0 && pass) ? rc : 0;
+        qRate = rc > 0 ? (pass ? 100 : 0) : null;
+      }
       rec = rawSafeInt(s.rectified);
       need = (s.rectifyTotal != null) ? rawSafeInt(s.rectifyTotal) : (rawSafeInt(s.needRectify) + rec);
       rectRate = need > 0 ? Math.round(rec / need * 1000) / 10 : null;
