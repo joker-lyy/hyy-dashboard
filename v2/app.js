@@ -582,6 +582,16 @@ function renderRectifications(rects){
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+// fix109s：统一收尾——写内容、设标题、关外层弹窗、激活报告详情弹窗。
+//   之前「未点评」分支直接 return 字符串，跳过了写 DOM 的收尾代码，
+//   导致懒加载递归后弹窗永远停留在「正在读取…」。
+function _finishReportDetail(body, sn){
+  $('reportDetailBody').innerHTML = body;
+  $('reportDetailTitle').textContent = `${html(sn || '门店')} · 报告详情`;
+  ['regionModal','unqItemModal'].forEach(id=>{ const m = $(id); if(m && m.classList.contains('active')) m.classList.remove('active'); if(m && m.style && m.style.display === 'flex') m.style.display = 'none'; });
+  $('reportDetailModal').classList.add('active');
+}
+
 function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
   const rid = decodeURIComponent(ridEnc || '');
   const sid = decodeURIComponent(sidEnc || '');
@@ -626,12 +636,13 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
   if(zjUnreviewed){
     // fix109q：未点评的报告只输出一套口径——与列表一致显示「未点评」，
     // 不再展示门店自评分/合格徽章，避免"100分+待复核"与"未点评"两套标准并存引起歧义。
+    // fix109s：改走统一收尾（写 DOM + 激活弹窗），不再提前 return 跳过 DOM 写入。
     body += `<div class="rd-row"><span>总得分</span><b style="color:#999">未点评</b></div>`;
     body += `<div class="rd-row"><span>判定</span><b style="color:#999">未点评</b></div>`;
     body += `</div>`;
-    return body + (det && det.raw
-      ? `<h4 class="rd-h">报告信息</h4><div class="placeholder-box">该报告门店已提交、但负责人未点评，各项暂无得分/结果；点评完成后数据刷新即显示真实分数。</div>`
-      : '');
+    body += `<h4 class="rd-h">报告信息</h4><div class="placeholder-box">该报告门店已提交、但负责人未点评，各项暂无得分/结果；点评完成后数据刷新即显示真实分数。</div>`;
+    _finishReportDetail(body, sn);
+    return;
   }
   if(headerScore !== '' && headerScore != null){
     const headerNum = Number(headerScore);
