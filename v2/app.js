@@ -3289,9 +3289,11 @@ function showStoreSelfReports(storeNameEnc, positionEnc, regionEnc){
         const passStyle = r.pass ? 'color:#1a7f37;font-weight:600' : (r.ps === '未点评' ? 'color:#999' : 'color:#c0392b;font-weight:600');
         const scoreTxt = (r.s == null || isNaN(r.s)) ? (r.ps || '未点评') : r.s;
         const scoreCls = (typeof r.s === 'number' && r.s > 0) ? scoreClass(r.s) : '';
-        // fix47：rid 存在 → 跳详情；缺失时显示慧运营自检报告列表入口，
-        //        让用户即便数据未补全也能进慧运营自己筛选查看。
-        const cell = r.rid
+        // fix109l：未点评的报告无明细可看，点了会报错 → 不给点，显示灰色占位
+        const unreviewed = (r.ps === '未点评') || (r.s == null || isNaN(r.s));
+        const cell = unreviewed
+          ? '<span style="color:#bbb">未点评</span>'
+          : r.rid
           ? reportLink({ reportId: r.rid, signId: r.sid, storeName: storeName, region: region, reportDate: r.d, score: r.s, isPass: r.pass }, '查看详情', 'ZJ')
           : `<a class="report-link" href="${HYY_WEB_BASE}/selfTestReport-details?beFrom=${encodeURIComponent('自检报告')}&planType=ZJ" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" onclick="event.stopPropagation()" style="color:#888;text-decoration:underline">打开自检报告</a>`;
         return `
@@ -3343,7 +3345,10 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
         const passStyle = r.pass == null ? 'color:#999' : (pass ? 'color:#1a7f37;font-weight:600' : 'color:#c0392b;font-weight:600');
         const passTxt = r.pass == null ? '-' : (pass ? '合格' : '不合格');
         const scoreCls = (r.s != null && r.s > 0) ? scoreClass(r.s) : '';
-        const cell = r.rid
+        // fix109l：无分数的报告不给点详情，避免报错
+        const cell = (r.s == null || !(r.s > 0))
+          ? '<span style="color:#bbb">未点评</span>'
+          : r.rid
           ? reportLink({ reportId: r.rid, signId: r.sid, storeName: storeName, region: '', reportDate: r.d, score: r.s, isPass: r.pass }, '查看详情', planType)
           : '<span style="color:#999">无报告编号</span>';
         return `
