@@ -3118,9 +3118,8 @@ function renderUniformStoreRows(list, kind){
         qCount = normalItems;
         qRate = Math.round(normalItems / totalItems * 1000) / 10;
       }else{
-        // 无检查项数据（视频巡检等）→ 按报告判定：isPass 优先，否则平均分≥90 视为合格
-        const pass = (s.isPass != null) ? (s.isPass === true || Number(s.isPass) === 1)
-                   : (avg >= 90);
+        // 无检查项数据（视频巡检等）→ 严格按平均分>=90 判合格（不用慧运营 isPass，其口径偏松）
+        const pass = (avg >= 90);
         qCount = (rc > 0 && pass) ? rc : 0;
         qRate = rc > 0 ? (pass ? 100 : 0) : null;
       }
