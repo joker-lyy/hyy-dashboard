@@ -620,13 +620,20 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
     const selfScore = _numScore(det.raw.score);
     if(selfScore != null) headerScore = selfScore;
   }
+  // fix109o：门店自检两环节——门店自评提交（列表100分=自评分）→ 负责人点评复核。
+  //   evaluated=null 时报告未复核，头部要标明"门店自评、待点评"，避免用户误解为已确认的100分。
+  const zjUnreviewed = !!(det && det.raw && ((det.raw.evaluated == null) || det.raw.score === '未点评' || det.raw.isPassString === '未点评'));
+  if(zjUnreviewed){
+    body += `<div class="rd-row"><span>点评状态</span><b style="color:#8a6d3b">门店已自评提交 · 待负责人点评复核</b></div>`;
+  }
   if(headerScore !== '' && headerScore != null){
     const headerNum = Number(headerScore);
     const scCls = Number.isFinite(headerNum) && headerNum > 0 ? scoreClass(headerNum) : '';
     body += `<div class="rd-row"><span>总得分</span><b class="${scCls}">${html(_fmtScore(headerScore))}</b></div>`;
   }
   if(ip === 1 || ip === 0){
-    body += `<div class="rd-row"><span>判定</span><b>${ip ? '<span class="badge-ok">合格</span>' : '<span class="badge-no">不合格</span>'}</b></div>`;
+    const jdSuffix = zjUnreviewed ? ' <span style="color:#8a6d3b;font-weight:400">（门店自评，待复核）</span>' : '';
+    body += `<div class="rd-row"><span>判定</span><b>${ip ? '<span class="badge-ok">合格</span>' : '<span class="badge-no">不合格</span>'}${jdSuffix}</b></div>`;
   }
   body += `</div>`;
   // fix62：本地明细不可用时，给出「在慧运营后台打开」原报告链接
