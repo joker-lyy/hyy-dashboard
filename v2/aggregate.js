@@ -22,6 +22,26 @@ const AGG_SELF = (document.currentScript && document.currentScript.src) || '';
 const IS_V2_DEPLOY = /\/v2\/aggregate\.js(\?|$)/.test(AGG_SELF) || /\/v2\/?$/.test(location.pathname);
 const RAW_BASE = IS_V2_DEPLOY ? '../data/raw' : 'data/raw';
 const DATA_JSON_FOR_BASELINE = IS_V2_DEPLOY ? '../data/data.json' : 'data/data.json';
+// fix109p：AI 报告列表（带 reportDate），用于把 AI baseline 的报告按真实日期归入所选区间
+const AI_REPORTS_JSON = IS_V2_DEPLOY ? '../data/aiReports.json' : 'data/aiReports.json';
+
+let __aiReportsIdxCache = null;
+async function loadAiReportsIndex() {
+  if (__aiReportsIdxCache) return __aiReportsIdxCache;
+  try {
+    const r = await fetch(AI_REPORTS_JSON + '?v=' + Date.now(), { cache: 'no-store' });
+    const j = r.ok ? await r.json() : {};
+    const byId = {}; const byStore = {};
+    (j.reports || []).forEach(x => {
+      if (!x || !x.reportId) return;
+      byId[String(x.reportId)] = x;
+      const sc = String(x.storeCode || '');
+      if (sc) (byStore[sc] || (byStore[sc] = [])).push(x);
+    });
+    __aiReportsIdxCache = { byId, byStore };
+  } catch (e) { __aiReportsIdxCache = { byId: {}, byStore: {} }; }
+  return __aiReportsIdxCache;
+}
 
 // 与 scripts/hhy_config.py 的 POSITION_LABELS 保持一致
 const RAW_POSITION_LABELS = {
@@ -1036,7 +1056,7 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
    区域：用 raw 月份文件构建 storeCode→(position, region, orgPath) 反查表，给每条 AI store 标岗位/区域。
      反查失败则丢弃（没在组织树里的店不入看板）。
    ============================================================================ */
-async function aggregateAi(aiBaseline, rawStoreMap, baselineStoreMap, rawBaselineForRegion) {
+async function aggregateAi(aiBaseline, rawStoreMap, baselineStoreMap, rawBaselineForRegion, start, end) {
   const baselineStores = (aiBaseline && Array.isArray(aiBaseline.stores)) ? aiBaseline.stores : [];
   if (!baselineStores.length) {
     return {
@@ -1046,11 +1066,45 @@ async function aggregateAi(aiBaseline, rawStoreMap, baselineStoreMap, rawBaselin
     };
   }
 
+  // fix109p：把 AI baseline 的报告按真实报告日期归入所选区间。
+  //   baseline 是「每店最新一份」的旧快照，reportId 可能指向区间外的旧报告
+  //   （如 9 月页面里出现 8 月的报告）。处理规则：
+  //   · 该报告日期已知且在区间内 → 沿用，并补 _date
+  //   · 日期已知但在区间外 → 找同店在区间内的另一份报告替换；找不到则该店本月不计
+  //   · 日期未知 → 保持原样（不做误杀）
+  const aiIdx = await loadAiReportsIndex();
+  const inRangeDate = d => /^\d{4}-\d{2}-\d{2}/.test(String(d || ''))
+    && String(d).slice(0, 10) >= start && String(d).slice(0, 10) <= end;
+  let aiDroppedOutOfRange = 0;
+  const scopedStores = [];
+  for (const s of baselineStores) {
+    const rid = String(s.reportId || '');
+    const rec = aiIdx.byId[rid];
+    let use = s;
+    if (rec && rec.reportDate && inRangeDate(rec.reportDate)) {
+      use = { ...s, _date: String(rec.reportDate).slice(0, 10) };
+    } else if (rec && rec.reportDate) {
+      const cands = (aiIdx.byStore[String(s.storeCode || '')] || [])
+        .filter(x => x.reportDate && inRangeDate(x.reportDate))
+        .sort((a, b) => String(b.reportDate).localeCompare(String(a.reportDate)));
+      if (cands.length) {
+        const nx = cands[0];
+        use = { ...s, reportId: nx.reportId, _date: String(nx.reportDate).slice(0, 10),
+          score: (nx.score != null && !isNaN(Number(nx.score))) ? Number(nx.score) : rawSafeFloat(s.score, 0),
+          isPass: (nx.isPass != null) ? !!nx.isPass : !!s.isPass };
+      } else {
+        aiDroppedOutOfRange++;
+        continue;   // 该店区间内没有 AI 报告 → 不计入本月
+      }
+    }
+    scopedStores.push(use);
+  }
+
   // 按 (position, region) 分桶
   const buckets = {};
   const seen = new Set();     // fix74：data.json baseline.stores[] 同一 storeCode 重复多次（实测 7 店各×4），按 storeCode 去重
   const dropped = [];
-  for (const s of baselineStores) {
+  for (const s of scopedStores) {
     const sc = String(s.storeCode || '');
     const sname = String(s.storeName || '').trim();
     if (!sc || rawIsTestStore(sname)) continue;
@@ -1204,9 +1258,9 @@ async function aggregateRange(start, end) {
       }
       return null;
     };
-    ai = await aggregateAi(aiBaseline, rawStoreMap, baselineStoreMap, regionBaselineLookup);
+    ai = await aggregateAi(aiBaseline, rawStoreMap, baselineStoreMap, regionBaselineLookup, start, end);
     if (!ai.regions || !ai.regions.length) throw new Error('aggregateAi produced no regions（baseline 与 raw 组织树全部对不上）');
-    ai._rangeNote = 'AI 慧检为企业级报告（每店一份最新评分），按 data.json baseline 聚合到区域（不按所选日期拆分）';
+    ai._rangeNote = 'AI 慧检已按所选区间过滤（报告日期在区间外的旧报告不计入）';
   } catch (e) {
     console.warn('[aggregateRange] aggregateAi failed:', e);
     ai = { positions: [], regions: [], stores: [], rankStores: [], totalStores: 0, totalInspected: 0,
