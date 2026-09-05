@@ -342,12 +342,12 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
           position: posLabel, storeName: sname, storeCode: rep.sc, orgPath: rep.nl,
           latestScore: null, latestDate: '', scoreSum: 0, scoreCount: 0,
           reportCount: 0, tplCounts: {}, reportId: '', signId: '',
-          isPass: null, storeStatus: '', reports: [],
+          isPass: null, storeStatus: '', reports: [], passCount: 0,
         });
         b.reportCount++;
         if (rep.tid) b.tplCounts[rep.tid] = (b.tplCounts[rep.tid] || 0) + 1;
         const sc = rawSafeFloat(rep.s, null);
-        if (sc != null) { b.scoreSum += sc; b.scoreCount++; }
+        if (sc != null) { b.scoreSum += sc; b.scoreCount++; if (sc >= 90) b.passCount++; }
         b.reports.push({ rid: rep.rid || '', sid: rep.sid || '', d: rep.d || '', s: sc, pass: rep.pass, tn: rep.tn || '' });
         if (rep.d >= b.latestDate) {
           b.latestDate = rep.d;
@@ -418,6 +418,7 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
         franchiseeName: '',
         planType: 'CG',
         reportDate: b.latestDate,
+        passCount: b.passCount,
         reports: b.reports,
       };
       allStores.push(rec);
