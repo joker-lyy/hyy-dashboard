@@ -1,11 +1,10 @@
 @echo off
 chcp 65001 >nul 2>&1
 title HYQ Dashboard - One-Click Push
-cd /d "E:\我的\WORKBUDDY\WorkBuddy\工具搭建\hyy-dashboard-ghpages"
+cd /d "%~dp0"
 
 echo ========================================
 echo   HYQ Dashboard - One-Click Push
-echo   (auto-retry until success)
 echo ========================================
 echo.
 echo [1/4] Checking uncommitted changes...
@@ -19,18 +18,21 @@ echo   Working tree clean.
 
 :has_commits
 echo.
-echo [2/4] Last 3 local commits:
+echo [2/4] Syncing with remote (pull --rebase)...
+git pull --rebase origin main
+if %errorlevel% neq 0 echo   WARN: pull --rebase failed, will try push anyway
+echo.
+echo [3/4] Last 3 local commits:
 git log --oneline -3
 echo.
-
 set /a RETRY=0
 
 :push_loop
 set /a RETRY+=1
-echo [3/4] Pushing to GitHub (attempt #%RETRY%)...
+echo [4/4] Pushing to GitHub (attempt #%RETRY%)...
+git pull --rebase origin main >nul 2>&1
 git push origin main
 if %errorlevel% equ 0 goto :push_ok
-
 echo.
 echo   Attempt #%RETRY% failed. Retrying in 5 seconds...
 echo   (Press Ctrl+C to abort)
@@ -40,13 +42,6 @@ goto :push_loop
 :push_ok
 echo.
 echo ========================================
-echo   Push OK! (Total attempts: %RETRY%)
+echo   PUSH OK - GitHub Pages will rebuild in 1-3 min
 echo ========================================
-echo.
-echo [4/4] Verifying remote HEAD:
-git log origin/main --oneline -1
-echo.
-echo GitHub Pages will rebuild in 1-2 min.
-echo Refresh: https://joker-lyy.github.io/hyy-dashboard/v2/index.html
-echo.
 pause
