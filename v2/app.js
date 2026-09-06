@@ -2192,6 +2192,8 @@ function showRegionStoresByName(regionEnc){
 // ===== fix127：门店督办（巡检变化对比 + 整改追踪），替代原「门店高发问题」 =====
 let unqCmpVerdict = '__all__';   // __all__ / 差了 / 好了 / 持平
 let unqRfType = '__all__';       // __all__ / CG / ZJ / SP / AI
+let unqRfPs = '__all__';         // 组别筛选
+let unqRfRg = '__all__';         // 区域筛选
 
 function renderUnqSupervision(){
   const active = document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub;
@@ -2265,8 +2267,27 @@ function renderUnqRectify(){
   }).join('');
   chipsEl.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ unqRfType=b.dataset.k; renderUnqRectify(); });
   if (unqRfType !== '__all__') rows = rows.filter(x=>x.typ===unqRfType);
+  // 组别 / 区域下拉筛选（选项随类型与日期区间联动）
+  const psList = [...new Set(rows.map(x=>x.ps).filter(Boolean))].sort();
+  const rgList = [...new Set(rows.map(x=>x.rg).filter(Boolean))].sort();
+  if (!psList.includes(unqRfPs)) unqRfPs = '__all__';
+  if (!rgList.includes(unqRfRg)) unqRfRg = '__all__';
+  const psSel = $('unqRfPsSel'), rgSel = $('unqRfRgSel');
+  const optHtml = (list, label)=>`<option value="__all__">全部${label}（${list.length}）</option>` + list.map(v=>`<option value="${html(v)}">${html(v)}</option>`).join('');
+  psSel.innerHTML = optHtml(psList, '组别');
+  rgSel.innerHTML = optHtml(rgList, '区域');
+  psSel.value = unqRfPs; rgSel.value = unqRfRg;
+  psSel.onchange = ()=>{ unqRfPs = psSel.value; renderUnqRectify(); };
+  rgSel.onchange = ()=>{ unqRfRg = rgSel.value; renderUnqRectify(); };
+  if (unqRfPs !== '__all__') rows = rows.filter(x=>x.ps===unqRfPs);
+  if (unqRfRg !== '__all__') rows = rows.filter(x=>x.rg===unqRfRg);
   const search = ($('unqRfSearch').value||'').trim().toLowerCase();
   if (search) rows = rows.filter(x=>(x.sn+' '+(x.rg||'')).toLowerCase().includes(search));
+  // 按整改率降序（同率按应整改项数多的在前）
+  rows = rows.slice().sort((a,b)=>{
+    const ra = a.total ? a.done/a.total : -1, rb = b.total ? b.done/b.total : -1;
+    return rb - ra || b.total - a.total;
+  });
   const tl = (UNQ_RF_TYPES.find(t=>t.k===unqRfType)||UNQ_RF_TYPES[0]).l;
   const total = rows.reduce((t,x)=>t+x.total,0), done = rows.reduce((t,x)=>t+x.done,0);
   const rateRow = x=>{
