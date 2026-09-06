@@ -1613,8 +1613,8 @@ function unq2BuildGroups(ents, dim){
   for (const x of ents){
     const key = dim==='cat' ? x.t : (x[dim] || '-');
     let g = groups.get(key);
-    if (!g){ g = {key, count:0, reps:new Set(), stores:new Set(), probs:new Map()}; groups.set(key,g); }
-    g.count++; g.reps.add(x.rid); g.stores.add(x.sn);
+    if (!g){ g = {key, count:0, reps:new Set(), stores:new Set(), probs:new Map(), ents:[]}; groups.set(key,g); }
+    g.count++; g.reps.add(x.rid); g.stores.add(x.sn); g.ents.push(x);
     let p = g.probs.get(x.t);
     if (!p){ p = {t:x.t, cat:x.cat, count:0, reps:new Set(), stores:new Set(), photos:[], descs:[]}; g.probs.set(x.t,p); }
     p.count++; p.reps.add(x.rid); p.stores.add(x.sn);
@@ -1670,6 +1670,45 @@ function unq2ImgHtml(photos){
     `</div>`;
 }
 
+let UNQ2_GROUP_ENTS = {}; // 卡片id -> 该卡片全部原始条目（查看更多弹窗用）
+function unq2ShowDetail(id){
+  const ents = UNQ2_GROUP_ENTS[id] || [];
+  if(!ents.length) return;
+  const typeLabel = (UNQ2_TYPES.find(t=>t.k===unq2State.type)||{}).l || '';
+  let ov = document.getElementById('unq2DetailOverlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'unq2DetailOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px';
+    ov.onclick = (e)=>{ if(e.target===ov) ov.remove(); };
+    document.body.appendChild(ov);
+  }
+  const row = x=>`
+    <tr style="border-bottom:1px solid #eef0f5;vertical-align:top">
+      <td style="padding:8px 10px;white-space:nowrap;font-weight:700;color:#1A2A4A">${html(x.sn||'-')}</td>
+      <td style="padding:8px 10px;white-space:nowrap;color:#5a6377">${html(x.rg||'-')}</td>
+      <td style="padding:8px 10px;white-space:nowrap;color:#5a6377">${html((x.d||'').slice(0,10))}</td>
+      <td style="padding:8px 10px;white-space:nowrap"><span class="unq-item-cat">${html(typeLabel)}</span></td>
+      <td style="padding:8px 10px;min-width:180px;color:#333">${html(x.t||'-')}<br><span class="unq-item-cat">${html(x.cat||'')}</span></td>
+      <td style="padding:8px 10px;min-width:200px;color:#5a6377;font-size:12px">${html(x.desc||'-')}</td>
+      <td style="padding:8px 10px">${(x.img&&x.img.length)?unq2ImgHtml(x.img):'<span style="color:#999;font-size:12px">无照片</span>'}</td>
+    </tr>`;
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:12px;width:min(96vw,1200px);max-height:92vh;overflow:auto;padding:16px 18px" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:15px;font-weight:700;color:#1A2A4A">${html(id.split('|')[2]||'')} <span style="color:#c0392b;font-weight:600;margin-left:8px">共 ${ents.length} 条不合格记录</span></div>
+        <button onclick="document.getElementById('unq2DetailOverlay').remove()" style="border:none;background:#f0f2f7;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">关闭 ✕</button>
+      </div>
+      <div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead><tr style="background:#f6f7fb;color:#5a6377;text-align:left">
+          <th style="padding:8px 10px">门店</th><th style="padding:8px 10px">所属区域</th><th style="padding:8px 10px">检查日期</th>
+          <th style="padding:8px 10px">报告类型</th><th style="padding:8px 10px">问题</th><th style="padding:8px 10px">问题点（检查人员录入）</th><th style="padding:8px 10px">查看照片</th>
+        </tr></thead>
+        <tbody>${ents.map(row).join('')}</tbody>
+      </table></div>
+    </div>`;
+}
+
 function unq2RenderChips(){
   const d = unq2State.data;
   $('unq2TypeChips').innerHTML = UNQ2_TYPES.map(t=>{
@@ -1702,9 +1741,10 @@ function unq2RenderTable(){
     <span>｜不合格条目 <b style="color:#c0392b">${ents.length}</b></span>
     <span>｜涉及报告 <b>${repN}</b></span>
     <span>｜涉及门店 <b>${storeN}</b></span>
-    <span style="margin-left:auto">${html(dimLabel)} · 点照片新窗口打开原始大图</span>`;
+    <span style="margin-left:auto">${html(dimLabel)} · 点「查看更多」看该卡片完整记录与照片</span>`;
   const cards = groups.map(g=>{
     const id = unq2State.type+'|'+unq2State.dim+'|'+g.key;
+    UNQ2_GROUP_ENTS[id] = g.ents;
     const open = unq2State.expanded[id];
     const shown = open ? g.probs.slice(0,15) : g.probs.slice(0,3);
     const itemRow = p=>`
@@ -1737,7 +1777,10 @@ function unq2RenderTable(){
           <span>${open?'全部问题':'高发问题 Top'+Math.min(3,g.probs.length)}</span>
         </div>
         <div class="unq-card-items">${shown.map(itemRow).join('')}</div>
-        ${g.probs.length>3 ? `<div style="margin-top:8px"><a href="javascript:void(0)" class="unq2-more" data-id="${html(id)}" style="font-size:13px;color:#186BEB;text-decoration:none">${open?'收起':'查看全部问题 ('+g.probs.length+')'}</a></div>` : ''}
+        <div style="margin-top:8px;display:flex;gap:12px">
+          ${g.probs.length>3 ? `<a href="javascript:void(0)" class="unq2-more" data-id="${html(id)}" style="font-size:13px;color:#186BEB;text-decoration:none">${open?'收起':'查看全部问题 ('+g.probs.length+')'}</a>` : ''}
+          <a href="javascript:void(0)" class="unq2-detail" data-id="${html(id)}" style="font-size:13px;color:#186BEB;text-decoration:none;font-weight:600">查看更多 (${g.ents.length} 条记录)</a>
+        </div>
       </div>`;
   }).join('');
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">${cards}</div>`;
@@ -1747,6 +1790,9 @@ function unq2RenderTable(){
       unq2State.expanded[id] = !unq2State.expanded[id];
       unq2RenderTable();
     };
+  });
+  el.querySelectorAll('.unq2-detail').forEach(a=>{
+    a.onclick = ()=>unq2ShowDetail(a.dataset.id);
   });
 }
 
