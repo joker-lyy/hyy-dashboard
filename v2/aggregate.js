@@ -1083,7 +1083,18 @@ async function aggregateAi(aiBaseline, rawStoreMap, baselineStoreMap, rawBaselin
   const inRangeDate = d => /^\d{4}-\d{2}-\d{2}/.test(String(d || ''))
     && String(d).slice(0, 10) >= start && String(d).slice(0, 10) <= end;
   let aiDroppedOutOfRange = 0;
+  let aiDroppedTestTask = 0;
+  const isTestTask = r => /测试/.test(String((r && r.taskName) || ''));
   const scopedStores = [];
+  for (const s of baselineStores) {
+    const rid = String(s.reportId || '');
+    const rec = aiIdx.byId[rid];
+    // fix111：AI 慧检「测试」任务报告（taskName 含"测试"，无日期无分数）不许进看板——
+    //   baseline 快照里若最新一份是测试报告（如康华店 10000000877060，快照误带 score=10），同样剔除
+    if (isTestTask(rec)) {
+      aiDroppedTestTask++;
+      continue;
+    }
   for (const s of baselineStores) {
     const rid = String(s.reportId || '');
     const rec = aiIdx.byId[rid];
