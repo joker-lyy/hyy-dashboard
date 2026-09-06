@@ -1447,10 +1447,7 @@ function renderUnqualified(){
   if(active === 'unqSummary2'){ renderUnqSummary(); return; }
   if(!unqData) return;
   renderUnqSnapshotBar();  // fix49：刷新快照区间提示条
-  if(active === 'unqStore') renderUnqStore();
-  else if(active === 'unqItem') renderUnqItem();
-  else if(active === 'unqRegion') renderUnqRegion();
-  else if(active === 'unqStoreTop') renderUnqStoreTop();
+  if(active === 'unqStoreTop') renderUnqStoreTop();
 }
 
 function fmtRate(v){ return (v*100).toFixed(1) + '%'; }
@@ -3711,7 +3708,7 @@ document.querySelectorAll('#mainTabs .tab').forEach(b=>{
     $(activeMainTab).classList.add('active');
     const sub = activeSubTab[activeMainTab];
     if(sub) switchSubTab(sub);
-    else if(activeMainTab === 'unqualifiedDetail') switchSubTab('unqStore'); // fix28：问题高发首次进入默认子面板
+    else if(activeMainTab === 'unqualifiedDetail') switchSubTab('unqSummary2'); // fix118：问题高发默认进入 v2 汇总
   };
 });
 
@@ -3749,9 +3746,6 @@ $('aiRegionSearch').oninput = ()=>renderAiInspection(appData);
 $('aiStoreRankSearch').oninput = ()=>renderAiInspection(appData);
 
 // fix28：问题高发 tab 的搜索框绑定
-$('unqStoreSearch').oninput = ()=>renderUnqStore();
-$('unqItemSearch').oninput = ()=>renderUnqItem();
-$('unqRegionSearch').oninput = ()=>renderUnqRegion();
 $('unqStoreTopSearch').oninput = ()=>renderUnqStoreTop();
 
 // Chart resize on window resize
