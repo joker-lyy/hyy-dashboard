@@ -1095,9 +1095,6 @@ async function aggregateAi(aiBaseline, rawStoreMap, baselineStoreMap, rawBaselin
       aiDroppedTestTask++;
       continue;
     }
-  for (const s of baselineStores) {
-    const rid = String(s.reportId || '');
-    const rec = aiIdx.byId[rid];
     let use = s;
     if (rec && rec.reportDate && inRangeDate(rec.reportDate)) {
       use = { ...s, _date: String(rec.reportDate).slice(0, 10) };
