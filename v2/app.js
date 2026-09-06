@@ -1045,6 +1045,11 @@ async function applyDateRange(){
   // 不管成功失败都同步一次快捷按钮高亮：日期若恰好等于本月/上月区间，按钮要亮
   // （失败时只更新高亮，banner 错误提示由 tryAggregateRange 内部显示）
   syncActiveRangeButton();
+  // 问题汇总 v2 用实时区间过滤，日期变化后立即重渲染（若当前正显示该面板）
+  if (document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub === 'unqSummary2'
+      && document.getElementById('unqualifiedDetail')?.classList.contains('active')) {
+    renderUnqSummary();
+  }
   if(!ok){
     // tryAggregateRange 内部已经显示了具体错误，保留用户输入
     // 不再走 loadData fallback（否则会覆盖用户选的区间显示成全季度快照）
@@ -1437,9 +1442,11 @@ async function loadUnqualified(){
 }
 
 function renderUnqualified(){
+  const active = document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub || 'unqSummary2';
+  // v2 汇总面板不依赖旧 unqData，独立加载
+  if(active === 'unqSummary2'){ renderUnqSummary(); return; }
   if(!unqData) return;
   renderUnqSnapshotBar();  // fix49：刷新快照区间提示条
-  const active = document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub || 'unqStore';
   if(active === 'unqStore') renderUnqStore();
   else if(active === 'unqItem') renderUnqItem();
   else if(active === 'unqRegion') renderUnqRegion();
@@ -1565,6 +1572,153 @@ function closeUnqLightbox(ev){
 }
 
 // fix49：快照区间提示条——把"快照范围"和当前选择区间的不一致亮出来
+/* ================= 问题汇总 v2（按报告类型 × 组别/区域/问题类别） ================= */
+const UNQ2_TYPES = [
+  {k:'CG', l:'常规巡检（QSC）'},
+  {k:'ZJ', l:'门店自检'},
+  {k:'SP', l:'视频巡检'},
+  {k:'AI', l:'AI慧检'},
+];
+const UNQ2_DIMS = [
+  {k:'cat', l:'按问题类别'},
+  {k:'ps',  l:'按组别'},
+  {k:'rg',  l:'按区域'},
+];
+let unq2State = {loaded:false, promise:null, data:null, type:'CG', dim:'cat', expanded:{}};
+
+function loadUnq2(){
+  if (unq2State.promise) return unq2State.promise;
+  unq2State.promise = fetch(`${DATA_BASE}/unqualified_v2.json?v=${Date.now()}`)
+    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(json=>{ unq2State.data = json; unq2State.loaded = true; })
+    .catch(e=>{ unq2State.promise = null; throw e; });
+  return unq2State.promise;
+}
+
+function unq2RangeEntries(){
+  const d = unq2State.data; if(!d) return [];
+  const t = d.types && d.types[unq2State.type];
+  let ents = (t && t.entries) || [];
+  const s = (currentStart||'').slice(0,10), e = (currentEnd||'').slice(0,10);
+  if (s) ents = ents.filter(x=>x.d >= s);
+  if (e) ents = ents.filter(x=>x.d <= e);
+  return ents;
+}
+
+function unq2BuildGroups(ents, dim){
+  const groups = new Map();
+  for (const x of ents){
+    const key = dim==='cat' ? x.t : (x[dim] || '-');
+    let g = groups.get(key);
+    if (!g){ g = {key, count:0, reps:new Set(), stores:new Set(), probs:new Map()}; groups.set(key,g); }
+    g.count++; g.reps.add(x.rid); g.stores.add(x.sn);
+    let p = g.probs.get(x.t);
+    if (!p){ p = {t:x.t, cat:x.cat, count:0, reps:new Set(), stores:new Set(), photos:[], descs:[]}; g.probs.set(x.t,p); }
+    p.count++; p.reps.add(x.rid); p.stores.add(x.sn);
+    for (const u of (x.img||[])) if (p.photos.length<8 && !p.photos.includes(u)) p.photos.push(u);
+    if (x.desc && p.descs.length<3 && !p.descs.includes(x.desc)) p.descs.push(x.desc);
+  }
+  const arr = [...groups.values()];
+  arr.forEach(g=>{ g.probs = [...g.probs.values()].sort((a,b)=>b.count-a.count); });
+  return arr.sort((a,b)=>b.count-a.count);
+}
+
+function unq2ImgHtml(photos){
+  if (!photos || !photos.length) return '';
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">` +
+    photos.map(u=>`<img src="${html(u)}" loading="lazy" referrerpolicy="no-referrer" style="width:96px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #e3e6ee" onerror="this.style.display='none'">`).join('') +
+    `</div>`;
+}
+
+function unq2RenderChips(){
+  const d = unq2State.data;
+  $('unq2TypeChips').innerHTML = UNQ2_TYPES.map(t=>{
+    const full = d && d.types && d.types[t.k];
+    const n = full ? (full.entries||[]).filter(x=>{const s=(currentStart||'').slice(0,10),e=(currentEnd||'').slice(0,10);return (!s||x.d>=s)&&(!e||x.d<=e);}).length : 0;
+    return `<button class="chip ${unq2State.type===t.k?'active':''}" data-k="${t.k}">${t.l} <b style="color:#c0392b">${n}</b></button>`;
+  }).join('');
+  $('unq2DimChips').innerHTML = UNQ2_DIMS.map(x=>
+    `<button class="chip ${unq2State.dim===x.k?'active':''}" data-k="${x.k}">${x.l}</button>`).join('');
+  $('unq2TypeChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ unq2State.type=b.dataset.k; unq2State.expanded={}; renderUnqSummary(); });
+  $('unq2DimChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ unq2State.dim=b.dataset.k; unq2State.expanded={}; renderUnqSummary(); });
+}
+
+function unq2RenderTable(){
+  const el = $('unq2Table');
+  const ents = unq2RangeEntries();
+  const label = (UNQ2_TYPES.find(t=>t.k===unq2State.type)||{}).l || '';
+  const dimLabel = (UNQ2_DIMS.find(x=>x.k===unq2State.dim)||{}).l || '';
+  if (!ents.length){
+    el.innerHTML = `<div class="empty">该区间内「${html(label)}」暂无不合格数据</div>`;
+    return;
+  }
+  const groups = unq2BuildGroups(ents, unq2State.dim);
+  const dimHead = unq2State.dim==='cat' ? '问题项' : (unq2State.dim==='ps' ? '组别' : '区域');
+  const repN = new Set(ents.map(x=>x.rid)).size;
+  const storeN = new Set(ents.map(x=>x.sn)).size;
+  $('unq2Kpi').innerHTML = `
+    <span class="badge">${html(label)}</span>
+    <span>区间 ${html(currentStart||'-')} ~ ${html(currentEnd||'-')}</span>
+    <span>｜不合格条目 <b style="color:#c0392b">${ents.length}</b></span>
+    <span>｜涉及报告 <b>${repN}</b></span>
+    <span>｜涉及门店 <b>${storeN}</b></span>
+    <span style="margin-left:auto">${html(dimLabel)} · 点行展开明细与现场照片</span>`;
+  const rows = groups.map(g=>{
+    const id = unq2State.type+'|'+unq2State.dim+'|'+g.key;
+    const open = unq2State.expanded[id];
+    const top1 = g.probs[0];
+    const detail = open ? `
+      <tr class="unq2-detail-row"><td colspan="6" style="padding:10px 14px;background:#fafbfe">
+        ${g.probs.slice(0,15).map(p=>`
+          <div style="border-bottom:1px dashed #e3e6ee;padding:8px 0">
+            <div><b>${html(p.t)}</b> <span class="unq-item-cat">${html(p.cat)}</span>
+              <span style="color:#c0392b;font-weight:600">${p.count}次</span>
+              <span style="color:#7a8399;font-size:12px">（${p.reps.size} 份报告 / ${p.stores.size} 家门店）</span></div>
+            ${p.descs.map(x=>`<div style="color:#5a6377;font-size:13px">· ${html(x)}</div>`).join('')}
+            ${unq2ImgHtml(p.photos)}
+          </div>`).join('')}
+        ${g.probs.length>15?`<div style="color:#7a8399;font-size:12px;padding-top:6px">还有 ${g.probs.length-15} 个问题项未展示</div>`:''}
+      </td></tr>` : '';
+    return `
+      <tr class="unq2-row" data-id="${html(id)}" style="cursor:pointer">
+        <td><b>${html(g.key)}</b></td>
+        ${unq2State.dim==='cat'?`<td><span class="unq-item-cat">${html(top1?top1.cat:'')}</span></td>`:''}
+        <td><span style="color:#c0392b;font-weight:600">${g.count}</span></td>
+        <td>${g.reps.size}</td>
+        <td>${g.stores.size}</td>
+        <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5a6377">${top1?html(top1.t):''}</td>
+      </tr>${detail}`;
+  }).join('');
+  el.innerHTML = `
+    <div class="rank-wrap"><table class="rank">
+      <thead><tr>
+        <th>${dimHead}</th>
+        ${unq2State.dim==='cat'?'<th>类别</th>':''}
+        <th>不合格次数</th><th>涉及报告</th><th>涉及门店</th><th>${unq2State.dim==='cat'?'——':'最高频问题'}</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  el.querySelectorAll('.unq2-row').forEach(tr=>{
+    tr.onclick = ()=>{
+      const id = tr.dataset.id;
+      unq2State.expanded[id] = !unq2State.expanded[id];
+      unq2RenderTable();
+    };
+  });
+}
+
+function renderUnqSummary(){
+  const el = $('unq2Table');
+  if (!unq2State.loaded){
+    el.innerHTML = `<div class="empty">正在读取问题汇总数据…</div>`;
+    loadUnq2().then(()=>{ if ($('unqSummary2').classList.contains('active')) renderUnqSummary(); })
+      .catch(()=>{ el.innerHTML = `<div class="empty">问题汇总数据加载失败，请稍后重试</div>`; });
+    return;
+  }
+  unq2RenderChips();
+  unq2RenderTable();
+}
+
 function renderUnqSnapshotBar(){
   const el = $('unqSnapshotBar');
   if(!el || !unqData) return;
@@ -3568,6 +3722,8 @@ function switchSubTab(subId){
 
   // fix28：问题高发顶层 tab 的 7 个子面板，首次激活时按需加载 unqData
   if(subId.startsWith('unq')){
+    // v2 汇总面板独立加载，不依赖旧 unqData
+    if (subId === 'unqSummary2'){ renderUnqSummary(); return; }
     const ensure = unqData ? Promise.resolve() : loadUnqualified();
     ensure.then(()=>renderUnqualified());
   }
