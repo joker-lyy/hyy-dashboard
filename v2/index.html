@@ -480,7 +480,9 @@ a.fbtn{text-decoration:none;display:inline-block}
     <h2 class="pt">整改情况追踪</h2>
     <div class="filterbar" style="flex-wrap:wrap;gap:8px">
       <div class="chipbar" id="unqRfTypeChips"></div>
-      <input type="text" class="search" id="unqRfSearch" placeholder="搜索门店、区域…" style="max-width:320px">
+      <select class="search" id="unqRfPsSel" style="max-width:220px"></select>
+      <select class="search" id="unqRfRgSel" style="max-width:220px"></select>
+      <input type="text" class="search" id="unqRfSearch" placeholder="搜索门店、区域…" style="max-width:220px">
     </div>
     <div class="rank-wrap"><table class="rank" id="unqRfTable"></table></div>
   </div>
@@ -524,8 +526,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260907fix127"></script>
-<script src="app.js?v=20260907fix127"></script>
+<script src="aggregate.js?v=20260907fix128"></script>
+<script src="app.js?v=20260907fix128"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
