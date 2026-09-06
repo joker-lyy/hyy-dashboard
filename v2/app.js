@@ -1618,7 +1618,7 @@ function unq2BuildGroups(ents, dim){
     let p = g.probs.get(x.t);
     if (!p){ p = {t:x.t, cat:x.cat, count:0, reps:new Set(), stores:new Set(), photos:[], descs:[]}; g.probs.set(x.t,p); }
     p.count++; p.reps.add(x.rid); p.stores.add(x.sn);
-    for (const u of (x.img||[])) if (p.photos.length<8 && !p.photos.includes(u)) p.photos.push(u);
+    for (const u of (x.img||[])) if (p.photos.length<8 && !p.photos.some(o=>o.u===u)) p.photos.push({u, sn:x.sn, d:x.d});
     if (x.desc && p.descs.length<3 && !p.descs.includes(x.desc)) p.descs.push(x.desc);
   }
   const arr = [...groups.values()];
@@ -1627,9 +1627,15 @@ function unq2BuildGroups(ents, dim){
 }
 
 function unq2ImgHtml(photos){
+  // photos: [{u,sn,d}] 或旧格式字符串数组（兼容）；点击新窗口打开原始大图
   if (!photos || !photos.length) return '';
-  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0">` +
-    photos.map(u=>`<img src="${html(u)}" loading="lazy" referrerpolicy="no-referrer" style="width:96px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #e3e6ee" onerror="this.style.display='none'">`).join('') +
+  const items = photos.map(p=> typeof p==='string' ? {u:p, sn:'', d:''} : p);
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">` +
+    items.map(p=>`
+      <a href="${html(p.u)}" target="_blank" rel="noopener" title="点击查看原始照片" style="display:inline-block;text-align:center;text-decoration:none">
+        <img src="${html(p.u)}" loading="lazy" referrerpolicy="no-referrer" style="width:96px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #e3e6ee;display:block" onerror="this.parentNode.style.display='none'">
+        <span style="font-size:11px;color:#5a6377;display:block;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${html(p.sn||'')}${p.sn&&p.d?' · ':''}${html((p.d||'').slice(5))}</span>
+      </a>`).join('') +
     `</div>`;
 }
 
@@ -1665,16 +1671,14 @@ function unq2RenderTable(){
     <span>｜不合格条目 <b style="color:#c0392b">${ents.length}</b></span>
     <span>｜涉及报告 <b>${repN}</b></span>
     <span>｜涉及门店 <b>${storeN}</b></span>
-    <span style="margin-left:auto">${html(dimLabel)} · 点图片可放大</span>`;
+    <span style="margin-left:auto">${html(dimLabel)} · 点照片新窗口打开原始大图</span>`;
   const cards = groups.map(g=>{
     const id = unq2State.type+'|'+unq2State.dim+'|'+g.key;
     const open = unq2State.expanded[id];
     const shown = open ? g.probs.slice(0,15) : g.probs.slice(0,3);
     const itemRow = p=>`
       <div class="unq-item-row">
-        ${p.photos.length
-          ? `<img class="unq-item-img" src="${html(p.photos[0])}" loading="lazy" referrerpolicy="no-referrer"
-               data-photo-title="${html(p.t)}" onclick="openUnqLightbox(this)" onerror="this.classList.add('no-photo');this.removeAttribute('src');this.textContent='无图';this.onclick=null">`
+        ${p.photos.length ? unq2ImgHtml(open ? p.photos : p.photos.slice(0,2))
           : `<div class="unq-item-img no-photo" style="display:flex;align-items:center;justify-content:center;font-size:11px;color:#999">无图</div>`}
         <div class="unq-item-body" style="flex:1;min-width:0">
           <div class="unq-item-title" style="font-size:13px;font-weight:600;color:#333;line-height:1.45">${html(p.t)}
@@ -1684,7 +1688,6 @@ function unq2RenderTable(){
             <span style="color:#7a8399;font-size:11px">${p.reps.size} 份报告 · ${p.stores.size} 家门店</span>
           </div>
           ${open ? p.descs.slice(0,2).map(x=>`<div style="color:#5a6377;font-size:12px;margin-top:2px">· ${html(x)}</div>`).join('') : ''}
-          ${open && p.photos.length>1 ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${p.photos.slice(1,5).map(u=>`<img src="${html(u)}" loading="lazy" referrerpolicy="no-referrer" style="width:60px;height:45px;object-fit:cover;border-radius:4px;border:1px solid #e3e6ee" data-photo-title="${html(p.t)}" onclick="openUnqLightbox(this)" onerror="this.style.display='none'">`).join('')}</div>` : ''}
         </div>
       </div>`;
     const metaLine = unq2State.dim==='cat'
@@ -2150,7 +2153,7 @@ function renderUnqStoreTop(){
     let p = m.get(x.t);
     if (!p){ p = {cat:x.cat, count:0, photos:[], desc:''}; m.set(x.t, p); }
     p.count++;
-    for (const u of (x.img||[])) if (p.photos.length<3 && !p.photos.includes(u)) p.photos.push(u);
+    for (const u of (x.img||[])) if (p.photos.length<6 && !p.photos.some(o=>o.u===u)) p.photos.push({u, sn:x.sn, d:x.d});
     if (x.desc && !p.desc) p.desc = x.desc;
   }
   const stores = [...perStore.keys()].filter(s=>{
