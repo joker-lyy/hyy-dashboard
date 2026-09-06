@@ -1618,7 +1618,11 @@ function unq2BuildGroups(ents, dim){
     let p = g.probs.get(x.t);
     if (!p){ p = {t:x.t, cat:x.cat, count:0, reps:new Set(), stores:new Set(), photos:[], descs:[]}; g.probs.set(x.t,p); }
     p.count++; p.reps.add(x.rid); p.stores.add(x.sn);
-    for (const u of (x.img||[])) if (p.photos.length<8 && !p.photos.some(o=>o.u===u)) p.photos.push({u, sn:x.sn, d:x.d});
+    for (const im of (x.img||[])){
+      const u = typeof im==='string' ? im : im.u;
+      const ts = typeof im==='string' ? '' : im.ts;
+      if (p.photos.length<8 && !p.photos.some(o=>o.u===u)) p.photos.push({u, sn:x.sn, rg:x.rg, ts, d:x.d});
+    }
     if (x.desc && p.descs.length<3 && !p.descs.includes(x.desc)) p.descs.push(x.desc);
   }
   const arr = [...groups.values()];
@@ -1626,16 +1630,43 @@ function unq2BuildGroups(ents, dim){
   return arr.sort((a,b)=>b.count-a.count);
 }
 
+let UNQ2_PHOTOS = []; // 弹窗照片池：{u, sn, rg, ts}
+function unq2ViewPhoto(i){
+  const p = UNQ2_PHOTOS[i]; if(!p) return;
+  let ov = document.getElementById('unq2PhotoOverlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'unq2PhotoOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px';
+    ov.onclick = (e)=>{ if(e.target===ov) ov.remove(); };
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:min(92vw,900px);max-height:92vh;overflow:auto;padding:14px 16px" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="font-size:14px;font-weight:600;color:#1A2A4A">
+          ${html(p.sn||'未知门店')}
+          <span style="color:#7a8399;font-weight:400;font-size:12px;margin-left:8px">区域：${html(p.rg||'-')}</span>
+          <span style="color:#7a8399;font-weight:400;font-size:12px;margin-left:8px">拍摄时间：${html(p.ts||p.d||'-')}</span>
+        </div>
+        <button onclick="this.closest('#unq2PhotoOverlay').remove()" style="border:none;background:#f0f2f7;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px">关闭 ✕</button>
+      </div>
+      <img src="${html(p.u)}" referrerpolicy="no-referrer" style="width:100%;max-height:76vh;object-fit:contain;border-radius:8px;background:#f5f6f8" onerror="this.parentNode.innerHTML='<div style=&quot;padding:40px;text-align:center;color:#999&quot;>照片加载失败</div>'+this.parentNode.innerHTML">
+    </div>`;
+}
 function unq2ImgHtml(photos){
-  // photos: [{u,sn,d}] 或旧格式字符串数组（兼容）；点击新窗口打开原始大图
+  // photos: [{u,sn,rg,ts,d}]；点击当前页弹窗看原始大图（含门店/区域/拍摄时间）
   if (!photos || !photos.length) return '';
-  const items = photos.map(p=> typeof p==='string' ? {u:p, sn:'', d:''} : p);
+  const items = photos.map(p=> typeof p==='string' ? {u:p, sn:'', rg:'', ts:''} : p);
   return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">` +
-    items.map(p=>`
-      <a href="${html(p.u)}" target="_blank" rel="noopener" title="点击查看原始照片" style="display:inline-block;text-align:center;text-decoration:none">
+    items.map(p=>{
+      const pid = UNQ2_PHOTOS.push(p) - 1;
+      return `
+      <span style="display:inline-block;text-align:center;cursor:zoom-in" onclick="unq2ViewPhoto(${pid})" title="点击查看原始照片">
         <img src="${html(p.u)}" loading="lazy" referrerpolicy="no-referrer" style="width:96px;height:72px;object-fit:cover;border-radius:6px;border:1px solid #e3e6ee;display:block" onerror="this.parentNode.style.display='none'">
-        <span style="font-size:11px;color:#5a6377;display:block;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${html(p.sn||'')}${p.sn&&p.d?' · ':''}${html((p.d||'').slice(5))}</span>
-      </a>`).join('') +
+        <span style="font-size:11px;color:#5a6377;display:block;max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">${html(p.sn||'')}${p.sn&&(p.ts||p.d)?' · ':''}${html((p.ts||p.d||'').slice(5,16))}</span>
+      </span>`;
+    }).join('') +
     `</div>`;
 }
 
@@ -2153,7 +2184,11 @@ function renderUnqStoreTop(){
     let p = m.get(x.t);
     if (!p){ p = {cat:x.cat, count:0, photos:[], desc:''}; m.set(x.t, p); }
     p.count++;
-    for (const u of (x.img||[])) if (p.photos.length<6 && !p.photos.some(o=>o.u===u)) p.photos.push({u, sn:x.sn, d:x.d});
+    for (const im of (x.img||[])){
+      const u = typeof im==='string' ? im : im.u;
+      const ts = typeof im==='string' ? '' : im.ts;
+      if (p.photos.length<6 && !p.photos.some(o=>o.u===u)) p.photos.push({u, sn:x.sn, rg:x.rg, ts, d:x.d});
+    }
     if (x.desc && !p.desc) p.desc = x.desc;
   }
   const stores = [...perStore.keys()].filter(s=>{
