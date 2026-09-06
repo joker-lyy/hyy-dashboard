@@ -1450,10 +1450,7 @@ function renderUnqualified(){
   if(active === 'unqStore') renderUnqStore();
   else if(active === 'unqItem') renderUnqItem();
   else if(active === 'unqRegion') renderUnqRegion();
-  else if(active === 'unqStoreRank') renderUnqStoreRank();
-  else if(active === 'unqRegionRank') renderUnqRegionRank();
   else if(active === 'unqStoreTop') renderUnqStoreTop();
-  else if(active === 'unqCategoryTop') renderUnqCategoryTop();
 }
 
 function fmtRate(v){ return (v*100).toFixed(1) + '%'; }
@@ -3755,9 +3752,7 @@ $('aiStoreRankSearch').oninput = ()=>renderAiInspection(appData);
 $('unqStoreSearch').oninput = ()=>renderUnqStore();
 $('unqItemSearch').oninput = ()=>renderUnqItem();
 $('unqRegionSearch').oninput = ()=>renderUnqRegion();
-$('unqStoreRankSearch').oninput = ()=>renderUnqStoreRank();
 $('unqStoreTopSearch').oninput = ()=>renderUnqStoreTop();
-$('unqCategoryTopSearch').oninput = ()=>renderUnqCategoryTop();
 
 // Chart resize on window resize
 window.addEventListener('resize', ()=>{
