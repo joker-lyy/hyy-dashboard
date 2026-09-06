@@ -443,16 +443,13 @@ a.fbtn{text-decoration:none;display:inline-block}
 <section class="panel" id="unqualifiedDetail">
   <div class="subtabs" id="unqSubTabs">
     <button class="subtab active" data-sub="unqSummary2">问题汇总 v2</button>
-    <button class="subtab" data-sub="unqStore">按门店分类</button>
-    <button class="subtab" data-sub="unqItem">按问题分类</button>
-    <button class="subtab" data-sub="unqRegion">按区域分类</button>
     <button class="subtab" data-sub="unqStoreTop">门店高发问题</button>
   </div>
 
   <!-- fix49：快照区间提示条（容器，渲染时填充） -->
   <div id="unqSnapshotBar"></div>
 
-  <div class="module-panel" id="unqSummary2">
+  <div class="module-panel active" id="unqSummary2">
     <h2 class="pt">问题汇总 · 按报告类型</h2>
     <div class="filterbar" style="flex-wrap:wrap;gap:8px">
       <div class="chipbar" id="unq2TypeChips"></div>
@@ -460,33 +457,6 @@ a.fbtn{text-decoration:none;display:inline-block}
     </div>
     <div id="unq2Kpi" class="unq-snapshot-bar"></div>
     <div id="unq2Table"></div>
-  </div>
-
-  <div class="module-panel active" id="unqStore">
-    <h2 class="pt">按门店分类 · 问题高发</h2>
-    <div class="filterbar">
-      <div class="chipbar" id="unqStoreTypeChips"></div>
-      <input type="text" class="search" id="unqStoreSearch" placeholder="搜索门店、区域…" style="max-width:320px">
-    </div>
-    <div class="unq-card-grid" id="unqStoreCards"></div>
-  </div>
-
-  <div class="module-panel" id="unqItem">
-    <h2 class="pt">按问题分类 · 问题高发</h2>
-    <div class="filterbar">
-      <div class="chipbar" id="unqItemCategoryChips"></div>
-      <input type="text" class="search" id="unqItemSearch" placeholder="搜索问题、分类…" style="max-width:320px">
-    </div>
-    <div class="unq-card-grid" id="unqItemCards"></div>
-  </div>
-
-  <div class="module-panel" id="unqRegion">
-    <h2 class="pt">按区域分类 · 问题高发</h2>
-    <div class="filterbar">
-      <div class="chipbar" id="unqRegionChips"></div>
-      <input type="text" class="search" id="unqRegionSearch" placeholder="搜索区域…" style="max-width:320px">
-    </div>
-    <div id="unqRegionCards"></div>
   </div>
 
   <div class="module-panel" id="unqStoreTop">
@@ -537,8 +507,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260907fix118"></script>
-<script src="app.js?v=20260907fix118"></script>
+<script src="aggregate.js?v=20260907fix119"></script>
+<script src="app.js?v=20260907fix119"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
