@@ -470,7 +470,9 @@ a.fbtn{text-decoration:none;display:inline-block}
     <h2 class="pt">常规巡检 · 同店变化对比</h2>
     <div class="filterbar" style="flex-wrap:wrap;gap:8px">
       <div class="chipbar" id="unqCmpVerdictChips"></div>
-      <input type="text" class="search" id="unqCmpSearch" placeholder="搜索门店、区域…" style="max-width:320px">
+      <select class="search" id="unqCmpPsSel" style="max-width:220px"></select>
+      <select class="search" id="unqCmpRgSel" style="max-width:220px"></select>
+      <input type="text" class="search" id="unqCmpSearch" placeholder="搜索门店、区域…" style="max-width:220px">
     </div>
     <div style="color:#7a8399;font-size:12px;margin:6px 0">每家门店取最近两次常规巡检（QSC）报告配对：好转/劣化/复发一目了然；⚠️ = 该问题连续两次不合格（近30天重复），最需督办</div>
     <div id="unqCmpList"></div>
@@ -526,8 +528,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260907fix128"></script>
-<script src="app.js?v=20260907fix128"></script>
+<script src="aggregate.js?v=20260907fix129"></script>
+<script src="app.js?v=20260907fix129"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
