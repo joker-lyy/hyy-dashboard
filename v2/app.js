@@ -623,7 +623,9 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
   body += `<div class="rd-row"><span>门店</span><b>${html(sn || '-')}</b></div>`;
   body += `<div class="rd-row"><span>区域</span><b>${html(rg || '-')}</b></div>`;
   body += `<div class="rd-row"><span>计划类型</span><b>${html(planLabel)}</b></div>`;
-  body += `<div class="rd-row"><span>报告日期</span><b>${html(rd || '-')}</b></div>`;
+  // fix115：列表没带日期时，从明细 raw 里补（AI 接口真实字段是 reportTime；其它类型试 reportDate/date）
+  const detDate = det && det.raw ? (det.raw.reportTime || det.raw.reportDate || det.raw.date || '') : '';
+  body += `<div class="rd-row"><span>报告日期</span><b>${html(rd || String(detDate).slice(0, 10) || '-')}</b></div>`;
   // CG 报告顶部也必须使用 QSC 权重计算结果，不能继续显示列表里的旧 score。
   // 直营组部分批次列表分数与报告明细分数可能不同，明细权重是唯一可信口径。
   let headerScore = sc;

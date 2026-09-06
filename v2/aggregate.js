@@ -1091,7 +1091,9 @@ async function aggregateAi(aiBaseline, rawStoreMap, baselineStoreMap, rawBaselin
     const rec = aiIdx.byId[rid];
     // fix111：AI 慧检「测试」任务报告（taskName 含"测试"，无日期无分数）不许进看板——
     //   baseline 快照里若最新一份是测试报告（如康华店 10000000877060，快照误带 score=10），同样剔除
-    if (isTestTask(rec)) {
+    // fix115：rec 不存在也剔除——aiReports.json 是全量真实报告列表（refresh_ai_reports 每日更新），
+    //   baseline 引用了列表外的报告（如远洋城 877072，明细 taskName=测试）＝旧测试/脏数据，不许进看板
+    if (!rec || isTestTask(rec)) {
       aiDroppedTestTask++;
       continue;
     }
