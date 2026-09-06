@@ -1,8 +1,8 @@
 // GitHub Pages 静态版：所有数据都是构建期预生成的 JSON，无后端、无跨域
 // v2 子目录：从上级 data 取数
 const DATA_BASE = "../data";
-// reportDetails.json 全量版超 GitHub 100MB 单文件限制，按 <100MB 自适应切片（sync_ghpages.py 动态算片数），加载时探测片数拼接还原
-const REPORT_DETAILS_MAX_PARTS = 12;  // 分片上限保险，避免无限循环
+// reportDetails.json 全量版 236MB 超 GitHub 100MB 单文件限制，切成 3 片存放，加载时按字节拼接还原
+const REPORT_DETAILS_PARTS = 4;
 
 let appData = null;
 // fix53：报告明细（免登录查看），键为 planType:reportId，值来自 data/reportDetails.json
@@ -336,7 +336,12 @@ function renderReportRaw(raw){
   // fix109n：门店自检等报告存在"未点评"状态（门店已提交、负责人未点评），
   // 接口返回 evaluated=null / score='未点评'，检查项 itemScore/result 全空 →
   // 前端曾显示成误导性的 0 分和 "-"，这里识别后统一展示"未点评"。
-  const unreviewed = (raw.evaluated == null) || raw.score === '未点评' || raw.isPassString === '未点评';
+  // fix113：evaluated 字段只有门店自检(ZJ)接口才返回；CG/SP 报告没有该字段，
+  // 若参与判断会把所有常规/视频巡检报告误判成"未点评"（如佳润 9-04 CG 93 分被遮挡）。
+  // 只有 ZJ 才认 evaluated；其它类型必须看到明确的"未点评"字样才算未点评。
+  const unreviewed = (raw.planType === 'ZJ')
+    ? ((raw.evaluated == null) || raw.score === '未点评' || raw.isPassString === '未点评')
+    : (raw.score === '未点评' || raw.isPassString === '未点评');
   // 苍井 CG 常规巡检 QSC：不同批次可能返回不同 templateScore，
   // 统一由结构识别后进入按真实权重渲染。
   if(_looksLikeCgRaw(raw)) return renderReportRawCG(raw);
@@ -632,7 +637,9 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
   }
   // fix109o：门店自检两环节——门店自评提交（列表100分=自评分）→ 负责人点评复核。
   //   evaluated=null 时报告未复核，头部要标明"门店自评、待点评"，避免用户误解为已确认的100分。
-  const zjUnreviewed = !!(det && det.raw && ((det.raw.evaluated == null) || det.raw.score === '未点评' || det.raw.isPassString === '未点评'));
+  // fix113：evaluated 只有 ZJ 接口才有，CG/SP 不参与该判断（同 renderReportRaw 的修正）
+  const zjUnreviewed = !!(det && det.raw && (det.raw.planType === 'ZJ')
+    && ((det.raw.evaluated == null) || det.raw.score === '未点评' || det.raw.isPassString === '未点评'));
   if(zjUnreviewed){
     // fix109q：未点评的报告只输出一套口径——与列表一致显示「未点评」，
     // 不再展示门店自评分/合格徽章，避免"100分+待复核"与"未点评"两套标准并存引起歧义。
@@ -1171,10 +1178,9 @@ async function applyAiReportDateRange(data, start, end){
 async function loadReportDetails(){
   try{
     const bufs = [];
-    for(let i = 1; i <= REPORT_DETAILS_MAX_PARTS; i++){
-      // 明细分片内容不可变，走浏览器 HTTP 缓存，二次打开不再全量重下
+    for(let i = 1; i <= REPORT_DETAILS_PARTS; i++){
+      // 明细分片内容不可变，走浏览器 HTTP 缓存，二次打开不再全量重下 236MB
       const pr = await fetch(cb(`${DATA_BASE}/reportDetails.part${i}.json`));
-      if(pr.status === 404) break;   // 没有更多分片了，停止拼接
       bufs.push(await pr.arrayBuffer());
     }
     const rdJson = JSON.parse(await new Blob(bufs).text());
