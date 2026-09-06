@@ -2,7 +2,7 @@
 // v2 子目录：从上级 data 取数
 const DATA_BASE = "../data";
 // reportDetails.json 全量版 236MB 超 GitHub 100MB 单文件限制，切成 3 片存放，加载时按字节拼接还原
-const REPORT_DETAILS_PARTS = 3;
+const REPORT_DETAILS_PARTS = 4;
 
 let appData = null;
 // fix53：报告明细（免登录查看），键为 planType:reportId，值来自 data/reportDetails.json
