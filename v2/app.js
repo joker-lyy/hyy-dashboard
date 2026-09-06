@@ -2191,6 +2191,8 @@ function showRegionStoresByName(regionEnc){
 
 // ===== fix127：门店督办（巡检变化对比 + 整改追踪），替代原「门店高发问题」 =====
 let unqCmpVerdict = '__all__';   // __all__ / 差了 / 好了 / 持平
+let unqCmpPs = '__all__';        // 组别筛选
+let unqCmpRg = '__all__';        // 区域筛选
 let unqRfType = '__all__';       // __all__ / CG / ZJ / SP / AI
 let unqRfPs = '__all__';         // 组别筛选
 let unqRfRg = '__all__';         // 区域筛选
@@ -2215,6 +2217,20 @@ function renderUnqCompare(){
     `<button class="chip ${unqCmpVerdict===v?'active':''}" data-v="${v}">${v==='__all__'?'全部':v} <b style="color:#c0392b">${cnt(v)}</b></button>`).join('');
   chipsEl.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ unqCmpVerdict=b.dataset.v; renderUnqCompare(); });
   if (unqCmpVerdict !== '__all__') rows = rows.filter(x=>x.verdict===unqCmpVerdict);
+  // 组别 / 区域下拉筛选（fix129）
+  const psList = [...new Set(rows.map(x=>x.ps).filter(Boolean))].sort();
+  const rgList = [...new Set(rows.map(x=>x.rg).filter(Boolean))].sort();
+  if (!psList.includes(unqCmpPs)) unqCmpPs = '__all__';
+  if (!rgList.includes(unqCmpRg)) unqCmpRg = '__all__';
+  const psSel = $('unqCmpPsSel'), rgSel = $('unqCmpRgSel');
+  const optHtml = (list, label)=>`<option value="__all__">全部${label}（${list.length}）</option>` + list.map(v=>`<option value="${html(v)}">${html(v)}</option>`).join('');
+  psSel.innerHTML = optHtml(psList, '组别');
+  rgSel.innerHTML = optHtml(rgList, '区域');
+  psSel.value = unqCmpPs; rgSel.value = unqCmpRg;
+  psSel.onchange = ()=>{ unqCmpPs = psSel.value; renderUnqCompare(); };
+  rgSel.onchange = ()=>{ unqCmpRg = rgSel.value; renderUnqCompare(); };
+  if (unqCmpPs !== '__all__') rows = rows.filter(x=>x.ps===unqCmpPs);
+  if (unqCmpRg !== '__all__') rows = rows.filter(x=>x.rg===unqCmpRg);
   const search = ($('unqCmpSearch').value||'').trim().toLowerCase();
   if (search) rows = rows.filter(x=>(x.sn+' '+(x.rg||'')).toLowerCase().includes(search));
 
