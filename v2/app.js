@@ -1582,10 +1582,10 @@ const UNQ2_TYPES = [
   {k:'AI', l:'AI慧检'},
 ];
 const UNQ2_DIMS = [
-  {k:'sn',  l:'按门店'},
   {k:'cat', l:'按问题类别'},
   {k:'ps',  l:'按组别'},
   {k:'rg',  l:'按区域'},
+  {k:'sn',  l:'按门店'},
 ];
 let unq2State = {loaded:false, promise:null, data:null, type:'CG', dim:'cat', expanded:{}};
 
