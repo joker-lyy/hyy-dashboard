@@ -443,7 +443,8 @@ a.fbtn{text-decoration:none;display:inline-block}
 <section class="panel" id="unqualifiedDetail">
   <div class="subtabs" id="unqSubTabs">
     <button class="subtab active" data-sub="unqSummary2">问题汇总 v2</button>
-    <button class="subtab" data-sub="unqStoreTop">门店高发问题</button>
+    <button class="subtab" data-sub="unqCompare">巡检变化对比</button>
+    <button class="subtab" data-sub="unqRectify">整改追踪</button>
   </div>
 
   <!-- fix49：快照区间提示条（容器，渲染时填充） -->
@@ -465,13 +466,23 @@ a.fbtn{text-decoration:none;display:inline-block}
     <div id="unq2Table"></div>
   </div>
 
-  <div class="module-panel" id="unqStoreTop">
-    <h2 class="pt">门店高发问题</h2>
-    <div class="filterbar">
-      <div class="chipbar" id="unqStoreTopPositionChips"></div>
-      <input type="text" class="search" id="unqStoreTopSearch" placeholder="搜索门店…" style="max-width:320px">
+  <div class="module-panel" id="unqCompare">
+    <h2 class="pt">常规巡检 · 同店变化对比</h2>
+    <div class="filterbar" style="flex-wrap:wrap;gap:8px">
+      <div class="chipbar" id="unqCmpVerdictChips"></div>
+      <input type="text" class="search" id="unqCmpSearch" placeholder="搜索门店、区域…" style="max-width:320px">
     </div>
-    <div class="rank-wrap"><table class="rank" id="unqStoreTopTable"></table></div>
+    <div style="color:#7a8399;font-size:12px;margin:6px 0">每家门店取最近两次常规巡检（QSC）报告配对：好转/劣化/复发一目了然；⚠️ = 该问题连续两次不合格（近30天重复），最需督办</div>
+    <div id="unqCmpList"></div>
+  </div>
+
+  <div class="module-panel" id="unqRectify">
+    <h2 class="pt">整改情况追踪</h2>
+    <div class="filterbar" style="flex-wrap:wrap;gap:8px">
+      <div class="chipbar" id="unqRfTypeChips"></div>
+      <input type="text" class="search" id="unqRfSearch" placeholder="搜索门店、区域…" style="max-width:320px">
+    </div>
+    <div class="rank-wrap"><table class="rank" id="unqRfTable"></table></div>
   </div>
 </section>
 
@@ -513,8 +524,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260907fix126"></script>
-<script src="app.js?v=20260907fix126"></script>
+<script src="aggregate.js?v=20260907fix127"></script>
+<script src="app.js?v=20260907fix127"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
