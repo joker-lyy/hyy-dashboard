@@ -1,8 +1,8 @@
 // GitHub Pages 静态版：所有数据都是构建期预生成的 JSON，无后端、无跨域
 // v2 子目录：从上级 data 取数
 const DATA_BASE = "../data";
-// reportDetails.json 全量版 236MB 超 GitHub 100MB 单文件限制，切成 3 片存放，加载时按字节拼接还原
-const REPORT_DETAILS_PARTS = 4;
+// reportDetails.json 全量版超 GitHub 100MB 单文件限制，按 <100MB 自适应切片（sync_ghpages.py 动态算片数），加载时探测片数拼接还原
+const REPORT_DETAILS_MAX_PARTS = 12;  // 分片上限保险，避免无限循环
 
 let appData = null;
 // fix53：报告明细（免登录查看），键为 planType:reportId，值来自 data/reportDetails.json
@@ -1171,9 +1171,10 @@ async function applyAiReportDateRange(data, start, end){
 async function loadReportDetails(){
   try{
     const bufs = [];
-    for(let i = 1; i <= REPORT_DETAILS_PARTS; i++){
-      // 明细分片内容不可变，走浏览器 HTTP 缓存，二次打开不再全量重下 236MB
+    for(let i = 1; i <= REPORT_DETAILS_MAX_PARTS; i++){
+      // 明细分片内容不可变，走浏览器 HTTP 缓存，二次打开不再全量重下
       const pr = await fetch(cb(`${DATA_BASE}/reportDetails.part${i}.json`));
+      if(pr.status === 404) break;   // 没有更多分片了，停止拼接
       bufs.push(await pr.arrayBuffer());
     }
     const rdJson = JSON.parse(await new Blob(bufs).text());
