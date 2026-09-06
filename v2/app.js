@@ -1580,6 +1580,7 @@ const UNQ2_TYPES = [
   {k:'AI', l:'AI慧检'},
 ];
 const UNQ2_DIMS = [
+  {k:'sn',  l:'按门店'},
   {k:'cat', l:'按问题类别'},
   {k:'ps',  l:'按组别'},
   {k:'rg',  l:'按区域'},
@@ -1662,45 +1663,51 @@ function unq2RenderTable(){
     <span>｜不合格条目 <b style="color:#c0392b">${ents.length}</b></span>
     <span>｜涉及报告 <b>${repN}</b></span>
     <span>｜涉及门店 <b>${storeN}</b></span>
-    <span style="margin-left:auto">${html(dimLabel)} · 点行展开明细与现场照片</span>`;
-  const rows = groups.map(g=>{
+    <span style="margin-left:auto">${html(dimLabel)} · 点图片可放大</span>`;
+  const cards = groups.map(g=>{
     const id = unq2State.type+'|'+unq2State.dim+'|'+g.key;
     const open = unq2State.expanded[id];
-    const top1 = g.probs[0];
-    const detail = open ? `
-      <tr class="unq2-detail-row"><td colspan="6" style="padding:10px 14px;background:#fafbfe">
-        ${g.probs.slice(0,15).map(p=>`
-          <div style="border-bottom:1px dashed #e3e6ee;padding:8px 0">
-            <div><b>${html(p.t)}</b> <span class="unq-item-cat">${html(p.cat)}</span>
-              <span style="color:#c0392b;font-weight:600">${p.count}次</span>
-              <span style="color:#7a8399;font-size:12px">（${p.reps.size} 份报告 / ${p.stores.size} 家门店）</span></div>
-            ${p.descs.map(x=>`<div style="color:#5a6377;font-size:13px">· ${html(x)}</div>`).join('')}
-            ${unq2ImgHtml(p.photos)}
-          </div>`).join('')}
-        ${g.probs.length>15?`<div style="color:#7a8399;font-size:12px;padding-top:6px">还有 ${g.probs.length-15} 个问题项未展示</div>`:''}
-      </td></tr>` : '';
+    const shown = open ? g.probs.slice(0,15) : g.probs.slice(0,3);
+    const itemRow = p=>`
+      <div class="unq-item-row">
+        ${p.photos.length
+          ? `<img class="unq-item-img" src="${html(p.photos[0])}" loading="lazy" referrerpolicy="no-referrer"
+               data-photo-title="${html(p.t)}" onclick="openUnqLightbox(this)" onerror="this.classList.add('no-photo');this.removeAttribute('src');this.textContent='无图';this.onclick=null">`
+          : `<div class="unq-item-img no-photo" style="display:flex;align-items:center;justify-content:center;font-size:11px;color:#999">无图</div>`}
+        <div class="unq-item-body" style="flex:1;min-width:0">
+          <div class="unq-item-title" style="font-size:13px;font-weight:600;color:#333;line-height:1.45">${html(p.t)}
+            <span style="color:#c0392b;font-weight:700;margin-left:4px">${p.count}次</span></div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:3px">
+            <span class="unq-item-cat">${html(p.cat||'-')}</span>
+            <span style="color:#7a8399;font-size:11px">${p.reps.size} 份报告 · ${p.stores.size} 家门店</span>
+          </div>
+          ${open ? p.descs.slice(0,2).map(x=>`<div style="color:#5a6377;font-size:12px;margin-top:2px">· ${html(x)}</div>`).join('') : ''}
+          ${open && p.photos.length>1 ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">${p.photos.slice(1,5).map(u=>`<img src="${html(u)}" loading="lazy" referrerpolicy="no-referrer" style="width:60px;height:45px;object-fit:cover;border-radius:4px;border:1px solid #e3e6ee" data-photo-title="${html(p.t)}" onclick="openUnqLightbox(this)" onerror="this.style.display='none'">`).join('')}</div>` : ''}
+        </div>
+      </div>`;
+    const metaLine = unq2State.dim==='cat'
+      ? `<span class="unq-item-cat">${html(g.probs[0]?(g.probs[0].cat||'-'):'-')}</span>`
+      : `涉及问题项 <b>${g.probs.length}</b>`;
     return `
-      <tr class="unq2-row" data-id="${html(id)}" style="cursor:pointer">
-        <td><b>${html(g.key)}</b></td>
-        ${unq2State.dim==='cat'?`<td><span class="unq-item-cat">${html(top1?top1.cat:'')}</span></td>`:''}
-        <td><span style="color:#c0392b;font-weight:600">${g.count}</span></td>
-        <td>${g.reps.size}</td>
-        <td>${g.stores.size}</td>
-        <td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#5a6377">${top1?html(top1.t):''}</td>
-      </tr>${detail}`;
+      <div class="unq-card">
+        <div class="unq-card-head">
+          <div>
+            <div class="unq-card-title">${html(g.key)}</div>
+            <div class="unq-card-meta">${metaLine}${unq2State.dim!=='cat'?` · ${g.stores.size} 家门店 · ${g.reps.size} 份报告`:''}</div>
+          </div>
+          <span class="unq-card-badge">不合格 ${g.count} 项</span>
+        </div>
+        <div class="unq-card-stats">
+          <span>${open?'全部问题':'高发问题 Top'+Math.min(3,g.probs.length)}</span>
+        </div>
+        <div class="unq-card-items">${shown.map(itemRow).join('')}</div>
+        ${g.probs.length>3 ? `<div style="margin-top:8px"><a href="javascript:void(0)" class="unq2-more" data-id="${html(id)}" style="font-size:13px;color:#186BEB;text-decoration:none">${open?'收起':'查看全部问题 ('+g.probs.length+')'}</a></div>` : ''}
+      </div>`;
   }).join('');
-  el.innerHTML = `
-    <div class="rank-wrap"><table class="rank">
-      <thead><tr>
-        <th>${dimHead}</th>
-        ${unq2State.dim==='cat'?'<th>类别</th>':''}
-        <th>不合格次数</th><th>涉及报告</th><th>涉及门店</th><th>${unq2State.dim==='cat'?'——':'最高频问题'}</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>`;
-  el.querySelectorAll('.unq2-row').forEach(tr=>{
-    tr.onclick = ()=>{
-      const id = tr.dataset.id;
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">${cards}</div>`;
+  el.querySelectorAll('.unq2-more').forEach(a=>{
+    a.onclick = ()=>{
+      const id = a.dataset.id;
       unq2State.expanded[id] = !unq2State.expanded[id];
       unq2RenderTable();
     };
