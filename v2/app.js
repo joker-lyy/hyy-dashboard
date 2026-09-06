@@ -15,7 +15,6 @@ let unqStoreRankType = 'all'; // all | cg | self | video
 let unqStoreType = 'cg'; // cg | self | video | all
 let unqItemCategory = '__all__';
 let unqRegionFilter = '__all__';
-let unqStoreTopPosition = '__all__';
 let unqCategoryTopPosition = '__all__';
 let unqPhotoCache = {};
 let activePosFilter = '__all__';
@@ -1045,9 +1044,9 @@ async function applyDateRange(){
   // 不管成功失败都同步一次快捷按钮高亮：日期若恰好等于本月/上月区间，按钮要亮
   // （失败时只更新高亮，banner 错误提示由 tryAggregateRange 内部显示）
   syncActiveRangeButton();
-  // 问题汇总 v2 / 门店高发问题 用实时区间过滤，日期变化后立即重渲染（若当前正显示该面板）
+  // 问题汇总 v2 / 督办两个页签用实时区间过滤，日期变化后立即重渲染（若当前正显示该面板）
   const activeSub = document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub;
-  if ((activeSub === 'unqSummary2' || activeSub === 'unqStoreTop')
+  if (['unqSummary2','unqCompare','unqRectify'].includes(activeSub)
       && document.getElementById('unqualifiedDetail')?.classList.contains('active')) {
     renderUnqualified();
   }
@@ -1447,14 +1446,15 @@ function renderUnqualified(){
   // fix120：v2 汇总与门店高发问题都用 v2 快照（跟随右上角日期区间），独立加载；旧快照提示条不再展示
   const bar = $('unqSnapshotBar'); if(bar){ bar.innerHTML=''; bar.className='unq-snapshot-bar'; }
   if(active === 'unqSummary2'){ renderUnqSummary(); return; }
-  if(active === 'unqStoreTop'){
+  if(active === 'unqCompare' || active === 'unqRectify'){
     if (!unq2State.loaded){
-      $('unqStoreTopTable').innerHTML = '<tbody><tr><td class="empty">正在读取问题数据…</td></tr></tbody>';
-      loadUnq2().then(()=>{ if ($('unqStoreTop').classList.contains('active')) renderUnqStoreTop(); })
-        .catch(()=>{ $('unqStoreTopTable').innerHTML = '<tbody><tr><td class="empty">数据加载失败，请稍后重试</td></tr></tbody>'; });
+      const tgt = active==='unqCompare' ? 'unqCmpList' : 'unqRfTable';
+      $(tgt).innerHTML = '<div class="empty">正在读取督办数据…</div>';
+      loadUnq2().then(()=>{ if ($(active).classList.contains('active')) renderUnqSupervision(); })
+        .catch(()=>{ $(tgt).innerHTML = '<div class="empty">数据加载失败，请稍后重试</div>'; });
       return;
     }
-    renderUnqStoreTop();
+    renderUnqSupervision();
   }
 }
 
@@ -2189,20 +2189,112 @@ function showRegionStoresByName(regionEnc){
   modal.classList.add('active');
 }
 
-function buildUnqStoreTopPositionChips(){
-  // fix120：组别从 v2 快照条目实时取（跟随右上角日期区间）
-  const ents = unq2AllRangeEntries();
-  const positions = ['__all__', ...new Set(ents.map(x=>x.ps).filter(Boolean).sort())];
-  const el = $('unqStoreTopPositionChips');
-  if(!el) return;
-  el.innerHTML = positions.map(p=>{
-    const label = p==='__all__' ? '全部组别' : p;
-    return `<button class="chip ${unqStoreTopPosition===p?'active':''}" data-pos="${html(p)}">${html(label)}</button>`;
-  }).join('');
-  el.querySelectorAll('.chip').forEach(btn=>{
-    btn.onclick = ()=>{ unqStoreTopPosition = btn.dataset.pos; buildUnqStoreTopPositionChips(); renderUnqStoreTop(); };
-  });
+// ===== fix127：门店督办（巡检变化对比 + 整改追踪），替代原「门店高发问题」 =====
+let unqCmpVerdict = '__all__';   // __all__ / 差了 / 好了 / 持平
+let unqRfType = '__all__';       // __all__ / CG / ZJ / SP / AI
+
+function renderUnqSupervision(){
+  const active = document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub;
+  if (active === 'unqCompare') renderUnqCompare();
+  else if (active === 'unqRectify') renderUnqRectify();
 }
+
+function renderUnqCompare(){
+  const d = unq2State.data;
+  let rows = (d && d.cgCompare) || [];
+  const s = (currentStart||'').slice(0,10), e = (currentEnd||'').slice(0,10);
+  if (s) rows = rows.filter(x=>x.cd >= s);   // 按本次巡检日期落区间
+  if (e) rows = rows.filter(x=>x.cd <= e);
+  // 结论芯片
+  const verdicts = ['__all__','差了','好了','持平'];
+  const chipsEl = $('unqCmpVerdictChips');
+  const cnt = v=>v==='__all__' ? rows.length : rows.filter(x=>x.verdict===v).length;
+  chipsEl.innerHTML = verdicts.map(v=>
+    `<button class="chip ${unqCmpVerdict===v?'active':''}" data-v="${v}">${v==='__all__'?'全部':v} <b style="color:#c0392b">${cnt(v)}</b></button>`).join('');
+  chipsEl.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ unqCmpVerdict=b.dataset.v; renderUnqCompare(); });
+  if (unqCmpVerdict !== '__all__') rows = rows.filter(x=>x.verdict===unqCmpVerdict);
+  const search = ($('unqCmpSearch').value||'').trim().toLowerCase();
+  if (search) rows = rows.filter(x=>(x.sn+' '+(x.rg||'')).toLowerCase().includes(search));
+
+  if (!rows.length){ $('unqCmpList').innerHTML = '<div class="empty">当前区间/筛选下暂无可对比的巡检报告（需同店有两次常规巡检）</div>'; return; }
+
+  const itemLine = (it, kind)=>{
+    if (kind==='imp') return `<div style="margin:3px 0;font-size:12px">✅ ${html(it.t)}${it.pdesc?`<span style="color:#7a8399">（上次：${html(it.pdesc)}）</span>`:''}</div>`;
+    const icon = it.rep30 ? '⚠️' : '🔴';
+    return `<div style="margin:3px 0;font-size:12px">${icon} ${html(it.t)}${it.desc?`<span style="color:#5a6377">（${html(it.desc)}）</span>`:''}${it.photos&&it.photos.length?unq2ImgHtml(it.photos):''}</div>`;
+  };
+  $('unqCmpList').innerHTML = rows.map(x=>{
+    const vc = x.verdict==='好了' ? '#1e8e3e' : (x.verdict==='差了' ? '#c0392b' : '#b8860b');
+    const arrow = x.verdict==='好了' ? '↓' : (x.verdict==='差了' ? '↑' : '→');
+    return `
+    <div class="unq-card" style="margin-bottom:12px">
+      <div class="unq-card-head">
+        <div>
+          <div class="unq-card-title">${html(x.sn)}</div>
+          <div class="unq-card-meta">${html(x.rg||'-')} · ${html(x.ps||'-')} · 上次 ${html(x.pd)} → 本次 ${html(x.cd)}</div>
+        </div>
+        <span class="unq-card-badge" style="background:${vc};color:#fff">${x.verdict} ${arrow} 不合格 ${x.pu}→${x.cu}</span>
+      </div>
+      <div class="unq-card-items" style="padding:8px 12px">
+        ${x.repeated.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:4px 0">⚠️ 连续不合格（复发，最需督办 ${x.repeated.length} 项）</div>${x.repeated.map(it=>itemLine(it,'rep')).join('')}`:''}
+        ${x.regressed.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:8px 0 2px">新劣化 ${x.regressed.length} 项（上次合格，本次不合格）</div>${x.regressed.map(it=>itemLine(it,'reg')).join('')}`:''}
+        ${x.improved.length?`<div style="font-size:12px;font-weight:700;color:#1e8e3e;margin:8px 0 2px">已改善 ${x.improved.length} 项（上次不合格，本次合格）</div>${x.improved.map(it=>itemLine(it,'imp')).join('')}`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+const UNQ_RF_TYPES = [
+  {k:'__all__', l:'全部类型'},
+  {k:'CG', l:'常规巡检（QSC）'},
+  {k:'ZJ', l:'门店自检'},
+  {k:'SP', l:'视频巡检'},
+  {k:'AI', l:'AI慧检'},
+];
+
+function renderUnqRectify(){
+  const d = unq2State.data;
+  let rows = (d && d.rectify) || [];
+  const s = (currentStart||'').slice(0,10), e = (currentEnd||'').slice(0,10);
+  if (s) rows = rows.filter(x=>x.d >= s);
+  if (e) rows = rows.filter(x=>x.d <= e);
+  const chipsEl = $('unqRfTypeChips');
+  chipsEl.innerHTML = UNQ_RF_TYPES.map(t=>{
+    const n = t.k==='__all__' ? rows.length : rows.filter(x=>x.typ===t.k).length;
+    return `<button class="chip ${unqRfType===t.k?'active':''}" data-k="${t.k}">${t.l} <b style="color:#c0392b">${n}</b></button>`;
+  }).join('');
+  chipsEl.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ unqRfType=b.dataset.k; renderUnqRectify(); });
+  if (unqRfType !== '__all__') rows = rows.filter(x=>x.typ===unqRfType);
+  const search = ($('unqRfSearch').value||'').trim().toLowerCase();
+  if (search) rows = rows.filter(x=>(x.sn+' '+(x.rg||'')).toLowerCase().includes(search));
+  const tl = (UNQ_RF_TYPES.find(t=>t.k===unqRfType)||UNQ_RF_TYPES[0]).l;
+  const total = rows.reduce((t,x)=>t+x.total,0), done = rows.reduce((t,x)=>t+x.done,0);
+  const rateRow = x=>{
+    const r = x.total ? x.done/x.total : 0;
+    const color = r>=0.8 ? '#1e8e3e' : (r>=0.5 ? '#b8860b' : '#c0392b');
+    return `<span style="color:${color};font-weight:700">${(r*100).toFixed(0)}%</span>（${x.done}/${x.total}）`;
+  };
+  $('unqRfTable').innerHTML = `
+    <thead><tr>
+      <th>门店</th><th>所属区域</th><th>组别</th><th>报告生成日期</th><th>报告类型</th><th>应整改项</th><th>已整改数</th><th>整改率</th>
+    </tr></thead>
+    <tbody>
+      ${rows.map(x=>`
+        <tr>
+          <td style="white-space:nowrap;font-weight:700;color:#1A2A4A">${html(x.sn)}</td>
+          <td style="white-space:nowrap;color:#5a6377">${html(x.rg||'-')}</td>
+          <td style="white-space:nowrap;color:#5a6377">${html(x.ps||'-')}</td>
+          <td style="white-space:nowrap">${html(x.d)}</td>
+          <td><span class="unq-item-cat">${html((UNQ_RF_TYPES.find(t=>t.k===x.typ)||{}).l||x.typ)}</span></td>
+          <td>${x.total}</td>
+          <td>${x.done}</td>
+          <td>${rateRow(x)}</td>
+        </tr>`).join('')}
+      ${rows.length===0?'<tr><td colspan="8" class="empty">当前区间/类型下暂无待整改报告</td></tr>':`<tr style="background:#f6f7fb;font-weight:700"><td colspan="5">合计（${html(tl)} · ${rows.length} 份报告）</td><td>${total}</td><td>${done}</td><td>${total?`<span style="color:${done/total>=0.8?'#1e8e3e':(done/total>=0.5?'#b8860b':'#c0392b')}">${(done/total*100).toFixed(1)}%</span>`:'-'}</td></tr>`}
+    </tbody>
+  `;
+}
+
 
 // fix120：全部报告类型的 v2 条目（按右上角日期区间过滤）
 function unq2AllRangeEntries(){
@@ -2215,59 +2307,6 @@ function unq2AllRangeEntries(){
   return ents;
 }
 
-function renderUnqStoreTop(){
-  buildUnqStoreTopPositionChips();
-  const search = ($('unqStoreTopSearch').value||'').trim().toLowerCase();
-  // fix120：改为 v2 快照 + 日期区间实时聚合（原来读旧版 unqData.storeTopItems 固定快照，不随日期变）
-  const ents = unq2AllRangeEntries();
-  const posMap = {};
-  const perStore = new Map(); // store -> Map(problemTitle -> {cat, count, photos, desc})
-  for (const x of ents){
-    if (unqStoreTopPosition !== '__all__' && x.ps !== unqStoreTopPosition) continue;
-    posMap[x.sn] = x.ps;
-    if (!perStore.has(x.sn)) perStore.set(x.sn, new Map());
-    const m = perStore.get(x.sn);
-    let p = m.get(x.t);
-    if (!p){ p = {cat:x.cat, count:0, photos:[], desc:''}; m.set(x.t, p); }
-    p.count++;
-    for (const im of (x.img||[])){
-      const u = typeof im==='string' ? im : im.u;
-      const ts = typeof im==='string' ? '' : im.ts;
-      if (p.photos.length<6 && !p.photos.some(o=>o.u===u)) p.photos.push({u, sn:x.sn, rg:x.rg, ts, d:x.d});
-    }
-    if (x.desc && !p.desc) p.desc = x.desc;
-  }
-  const stores = [...perStore.keys()].filter(s=>{
-    if(search && !s.toLowerCase().includes(search)) return false;
-    return true;
-  }).sort((a,b)=>{
-    const sa = [...perStore.get(a).values()].reduce((t,p)=>t+p.count,0);
-    const sb = [...perStore.get(b).values()].reduce((t,p)=>t+p.count,0);
-    return sb - sa;
-  });
-  const rangeLabel = `${(currentStart||'').slice(0,10) || '-'} ~ ${(currentEnd||'').slice(0,10) || '-'}`;
-  $('unqStoreTopTable').innerHTML = `
-    <thead><tr><th>门店</th><th>组别</th><th>高发问题（区间 ${html(rangeLabel)}）</th></tr></thead>
-    <tbody>
-      ${stores.map(store=>{
-        const probs = [...perStore.get(store).entries()].sort((a,b)=>b[1].count-a[1].count);
-        return `
-        <tr>
-          <td style="white-space:nowrap">${html(store)}</td>
-          <td>${html(posMap[store] || '-')}</td>
-          <td>
-            ${probs.map(([title,p],i)=>`
-              <div style="margin:4px 0">
-                <span style="color:#c0392b;font-weight:600">${i+1}.</span> ${html(title)} <span style="color:#888">(${html(p.cat||'')}) × ${p.count}</span>
-                ${p.photos.length?unq2ImgHtml(p.photos):''}
-              </div>`).join('') || '<span class="empty">无</span>'}
-          </td>
-        </tr>`;
-      }).join('')}
-      ${stores.length===0?'<tr><td colspan="3" class="empty">当前区间无不合格数据</td></tr>':''}
-    </tbody>
-  `;
-}
 
 function buildUnqCategoryTopPositionChips(){
   const positions = ['__all__', ...new Set((unqData.byCategory||[]).flatMap(c=>c.positions||[]).filter(Boolean).sort())];
@@ -3873,7 +3912,8 @@ $('aiRegionSearch').oninput = ()=>renderAiInspection(appData);
 $('aiStoreRankSearch').oninput = ()=>renderAiInspection(appData);
 
 // fix28：问题高发 tab 的搜索框绑定
-$('unqStoreTopSearch').oninput = ()=>renderUnqStoreTop();
+$('unqCmpSearch').oninput = ()=>renderUnqCompare();
+$('unqRfSearch').oninput = ()=>renderUnqRectify();
 
 // Chart resize on window resize
 window.addEventListener('resize', ()=>{
