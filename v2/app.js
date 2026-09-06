@@ -1045,10 +1045,11 @@ async function applyDateRange(){
   // 不管成功失败都同步一次快捷按钮高亮：日期若恰好等于本月/上月区间，按钮要亮
   // （失败时只更新高亮，banner 错误提示由 tryAggregateRange 内部显示）
   syncActiveRangeButton();
-  // 问题汇总 v2 用实时区间过滤，日期变化后立即重渲染（若当前正显示该面板）
-  if (document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub === 'unqSummary2'
+  // 问题汇总 v2 / 门店高发问题 用实时区间过滤，日期变化后立即重渲染（若当前正显示该面板）
+  const activeSub = document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub;
+  if ((activeSub === 'unqSummary2' || activeSub === 'unqStoreTop')
       && document.getElementById('unqualifiedDetail')?.classList.contains('active')) {
-    renderUnqSummary();
+    renderUnqualified();
   }
   if(!ok){
     // tryAggregateRange 内部已经显示了具体错误，保留用户输入
@@ -1443,11 +1444,18 @@ async function loadUnqualified(){
 
 function renderUnqualified(){
   const active = document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub || 'unqSummary2';
-  // v2 汇总面板不依赖旧 unqData，独立加载
+  // fix120：v2 汇总与门店高发问题都用 v2 快照（跟随右上角日期区间），独立加载；旧快照提示条不再展示
+  const bar = $('unqSnapshotBar'); if(bar){ bar.innerHTML=''; bar.className='unq-snapshot-bar'; }
   if(active === 'unqSummary2'){ renderUnqSummary(); return; }
-  if(!unqData) return;
-  renderUnqSnapshotBar();  // fix49：刷新快照区间提示条
-  if(active === 'unqStoreTop') renderUnqStoreTop();
+  if(active === 'unqStoreTop'){
+    if (!unq2State.loaded){
+      $('unqStoreTopTable').innerHTML = '<tbody><tr><td class="empty">正在读取问题数据…</td></tr></tbody>';
+      loadUnq2().then(()=>{ if ($('unqStoreTop').classList.contains('active')) renderUnqStoreTop(); })
+        .catch(()=>{ $('unqStoreTopTable').innerHTML = '<tbody><tr><td class="empty">数据加载失败，请稍后重试</td></tr></tbody>'; });
+      return;
+    }
+    renderUnqStoreTop();
+  }
 }
 
 function fmtRate(v){ return (v*100).toFixed(1) + '%'; }
@@ -2102,7 +2110,9 @@ function showRegionStoresByName(regionEnc){
 }
 
 function buildUnqStoreTopPositionChips(){
-  const positions = ['__all__', ...new Set((unqData.byStore||[]).map(s=>s.position).filter(Boolean).sort())];
+  // fix120：组别从 v2 快照条目实时取（跟随右上角日期区间）
+  const ents = unq2AllRangeEntries();
+  const positions = ['__all__', ...new Set(ents.map(x=>x.ps).filter(Boolean).sort())];
   const el = $('unqStoreTopPositionChips');
   if(!el) return;
   el.innerHTML = positions.map(p=>{
@@ -2114,30 +2124,63 @@ function buildUnqStoreTopPositionChips(){
   });
 }
 
+// fix120：全部报告类型的 v2 条目（按右上角日期区间过滤）
+function unq2AllRangeEntries(){
+  const d = unq2State.data; if(!d) return [];
+  let ents = [];
+  Object.values(d.types || {}).forEach(t=>{ ents = ents.concat((t && t.entries) || []); });
+  const s = (currentStart||'').slice(0,10), e = (currentEnd||'').slice(0,10);
+  if (s) ents = ents.filter(x=>x.d >= s);
+  if (e) ents = ents.filter(x=>x.d <= e);
+  return ents;
+}
+
 function renderUnqStoreTop(){
   buildUnqStoreTopPositionChips();
   const search = ($('unqStoreTopSearch').value||'').trim().toLowerCase();
-  const data = unqData.storeTopItems || {};
+  // fix120：改为 v2 快照 + 日期区间实时聚合（原来读旧版 unqData.storeTopItems 固定快照，不随日期变）
+  const ents = unq2AllRangeEntries();
   const posMap = {};
-  (unqData.byStore||[]).forEach(s=>{ posMap[s.store] = s.position; });
-  const stores = Object.keys(data).filter(s=>{
-    if(!s.toLowerCase().includes(search)) return false;
-    if(unqStoreTopPosition !== '__all__' && posMap[s] !== unqStoreTopPosition) return false;
+  const perStore = new Map(); // store -> Map(problemTitle -> {cat, count, photos, desc})
+  for (const x of ents){
+    if (unqStoreTopPosition !== '__all__' && x.ps !== unqStoreTopPosition) continue;
+    posMap[x.sn] = x.ps;
+    if (!perStore.has(x.sn)) perStore.set(x.sn, new Map());
+    const m = perStore.get(x.sn);
+    let p = m.get(x.t);
+    if (!p){ p = {cat:x.cat, count:0, photos:[], desc:''}; m.set(x.t, p); }
+    p.count++;
+    for (const u of (x.img||[])) if (p.photos.length<3 && !p.photos.includes(u)) p.photos.push(u);
+    if (x.desc && !p.desc) p.desc = x.desc;
+  }
+  const stores = [...perStore.keys()].filter(s=>{
+    if(search && !s.toLowerCase().includes(search)) return false;
     return true;
+  }).sort((a,b)=>{
+    const sa = [...perStore.get(a).values()].reduce((t,p)=>t+p.count,0);
+    const sb = [...perStore.get(b).values()].reduce((t,p)=>t+p.count,0);
+    return sb - sa;
   });
+  const rangeLabel = `${(currentStart||'').slice(0,10) || '-'} ~ ${(currentEnd||'').slice(0,10) || '-'}`;
   $('unqStoreTopTable').innerHTML = `
-    <thead><tr><th>门店</th><th>组别</th><th>高发问题</th></tr></thead>
+    <thead><tr><th>门店</th><th>组别</th><th>高发问题（区间 ${html(rangeLabel)}）</th></tr></thead>
     <tbody>
-      ${stores.map(store=>`
+      ${stores.map(store=>{
+        const probs = [...perStore.get(store).entries()].sort((a,b)=>b[1].count-a[1].count);
+        return `
         <tr>
           <td style="white-space:nowrap">${html(store)}</td>
           <td>${html(posMap[store] || '-')}</td>
           <td>
-            ${(data[store]||[]).map((t,i)=>`<div style="margin:4px 0"><span style="color:#c0392b;font-weight:600">${i+1}.</span> ${html(t.title)} <span style="color:#888">(${html(t.category)}) × ${t.count}</span></div>`).join('') || '<span class="empty">无</span>'}
+            ${probs.map(([title,p],i)=>`
+              <div style="margin:4px 0">
+                <span style="color:#c0392b;font-weight:600">${i+1}.</span> ${html(title)} <span style="color:#888">(${html(p.cat||'')}) × ${p.count}</span>
+                ${p.photos.length?unq2ImgHtml(p.photos):''}
+              </div>`).join('') || '<span class="empty">无</span>'}
           </td>
-        </tr>
-      `).join('')}
-      ${stores.length===0?'<tr><td colspan="3" class="empty">无数据</td></tr>':''}
+        </tr>`;
+      }).join('')}
+      ${stores.length===0?'<tr><td colspan="3" class="empty">当前区间无不合格数据</td></tr>':''}
     </tbody>
   `;
 }
