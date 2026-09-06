@@ -451,9 +451,15 @@ a.fbtn{text-decoration:none;display:inline-block}
 
   <div class="module-panel active" id="unqSummary2">
     <h2 class="pt">问题汇总 · 按报告类型</h2>
-    <div class="filterbar" style="flex-wrap:wrap;gap:8px">
-      <div class="chipbar" id="unq2TypeChips"></div>
-      <div class="chipbar" id="unq2DimChips"></div>
+    <div class="filterbar" style="flex-direction:column;align-items:flex-start;gap:6px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:#7a8399;flex-shrink:0">报告类型</span>
+        <div class="chipbar" id="unq2TypeChips"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:#7a8399;flex-shrink:0">统计维度</span>
+        <div class="chipbar" id="unq2DimChips"></div>
+      </div>
     </div>
     <div id="unq2Kpi" class="unq-snapshot-bar"></div>
     <div id="unq2Table"></div>
@@ -507,8 +513,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260907fix125"></script>
-<script src="app.js?v=20260907fix125"></script>
+<script src="aggregate.js?v=20260907fix126"></script>
+<script src="app.js?v=20260907fix126"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
