@@ -4037,7 +4037,27 @@ initDates();
 ============================================================================ */
 function b64uEnc(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function b64uDec(s){ s = String(s).replace(/-/g,'+').replace(/_/g,'/'); while(s.length % 4) s += '='; try{ return decodeURIComponent(escape(atob(s))); }catch(e){ return ''; } }
+// fix144：包装所有「门店清单」弹窗函数——打开时把函数名+参数记到 #regionModal dataset，供分享链接还原
+(function(){
+  ['showRegionStores','showSelfRegionStores','showVideoRegionStores','showAiRegionStores','showRankRegionStores','showRegionStoresByName'].forEach(fn=>{
+    const orig = window[fn];
+    if(typeof orig !== 'function') return;
+    window[fn] = function(...a){
+      const r = orig.apply(this, a);
+      try{
+        const m = $('regionModal');
+        if(m) m.dataset.share = JSON.stringify({ m:'rstores', fn, a });
+      }catch(e){}
+      return r;
+    };
+  });
+})();
 function buildShareUrl(){
+  // fix144：门店清单弹窗打开时，优先分享弹窗内容（弹窗级 #u= 链接）
+  const rm = $('regionModal');
+  if(rm && rm.classList.contains('active') && rm.dataset.share){
+    try{ return location.origin + location.pathname + '#u=' + b64uEnc(rm.dataset.share); }catch(e){}
+  }
   // fix138：「查看更多」弹窗打开时，优先分享弹窗内容（弹窗级 #u= 链接）
   const uov = document.getElementById('unq2DetailOverlay');
   if(uov && document.body.contains(uov) && uov.dataset.share){
@@ -4069,7 +4089,7 @@ function readShareHash(){
   // fix138：弹窗级分享（#u=）——「查看更多」记录表
   const mu = (location.hash || '').match(/[#&]u=([A-Za-z0-9\-_]+)/);
   if(mu){
-    try{ const o = JSON.parse(b64uDec(mu[1])); return (o && o.m==='unq2') ? o : null; }catch(e){ return null; }
+    try{ const o = JSON.parse(b64uDec(mu[1])); return (o && (o.m==='unq2' || o.m==='rstores')) ? o : null; }catch(e){ return null; }
   }
   const m = (location.hash || '').match(/[#&]r=([A-Za-z0-9\-_]+)/);
   if(m){
