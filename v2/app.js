@@ -3936,17 +3936,42 @@ document.querySelectorAll('.subtab').forEach(b=>{
   b.onclick = ()=>switchSubTab(b.dataset.sub);
 });
 
-// fix134：分享本视图按钮 —— 复制当前视图的只读直达链接
+// fix134：分享本视图按钮 —— 页内弹层展示链接（不依赖 alert/prompt/剪贴板权限，内嵌 iframe 也可用）
 $('shareViewBtn').onclick = ()=>{
   const url = buildShareUrl();
-  const tip = '分享链接已生成（对方打开仅能看到当前板块的只读视图）：\n\n' + url;
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(url).then(
-      ()=>alert('✅ 分享链接已复制到剪贴板：\n\n' + url),
-      ()=>prompt(tip, url));
-  } else {
-    prompt(tip, url);
+  let ov = document.getElementById('shareOverlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'shareOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px';
+    ov.onclick = (e)=>{ if(e.target===ov) ov.remove(); };
+    document.body.appendChild(ov);
   }
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:560px;width:100%;padding:18px 20px" onclick="event.stopPropagation()">
+      <div style="font-size:15px;font-weight:700;color:#1A2A4A;margin-bottom:6px">🔗 分享链接已生成</div>
+      <div style="font-size:12px;color:#7a8399;margin-bottom:10px">对方打开后仅能看到当前板块的只读视图</div>
+      <textarea id="shareUrlBox" readonly style="width:100%;height:72px;border:1px solid #e3e6ee;border-radius:8px;padding:8px;font-size:12px;color:#1A2A4A;resize:none">${url}</textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button id="shareCopyBtn" style="background:#2f6fed;color:#fff;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px">复制链接</button>
+        <button onclick="document.getElementById('shareOverlay').remove()" style="background:#f0f2f7;color:#1A2A4A;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px">关闭</button>
+      </div>
+    </div>`;
+  const box = ov.querySelector('#shareUrlBox');
+  box.onclick = ()=>{ box.select(); };
+  ov.querySelector('#shareCopyBtn').onclick = ()=>{
+    box.select(); box.setSelectionRange(0, url.length);
+    let done = false;
+    try{ done = document.execCommand('copy'); }catch(e){}
+    if(!done && navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(()=>{ /* ok */ }, ()=>{});
+      done = true; // 不阻塞提示
+    }
+    const btn = ov.querySelector('#shareCopyBtn');
+    btn.textContent = done ? '✅ 已复制' : '请手动 Ctrl+C 复制';
+    setTimeout(()=>{ btn.textContent = '复制链接'; }, 2000);
+  };
+  setTimeout(()=>{ box.select(); }, 50);
 };
 
 // Search bindings (v2: 三类巡检 5 subtab 对应的新 search id)
