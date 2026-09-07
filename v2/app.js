@@ -4041,7 +4041,7 @@ function b64uDec(s){ s = String(s).replace(/-/g,'+').replace(/_/g,'/'); while(s.
       const r = orig.apply(this, a);
       try{
         const m = $('regionModal');
-        if(m) m.dataset.share = JSON.stringify({ m:'rstores', fn, a });
+        if(m) m.dataset.share = JSON.stringify({ m:'rstores', fn, a, s: currentStart, e: currentEnd });
       }catch(e){}
       return r;
     };
@@ -4141,12 +4141,19 @@ async function applyShareView(){
       const a = st.a || [];
       if(typeof fn !== 'function') throw new Error('fn missing');
       let n = 0;
-      const iv = setInterval(()=>{
+      const iv = setInterval(async ()=>{
         n++;
         const ready = (typeof appData !== 'undefined' && appData && (appData.selfInspection || appData.positions));
         if(ready){
           clearInterval(iv);
-          try{ fn.apply(null, a); }catch(e){ console.warn('rstores replay failed', e); }
+          try{
+            // fix149：先还原分享时的日期区间，再重放（否则对方打开落到默认区间，月份不一致）
+            if(st.s && st.e && typeof applyDateRange === 'function'){
+              $('startDate').value = st.s; $('endDate').value = st.e;
+              await applyDateRange();
+            }
+            fn.apply(null, a);
+          }catch(e){ console.warn('rstores replay failed', e); }
           setTimeout(()=>{
             const ov = $('regionModal');
             makeOverlaySolo(ov);
