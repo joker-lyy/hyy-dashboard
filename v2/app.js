@@ -3936,6 +3936,19 @@ document.querySelectorAll('.subtab').forEach(b=>{
   b.onclick = ()=>switchSubTab(b.dataset.sub);
 });
 
+// fix134：分享本视图按钮 —— 复制当前视图的只读直达链接
+$('shareViewBtn').onclick = ()=>{
+  const url = buildShareUrl();
+  const tip = '分享链接已生成（对方打开仅能看到当前板块的只读视图）：\n\n' + url;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(
+      ()=>alert('✅ 分享链接已复制到剪贴板：\n\n' + url),
+      ()=>prompt(tip, url));
+  } else {
+    prompt(tip, url);
+  }
+};
+
 // Search bindings (v2: 三类巡检 5 subtab 对应的新 search id)
 $('selfRegionSearch').oninput = ()=>renderSelfInspection(appData);
 $('selfStoreRankSearch').oninput = ()=>renderSelfInspection(appData);
@@ -3975,7 +3988,51 @@ initDates();
   }
   // fix53：无论走聚合路径还是 loadData，明细均已改为弹窗按需读取单报告小文件（fix89）
   $('loading').style.display = 'none';
+  await applyShareView(); // fix134：只读分享链接命中时，切到对应视图并锁定
 })();
+
+/* ============================================================================
+   fix134：分享本视图 —— 把当前页签+子页签+日期区间编码进链接 hash，
+   对方打开后直接落到该视图并进入只读模式（隐藏顶部页签和日期筛选）
+============================================================================ */
+function b64uEnc(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function b64uDec(s){ s = String(s).replace(/-/g,'+').replace(/_/g,'/'); while(s.length % 4) s += '='; try{ return decodeURIComponent(escape(atob(s))); }catch(e){ return ''; } }
+function buildShareUrl(){
+  const st = { t: activeMainTab, sub: activeSubTab[activeMainTab] || '', s: currentStart, e: currentEnd, ro: 1 };
+  return location.origin + location.pathname + '#s=' + b64uEnc(JSON.stringify(st));
+}
+function readShareHash(){
+  const m = (location.hash || '').match(/[#&]s=([A-Za-z0-9\-_]+)/);
+  if(!m) return null;
+  const raw = b64uDec(m[1]);
+  try{ const o = JSON.parse(raw); return (o && o.t) ? o : null; }catch(e){ return null; }
+}
+async function applyShareView(){
+  const st = readShareHash();
+  if(!st) return;
+  try{
+    if(st.s && st.e){
+      $('startDate').value = st.s; $('endDate').value = st.e;
+      if(typeof applyDateRange === 'function') await applyDateRange();
+    }
+    const tb = document.querySelector(`#mainTabs .tab[data-t="${st.t}"]`);
+    if(tb) tb.click();
+    if(st.sub){
+      setTimeout(()=>{
+        const sb = document.querySelector(`.subtab[data-sub="${st.sub}"]`);
+        if(sb) sb.click();
+      }, 500);
+    }
+  }catch(e){ console.warn('share view apply failed', e); }
+  // 只读模式：隐藏顶部页签 + 日期筛选，底部挂提示条
+  document.getElementById('mainTabs').style.display = 'none';
+  const db = document.querySelector('.datebar'); if(db) db.style.display = 'none';
+  const sb2 = $('shareViewBtn'); if(sb2) sb2.style.display = 'none';
+  if(!document.getElementById('shareRoBar')){
+    document.body.insertAdjacentHTML('beforeend',
+      '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 只读分享视图（' + (st.t==='unqualifiedDetail'?'巡检问题汇总及整改跟进':st.t) + (st.s&&st.e? ' · ' + st.s + ' ~ ' + st.e : '') + '）</div>');
+  }
+}
 
 // 每 10 分钟刷新：按当前所处模式刷新
 setInterval(async ()=>{
