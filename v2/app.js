@@ -1691,7 +1691,7 @@ function unq2ShowDetail(id){
       <td style="padding:8px 10px;white-space:nowrap"><span class="unq-item-cat">${html(typeLabel)}</span></td>
       <td style="padding:8px 10px;min-width:180px;color:#333">${html(x.t||'-')}<br><span class="unq-item-cat">${html(x.cat||'')}</span></td>
       <td style="padding:8px 10px;min-width:200px;color:#5a6377;font-size:12px">${html(x.desc||'-')}</td>
-      <td style="padding:8px 10px">${(x.img&&x.img.length)?unq2ImgHtml(x.img):'<span style="color:#999;font-size:12px">无照片</span>'}</td>
+      <td style="padding:8px 10px">${(x.img&&x.img.length)?unq2ImgHtml(x.img.map(p=>Object.assign({},p,{sn:p.sn||x.sn,rg:p.rg||x.rg}))):'<span style="color:#999;font-size:12px">无照片</span>'}</td>
     </tr>`;
   ov.innerHTML = `
     <div style="background:#fff;border-radius:12px;width:min(96vw,1200px);max-height:92vh;overflow:auto;padding:16px 18px" onclick="event.stopPropagation()">
@@ -2236,10 +2236,12 @@ function renderUnqCompare(){
 
   if (!rows.length){ $('unqCmpList').innerHTML = '<div class="empty">当前区间/筛选下暂无可对比的巡检报告（需同店有两次常规巡检）</div>'; return; }
 
-  const itemLine = (it, kind)=>{
+  const itemLine = (it, kind, card)=>{
     if (kind==='imp') return `<div style="margin:3px 0;font-size:12px">✅ ${html(it.t)}${it.pdesc?`<span style="color:#7a8399">（上次：${html(it.pdesc)}）</span>`:''}</div>`;
     const icon = it.rep30 ? '⚠️' : '🔴';
-    return `<div style="margin:3px 0;font-size:12px">${icon} ${html(it.t)}${it.desc?`<span style="color:#5a6377">（${html(it.desc)}）</span>`:''}${it.photos&&it.photos.length?unq2ImgHtml(it.photos):''}</div>`;
+    // fix131：对比卡片照片补上门店/区域（数据源 commit_imgs 只有 u/ts）
+    const photos = (it.photos||[]).map(p=>Object.assign({}, p, {sn: p.sn||card.sn, rg: p.rg||card.rg}));
+    return `<div style="margin:3px 0;font-size:12px">${icon} ${html(it.t)}${it.desc?`<span style="color:#5a6377">（${html(it.desc)}）</span>`:''}${photos.length?unq2ImgHtml(photos):''}</div>`;
   };
   $('unqCmpList').innerHTML = rows.map(x=>{
     const vc = x.verdict==='好了' ? '#1e8e3e' : (x.verdict==='差了' ? '#c0392b' : '#b8860b');
@@ -2254,8 +2256,8 @@ function renderUnqCompare(){
         <span class="unq-card-badge" style="background:${vc};color:#fff">${x.verdict} ${arrow} 不合格 ${x.pu}→${x.cu}</span>
       </div>
       <div class="unq-card-items" style="padding:8px 12px">
-        ${x.repeated.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:4px 0">⚠️ 连续不合格（复发，最需督办 ${x.repeated.length} 项）</div>${x.repeated.map(it=>itemLine(it,'rep')).join('')}`:''}
-        ${x.regressed.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:8px 0 2px">新劣化 ${x.regressed.length} 项（上次合格，本次不合格）</div>${x.regressed.map(it=>itemLine(it,'reg')).join('')}`:''}
+        ${x.repeated.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:4px 0">⚠️ 连续不合格（复发，最需督办 ${x.repeated.length} 项）</div>${x.repeated.map(it=>itemLine(it,'rep',x)).join('')}`:''}
+        ${x.regressed.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:8px 0 2px">新劣化 ${x.regressed.length} 项（上次合格，本次不合格）</div>${x.regressed.map(it=>itemLine(it,'reg',x)).join('')}`:''}
         ${x.improved.length?`<div style="font-size:12px;font-weight:700;color:#1e8e3e;margin:8px 0 2px">已改善 ${x.improved.length} 项（上次不合格，本次合格）</div>${x.improved.map(it=>itemLine(it,'imp')).join('')}`:''}
       </div>
     </div>`;
