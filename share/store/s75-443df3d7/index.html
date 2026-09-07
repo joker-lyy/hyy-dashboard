@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>南宁莱茵鹭湖店 · 巡检问题跟进</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f4f6fa;color:#1A2A4A;padding-bottom:56px}
+header{background:#1A2A4A;color:#fff;padding:18px 20px}
+header h1{font-size:18px}
+header .sub{font-size:12px;opacity:.75;margin-top:4px}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{background:#fff;border-radius:10px;padding:10px 14px;font-size:13px;border:1px solid #e3e6ee;min-width:110px}
+.chip b{display:block;font-size:20px;margin-top:2px}
+.card{background:#fff;border:1px solid #e3e6ee;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:15px;margin-bottom:10px}
+.verdict{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:700}
+.v-差了{background:#ffe3e3;color:#c0392b}.v-好了{background:#e3f7e3;color:#1e8e3e}.v-持平{background:#eef0f3;color:#5a6377}
+.sec{font-size:12px;font-weight:700;margin:8px 0 4px}
+.item{font-size:13px;margin:4px 0;line-height:1.5}
+.photos img{width:88px;height:66px;object-fit:cover;border-radius:6px;border:1px solid #e3e6ee;margin:4px 6px 0 0;cursor:zoom-in}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid #eef0f3;text-align:left}
+th{background:#f8f9fc;font-size:12px;color:#5a6377}
+.rate-good{color:#1e8e3e;font-weight:700}.rate-mid{color:#d48806;font-weight:700}.rate-bad{color:#c0392b;font-weight:700}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;padding:20px}
+#lb.show{display:flex}
+#lb img{max-width:92vw;max-height:78vh;object-fit:contain;border-radius:8px}
+#lb .cap{color:#fff;font-size:13px;margin-top:10px;text-align:center}
+footer{position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;font-size:12px;text-align:center;padding:7px}
+</style></head><body>
+<header><h1>南宁莱茵鹭湖店</h1><div class="sub">区域：超级加盟商 ｜ 组别：加盟营运组 ｜ 数据生成：2026-09-07 05:20:53</div></header>
+<div class="wrap">
+<div class="chips" id="chips"></div>
+<div id="content"></div>
+</div>
+<div id="lb" onclick="this.classList.remove('show')"><img id="lbImg"><div class="cap" id="lbCap"></div></div>
+<footer>📖 只读分享页面 · 仅含本门店数据</footer>
+<script>
+const D = {"compare": [{"pd": "2026-07-22", "cd": "2026-08-26", "pl": 10, "cl": 10, "verdict": "好了", "repeated": [{"t": "门头显眼：能清晰看到门店招牌，招牌正常使用，无污渍并无破损。", "desc": "灯光有点暗了。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787737381940-19928094133-uXgxRXLQ5EAwQ0aDa2NS.jpg", "ts": "2026-08-26 17:43:01"}]}, {"t": "公共区域：不堆放杂物（顾客视野可见之处，含私人物品），店铺没有任何四害物出没。", "desc": "有杂物。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787737641753-19928094133-u4yvirdKUcxxou1XpQl0.jpg", "ts": "2026-08-26 17:47:21"}]}, {"t": "宣传电视：正常运作，按规定播放公司宣传片，音乐音量适中，无积尘无污渍无破损。", "desc": "没有宣传和广告。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787737612099-19928094133-uOw70MIBufyT6WV21OVd.jpg", "ts": "2026-08-26 17:46:52"}]}, {"t": "桌面摆放：调味盒/垫餐纸/台卡/餐牌/广告牌等清洁无污渍无脱色并整齐划一摆放。", "desc": "没有台卡。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787737680907-19928094133-uLiBhBm3jVn2iL6WZCPp.jpg", "ts": "2026-08-26 17:48:00"}]}, {"t": "所有操作台或不锈钢器具用品，干净、不粘手，无破损。", "desc": "做完单要随手清洁。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787737971209-19928094133-uTB3mLyMMscsDM8KuoSP.jpg", "ts": "2026-08-26 17:52:51"}]}, {"t": "垃圾桶加盖，傍边盖面不摆放食品，桶身干净卫生无污渍无破损。", "desc": "没盖子。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787740516533-19928094133-uPPEM3aVCxa8jHCZz44f.jpg", "ts": "2026-08-26 18:35:16"}]}, {"t": "各种刀具/厨具/砧板及其他用具清洁光亮无污渍无损坏无凹凸。", "desc": "做完单要及时清洁。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787740626522-19928094133-uz4qc7K6fT8b3qAna209.jpg", "ts": "2026-08-26 18:37:06"}]}, {"t": "按规定统一从总部采购原材料", "desc": "部分原材不是总部的。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787740665983-19928094133-uUb4aVHAoXcLnn6xosGw.jpg", "ts": "2026-08-26 18:37:45,2026-08-26 18:38:00,2026-08-26 18:38:06"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787740680373-19928094133-uoXZyyiKV6FmKFBVaIHe.jpg", "ts": "2026-08-26 18:37:45,2026-08-26 18:38:00,2026-08-26 18:38:06"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787740686104-19928094133-uQWg07WpM9hg9EyI03UM.jpg", "ts": "2026-08-26 18:37:45,2026-08-26 18:38:00,2026-08-26 18:38:06"}]}, {"t": "原材物料按使用类型分类存放，方便使用，提高备货效率。", "desc": "无标签。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787740750503-19928094133-uatJFbAZ0ysCFdARCe9s.jpg", "ts": "2026-08-26 18:39:10"}]}, {"t": "三文鱼/鲷鱼产品按标准备货（闻看尝摸四个维度检查：储存条件、产品品质、产品尺寸等）。", "desc": "鱼片偏薄。", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787740857452-19928094133-uaWRv4oQclcd4JovE2zs.jpg", "ts": "2026-08-26 18:40:57"}]}], "regressed": [], "improved": [{"t": "大门及墙壁：玻璃透亮，清洁无积尘，无水印、手印、无破损。", "pdesc": "有水印手印。", "photos": []}, {"t": "地面卫生：清洁干爽无污渍，无积尘积水、无垃圾杂物，无破损。", "pdesc": "地板发黑。", "photos": []}, {"t": "照明设备：照明设备正常使用（含户外），光亮舒适，无积尘无污渍无破损。", "pdesc": "二楼堂食区没开灯。", "photos": []}, {"t": "清洁用品定位摆放,后厨及仓库过道整洁卫生,无积尘积水,无垃圾杂物,无异味,无四害迹象。", "pdesc": "有污垢。", "photos": []}, {"t": "水槽、排水渠清洁无污垢/杂物，水龙头干净无污垢，无破损。", "pdesc": "有污垢。", "photos": []}, {"t": "冷冻柜温度＜18℃，内外清洁无污垢，无破损。", "pdesc": "有污垢，无标签。", "photos": []}, {"t": "空气炸锅/炸炉/电饭锅/微波炉/电磁炉/压饭机/电子秤等设备正常使用,无污渍无破损。", "pdesc": "有污渍。", "photos": []}, {"t": "所有盛装食品或工具的盒子、碗碟表面清洁无污垢，无破损。", "pdesc": "有污渍。", "photos": []}, {"t": "各项备料产品按标准制作，储存条件标准、口感正常，无变色变味无变质。", "pdesc": "玉米不是公司原材。吞拿鱼不够碎，水分太多。", "photos": []}, {"t": "开封后的食品按规定方式密封保存/备用，正确使用期效卡（食材、半成品等）。", "pdesc": "无日期卡。", "photos": []}, {"t": "门店企微群人数达标（老店150人，新店300人）", "pdesc": "99人。", "photos": []}]}], "rectify": [{"typ": "CG", "rid": "10000001187451", "sn": "南宁莱茵鹭湖店", "rg": "超级加盟商", "ps": "加盟营运组", "d": "2026-08-26", "total": 10, "done": 0, "tl": "常规巡检（QSC）"}, {"typ": "CG", "rid": "10000000401990", "sn": "南宁莱茵鹭湖店", "rg": "超级加盟商", "ps": "加盟营运组", "d": "2026-07-22", "total": 21, "done": 21, "tl": "常规巡检（QSC）"}]};
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function viewPhoto(u,sn,ts){document.getElementById('lbImg').src=u;document.getElementById('lbCap').innerHTML='<b>'+esc(sn)+'</b> '+(ts?'· 拍摄时间 '+esc(ts):'');document.getElementById('lb').classList.add('show')}
+function photoHtml(ps){if(!ps||!ps.length)return '';return '<div class="photos">'+ps.map(p=>'<img src="'+esc(p.u)+'" referrerpolicy="no-referrer" loading="lazy" onclick="viewPhoto(this.src,"\u5357\u5b81\u83b1\u8335\u9e6d\u6e56\u5e97",\''+esc(p.ts||'')+'\')" onerror="this.style.display=\'none\'">').join('')+'</div>'}
+const SNJ = JSON.stringify("南宁莱茵鹭湖店");
+// 汇总芯片
+let totalRect=0,totalDone=0;
+D.rectify.forEach(r=>{totalRect+=r.total;totalDone+=r.done});
+const rate = totalRect? Math.round(totalDone/totalRect*100):100;
+const cmpV = D.compare.map(c=>c.verdict);
+const worse = cmpV.filter(v=>v==='差了').length, better = cmpV.filter(v=>v==='好了').length;
+document.getElementById('chips').innerHTML =
+ '<div class="chip">巡检对比<b>'+D.compare.length+' 次</b></div>'+
+ '<div class="chip">变差<b style="color:#c0392b">'+worse+'</b></div>'+
+ '<div class="chip">变好<b style="color:#1e8e3e">'+better+'</b></div>'+
+ '<div class="chip">应整改<b>'+totalRect+'</b></div>'+
+ '<div class="chip">已整改<b style="color:'+(rate>=80?'#1e8e3e':rate>=50?'#d48806':'#c0392b')+'">'+rate+'%</b></div>';
+let h='';
+// 变化对比
+if(D.compare.length){
+ h += '<div class="card"><h2>常规巡检 · 同店对比（上次 vs 本次）</h2>';
+ D.compare.forEach(c=>{
+  h += '<div style="margin-bottom:12px"><span class="verdict v-'+c.verdict+'">'+c.verdict+'</span> <span style="font-size:12px;color:#5a6377">上次 '+c.pd+'（'+c.pl+'项不合格）→ 本次 '+c.cd+'（'+c.cl+'项不合格）</span></div>';
+  const line=(it,kind)=>{
+    const icon = kind==='imp'?'✅':(it.rep30?'⚠️':'🔴');
+    let s = '<div class="item">'+icon+' '+esc(it.t)+(it.desc?'（'+esc(it.desc)+'）':'')+'</div>';
+    s += photoHtml(it.photos);
+    return s;
+  };
+  if(c.repeated&&c.repeated.length) h+='<div class="sec" style="color:#c0392b">⚠️ 连续不合格 '+c.repeated.length+' 项</div>'+c.repeated.map(it=>line(it,'rep')).join('');
+  if(c.regressed&&c.regressed.length) h+='<div class="sec" style="color:#c0392b">🔴 新劣化 '+c.regressed.length+' 项</div>'+c.regressed.map(it=>line(it,'reg')).join('');
+  if(c.improved&&c.improved.length) h+='<div class="sec" style="color:#1e8e3e">✅ 已改善 '+c.improved.length+' 项</div>'+c.improved.map(it=>line(it,'imp')).join('');
+ });
+ h += '</div>';
+}
+// 整改记录
+if(D.rectify.length){
+ h += '<div class="card"><h2>整改记录</h2><table><tr><th>报告类型</th><th>日期</th><th>应整改</th><th>已整改</th><th>整改率</th></tr>';
+ const sorted = D.rectify.slice().sort((a,b)=>(a.done/a.total)-(b.done/b.total));
+ sorted.forEach(r=>{
+  const rr = r.total? Math.round(r.done/r.total*100):100;
+  const cls = rr>=80?'rate-good':rr>=50?'rate-mid':'rate-bad';
+  h += '<tr><td>'+esc(r.tl||r.typ)+'</td><td>'+esc(r.d)+'</td><td>'+r.total+'</td><td>'+r.done+'</td><td class="'+cls+'">'+rr+'%</td></tr>';
+ });
+ h += '</table></div>';
+}
+if(!D.compare.length && !D.rectify.length) h = '<div class="card" style="text-align:center;color:#5a6377">当前区间内暂无该门店的巡检问题记录 ✅</div>';
+document.getElementById('content').innerHTML = h;
+</script></body></html>
