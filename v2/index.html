@@ -249,6 +249,7 @@ a.fbtn{text-decoration:none;display:inline-block}
         <button class="fbtn" id="applyDateBtn" onclick="applyDateRange()">应用</button>
       </div>
       <span id="statusPill" class="status-pill loading">数据加载中…</span>
+      <button class="fbtn" id="shareViewBtn" title="生成当前板块的只读分享链接">🔗 分享本视图</button>
     </div>
   </div>
   <div class="tabs" id="mainTabs">
@@ -512,8 +513,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260907fix133"></script>
-<script src="app.js?v=20260907fix133"></script>
+<script src="aggregate.js?v=20260907fix134"></script>
+<script src="app.js?v=20260907fix134"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
