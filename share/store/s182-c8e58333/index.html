@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>深圳宝安松岗满京华店 · 巡检问题跟进</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f4f6fa;color:#1A2A4A;padding-bottom:56px}
+header{background:#1A2A4A;color:#fff;padding:18px 20px}
+header h1{font-size:18px}
+header .sub{font-size:12px;opacity:.75;margin-top:4px}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{background:#fff;border-radius:10px;padding:10px 14px;font-size:13px;border:1px solid #e3e6ee;min-width:110px}
+.chip b{display:block;font-size:20px;margin-top:2px}
+.card{background:#fff;border:1px solid #e3e6ee;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:15px;margin-bottom:10px}
+.verdict{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:700}
+.v-差了{background:#ffe3e3;color:#c0392b}.v-好了{background:#e3f7e3;color:#1e8e3e}.v-持平{background:#eef0f3;color:#5a6377}
+.sec{font-size:12px;font-weight:700;margin:8px 0 4px}
+.item{font-size:13px;margin:4px 0;line-height:1.5}
+.photos img{width:88px;height:66px;object-fit:cover;border-radius:6px;border:1px solid #e3e6ee;margin:4px 6px 0 0;cursor:zoom-in}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid #eef0f3;text-align:left}
+th{background:#f8f9fc;font-size:12px;color:#5a6377}
+.rate-good{color:#1e8e3e;font-weight:700}.rate-mid{color:#d48806;font-weight:700}.rate-bad{color:#c0392b;font-weight:700}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;padding:20px}
+#lb.show{display:flex}
+#lb img{max-width:92vw;max-height:78vh;object-fit:contain;border-radius:8px}
+#lb .cap{color:#fff;font-size:13px;margin-top:10px;text-align:center}
+footer{position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;font-size:12px;text-align:center;padding:7px}
+</style></head><body>
+<header><h1>深圳宝安松岗满京华店</h1><div class="sub">区域：陈秀金区域 ｜ 组别：加盟营运组 ｜ 数据生成：2026-09-07 05:20:53</div></header>
+<div class="wrap">
+<div class="chips" id="chips"></div>
+<div id="content"></div>
+</div>
+<div id="lb" onclick="this.classList.remove('show')"><img id="lbImg"><div class="cap" id="lbCap"></div></div>
+<footer>📖 只读分享页面 · 仅含本门店数据</footer>
+<script>
+const D = {"compare": [{"pd": "2026-07-09", "cd": "2026-07-31", "pl": 8, "cl": 8, "verdict": "好了", "repeated": [{"t": "冷藏柜温度保持0-5度，内外清洁无污垢，无破损。", "desc": "冰箱封条卫生需要继续保持清洁", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785491940031-18620820258-uJiD6wMSXfcS4RJudlMB.jpg", "ts": "2026-07-31 17:58:59"}]}, {"t": "冷冻柜温度＜18℃，内外清洁无污垢，无破损。", "desc": "注意门店结霜需要处理（注意需要断电后才能除霜，可以在存货少的时候处理）", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785492575081-18620820258-uXcmhw6O87lnDkgWejun.jpg", "ts": "2026-07-31 18:05:38"}]}, {"t": "空气炸锅/炸炉/电饭锅/微波炉/电磁炉/压饭机/电子秤等设备正常使用,无污渍无破损。", "desc": "制冰机卫生不达标", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785491970527-18620820258-uv0IMRp0Tft56ce1rQgm.jpg", "ts": "2026-07-31 17:59:30"}]}, {"t": "所有盛装食品或工具的盒子、碗碟表面清洁无污垢，无破损。", "desc": "寿司饭盒子卫生不达标，有污垢油腻，需要重点清洁", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785492130472-18620820258-uAo8q2Rgo0t8NKKseky3.jpg", "ts": "2026-07-31 18:02:10,2026-07-31 17:56:39"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785491799764-18620820258-ubdXLVdpDlCuZYEslImB.jpg", "ts": "2026-07-31 18:02:10,2026-07-31 17:56:39"}]}, {"t": "按规定统一从总部采购原材料", "desc": "酱油、酱油碟、小餐盒、筷子、鳗鱼、鹅肝、北极贝等外购需要整改", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785492286918-18620820258-uUnTe1hZgD5qX4Fn4R2h.jpg", "ts": "2026-07-31 18:04:46,2026-07-31 18:07:18,2026-07-31 18:29:35,2026-07-31 17:57:39"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785492574461-18620820258-uOH0YmExGCEocvmK5qYq.jpg", "ts": "2026-07-31 18:04:46,2026-07-31 18:07:18,2026-07-31 18:29:35,2026-07-31 17:57:39"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785493775681-18620820258-uo4sECINJ3aJCi4d5h1z.jpg", "ts": "2026-07-31 18:04:46,2026-07-31 18:07:18,2026-07-31 18:29:35,2026-07-31 17:57:39"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785492040498-18620820258-udojIRFyWshEsyUYEGzq.jpg", "ts": "2026-07-31 18:04:46,2026-07-31 18:07:18,2026-07-31 18:29:35,2026-07-31 17:57:39"}]}, {"t": "开封后的食品按规定方式密封保存/备用，正确使用期效卡（食材、半成品等）。", "desc": "冰箱内食材没有按标准做好密封，冷冻柜里面不能直接存放纸皮，需要使用盒子存放（北极贝等食材已经风干粘在纸皮上，不能直接使用需要报废）", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785492464652-18620820258-u245oPu2F90YrzQmW6LH.jpg", "ts": "2026-07-31 18:07:44,2026-07-31 18:07:18,2026-07-31 18:00:32,2026-07-31 18:00:19"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785492574461-18620820258-uOH0YmExGCEocvmK5qYq.jpg", "ts": "2026-07-31 18:07:44,2026-07-31 18:07:18,2026-07-31 18:00:32,2026-07-31 18:00:19"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785492032880-18620820258-uFn0TeW30YfLK1Q7UIBh.jpg", "ts": "2026-07-31 18:07:44,2026-07-31 18:07:18,2026-07-31 18:00:32,2026-07-31 18:00:19"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785492019613-18620820258-uh8SguZYsnKuaoswZRnp.jpg", "ts": "2026-07-31 18:07:44,2026-07-31 18:07:18,2026-07-31 18:00:32,2026-07-31 18:00:19"}]}], "regressed": [{"t": "桌面摆放：调味盒/垫餐纸/台卡/餐牌/广告牌等清洁无污渍无脱色并整齐划一摆放。", "desc": "外购物料酱油及酱油碟需要调整", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785493088412-18620820258-uDRF4uOrm9hQWrsx7aIN.jpg", "ts": "2026-07-31 18:18:08,2026-07-31 18:17:59"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785493079499-18620820258-uKAYm1W0E4ImmHKLI17O.jpg", "ts": "2026-07-31 18:18:08,2026-07-31 18:17:59"}]}, {"t": "礼貌用语：礼貌使用“你好，欢迎光临”、“谢谢光临，请慢走”等招呼语。", "desc": "门店需注意前厅缺乏有声服务，顾客进店没有主动打招呼", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202607/1785491648486-18620820258-uqXzgrLIR4VRY4BD7y3B.jpg", "ts": "2026-07-31 17:54:08"}]}], "improved": [{"t": "地面卫生：清洁干爽无污渍，无积尘积水、无垃圾杂物，无破损。", "pdesc": "地面印记明显，建议全面刷洗一次", "photos": []}, {"t": "清洁用品定位摆放,后厨及仓库过道整洁卫生,无积尘积水,无垃圾杂物,无异味,无四害迹象。", "pdesc": "厨房地面、过道、层架下方、墙角等卫生不合格", "photos": []}, {"t": "水槽、排水渠清洁无污垢/杂物，水龙头干净无污垢，无破损。", "pdesc": "洗手池卫生不合格", "photos": []}, {"t": "所有操作台或不锈钢器具用品，干净、不粘手，无破损。", "pdesc": "操作台上酱料瓶、层架等卫生不合格", "photos": []}, {"t": "垃圾桶加盖，傍边盖面不摆放食品，桶身干净卫生无污渍无破损。", "pdesc": "垃圾桶未带盖，桶身卫生不合格", "photos": []}, {"t": "各种刀具/厨具/砧板及其他用具清洁光亮无污渍无损坏无凹凸。", "pdesc": "砧板卫生不合格", "photos": []}, {"t": "标准着装：按规定穿戴好工服/帽子/围裙/口罩/裤子/鞋子等,无破损无污垢无异味或明显皱褶。", "pdesc": "店内人员仪容仪表不合格", "photos": []}, {"t": "整体分区域管理，保持清洁卫生，无异味，没有四害迹象。", "pdesc": "仓库食材需使用地垫隔开离地10厘米，所有货架、层架上已开封食材均需要做好密封处理", "photos": []}, {"t": "各种半成品的制作符合标准 （生鲜产品、冷藏产品、常温产品等）。", "pdesc": "操作台上半成品食材温度已变常温，高峰期时可放台面，用完之后需立即放回冰箱冷藏保", "photos": []}, {"t": "其他各产品出品符合标准，出品正确且品相良好。", "pdesc": "苍井三宝出品错误，打酱美观度有待提高，米饭偏柴（店员反馈新员工煮饭水放少了）", "photos": []}]}], "rectify": [{"typ": "ZJ", "rid": "10000001279112", "sn": "深圳宝安松岗满京华店", "rg": "陈秀金区域", "ps": "加盟营运组", "d": "2026-08-30", "total": 3, "done": 0, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000001268629", "sn": "深圳宝安松岗满京华店", "rg": "陈秀金区域", "ps": "加盟营运组", "d": "2026-08-29", "total": 1, "done": 0, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000001211774", "sn": "深圳宝安松岗满京华店", "rg": "陈秀金区域", "ps": "加盟营运组", "d": "2026-08-27", "total": 1, "done": 0, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000001175903", "sn": "深圳宝安松岗满京华店", "rg": "陈秀金区域", "ps": "加盟营运组", "d": "2026-08-26", "total": 1, "done": 0, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000001138747", "sn": "深圳宝安松岗满京华店", "rg": "陈秀金区域", "ps": "加盟营运组", "d": "2026-08-25", "total": 1, "done": 0, "tl": "门店自检"}, {"typ": "CG", "rid": "10000000754502", "sn": "深圳宝安松岗满京华店", "rg": "陈秀金区域", "ps": "加盟营运组", "d": "2026-07-31", "total": 8, "done": 0, "tl": "常规巡检（QSC）"}, {"typ": "CG", "rid": "10000000172333", "sn": "深圳宝安松岗满京华店", "rg": "陈秀金区域", "ps": "加盟营运组", "d": "2026-07-09", "total": 16, "done": 16, "tl": "常规巡检（QSC）"}]};
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function viewPhoto(u,sn,ts){document.getElementById('lbImg').src=u;document.getElementById('lbCap').innerHTML='<b>'+esc(sn)+'</b> '+(ts?'· 拍摄时间 '+esc(ts):'');document.getElementById('lb').classList.add('show')}
+function photoHtml(ps){if(!ps||!ps.length)return '';return '<div class="photos">'+ps.map(p=>'<img src="'+esc(p.u)+'" referrerpolicy="no-referrer" loading="lazy" onclick="viewPhoto(this.src,"\u6df1\u5733\u5b9d\u5b89\u677e\u5c97\u6ee1\u4eac\u534e\u5e97",\''+esc(p.ts||'')+'\')" onerror="this.style.display=\'none\'">').join('')+'</div>'}
+const SNJ = JSON.stringify("深圳宝安松岗满京华店");
+// 汇总芯片
+let totalRect=0,totalDone=0;
+D.rectify.forEach(r=>{totalRect+=r.total;totalDone+=r.done});
+const rate = totalRect? Math.round(totalDone/totalRect*100):100;
+const cmpV = D.compare.map(c=>c.verdict);
+const worse = cmpV.filter(v=>v==='差了').length, better = cmpV.filter(v=>v==='好了').length;
+document.getElementById('chips').innerHTML =
+ '<div class="chip">巡检对比<b>'+D.compare.length+' 次</b></div>'+
+ '<div class="chip">变差<b style="color:#c0392b">'+worse+'</b></div>'+
+ '<div class="chip">变好<b style="color:#1e8e3e">'+better+'</b></div>'+
+ '<div class="chip">应整改<b>'+totalRect+'</b></div>'+
+ '<div class="chip">已整改<b style="color:'+(rate>=80?'#1e8e3e':rate>=50?'#d48806':'#c0392b')+'">'+rate+'%</b></div>';
+let h='';
+// 变化对比
+if(D.compare.length){
+ h += '<div class="card"><h2>常规巡检 · 同店对比（上次 vs 本次）</h2>';
+ D.compare.forEach(c=>{
+  h += '<div style="margin-bottom:12px"><span class="verdict v-'+c.verdict+'">'+c.verdict+'</span> <span style="font-size:12px;color:#5a6377">上次 '+c.pd+'（'+c.pl+'项不合格）→ 本次 '+c.cd+'（'+c.cl+'项不合格）</span></div>';
+  const line=(it,kind)=>{
+    const icon = kind==='imp'?'✅':(it.rep30?'⚠️':'🔴');
+    let s = '<div class="item">'+icon+' '+esc(it.t)+(it.desc?'（'+esc(it.desc)+'）':'')+'</div>';
+    s += photoHtml(it.photos);
+    return s;
+  };
+  if(c.repeated&&c.repeated.length) h+='<div class="sec" style="color:#c0392b">⚠️ 连续不合格 '+c.repeated.length+' 项</div>'+c.repeated.map(it=>line(it,'rep')).join('');
+  if(c.regressed&&c.regressed.length) h+='<div class="sec" style="color:#c0392b">🔴 新劣化 '+c.regressed.length+' 项</div>'+c.regressed.map(it=>line(it,'reg')).join('');
+  if(c.improved&&c.improved.length) h+='<div class="sec" style="color:#1e8e3e">✅ 已改善 '+c.improved.length+' 项</div>'+c.improved.map(it=>line(it,'imp')).join('');
+ });
+ h += '</div>';
+}
+// 整改记录
+if(D.rectify.length){
+ h += '<div class="card"><h2>整改记录</h2><table><tr><th>报告类型</th><th>日期</th><th>应整改</th><th>已整改</th><th>整改率</th></tr>';
+ const sorted = D.rectify.slice().sort((a,b)=>(a.done/a.total)-(b.done/b.total));
+ sorted.forEach(r=>{
+  const rr = r.total? Math.round(r.done/r.total*100):100;
+  const cls = rr>=80?'rate-good':rr>=50?'rate-mid':'rate-bad';
+  h += '<tr><td>'+esc(r.tl||r.typ)+'</td><td>'+esc(r.d)+'</td><td>'+r.total+'</td><td>'+r.done+'</td><td class="'+cls+'">'+rr+'%</td></tr>';
+ });
+ h += '</table></div>';
+}
+if(!D.compare.length && !D.rectify.length) h = '<div class="card" style="text-align:center;color:#5a6377">当前区间内暂无该门店的巡检问题记录 ✅</div>';
+document.getElementById('content').innerHTML = h;
+</script></body></html>
