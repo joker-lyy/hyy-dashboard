@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>中山健康花城店 · 巡检问题跟进</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f4f6fa;color:#1A2A4A;padding-bottom:56px}
+header{background:#1A2A4A;color:#fff;padding:18px 20px}
+header h1{font-size:18px}
+header .sub{font-size:12px;opacity:.75;margin-top:4px}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{background:#fff;border-radius:10px;padding:10px 14px;font-size:13px;border:1px solid #e3e6ee;min-width:110px}
+.chip b{display:block;font-size:20px;margin-top:2px}
+.card{background:#fff;border:1px solid #e3e6ee;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:15px;margin-bottom:10px}
+.verdict{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:700}
+.v-差了{background:#ffe3e3;color:#c0392b}.v-好了{background:#e3f7e3;color:#1e8e3e}.v-持平{background:#eef0f3;color:#5a6377}
+.sec{font-size:12px;font-weight:700;margin:8px 0 4px}
+.item{font-size:13px;margin:4px 0;line-height:1.5}
+.photos img{width:88px;height:66px;object-fit:cover;border-radius:6px;border:1px solid #e3e6ee;margin:4px 6px 0 0;cursor:zoom-in}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid #eef0f3;text-align:left}
+th{background:#f8f9fc;font-size:12px;color:#5a6377}
+.rate-good{color:#1e8e3e;font-weight:700}.rate-mid{color:#d48806;font-weight:700}.rate-bad{color:#c0392b;font-weight:700}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;padding:20px}
+#lb.show{display:flex}
+#lb img{max-width:92vw;max-height:78vh;object-fit:contain;border-radius:8px}
+#lb .cap{color:#fff;font-size:13px;margin-top:10px;text-align:center}
+footer{position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;font-size:12px;text-align:center;padding:7px}
+</style></head><body>
+<header><h1>中山健康花城店</h1><div class="sub">区域：陈晓君区域 ｜ 组别：新店运营组 ｜ 数据生成：2026-09-07 05:20:53</div></header>
+<div class="wrap">
+<div class="chips" id="chips"></div>
+<div id="content"></div>
+</div>
+<div id="lb" onclick="this.classList.remove('show')"><img id="lbImg"><div class="cap" id="lbCap"></div></div>
+<footer>📖 只读分享页面 · 仅含本门店数据</footer>
+<script>
+const D = {"compare": [{"pd": "2026-07-01", "cd": "2026-08-12", "pl": 8, "cl": 8, "verdict": "差了", "repeated": [{"t": "冷冻柜温度＜18℃，内外清洁无污垢，无破损。", "desc": "冷冻冰箱清洗", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786507602134-13580366994-uAdbCs684a9A8QxnKSzH.jpg", "ts": "2026-08-12 12:06:42"}]}, {"t": "标准着装：按规定穿戴好工服/帽子/围裙/口罩/裤子/鞋子等,无破损无污垢无异味或明显皱褶。", "desc": "没有统一工服", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786507687627-13580366994-uKEK4KEN8Cbku8Ph1mOX.jpg", "ts": "2026-08-12 12:08:07"}]}, {"t": "开封后的食品按规定方式密封保存/备用，正确使用期效卡（食材、半成品等）。", "desc": "没有使用时间效期", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786507748673-13580366994-uW6sSBp7zArRlIrftIUp.jpg", "ts": "2026-08-12 12:09:08"}]}], "regressed": [{"t": "大门及墙壁：玻璃透亮，清洁无积尘，无水印、手印、无破损。", "desc": "后厨隔间玻璃清洗", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786508718859-13580366994-ul2cNvEJtBx4MybNYDAq.jpg", "ts": "2026-08-12 12:25:18"}]}, {"t": "打包区域：干净整洁无积尘积水，物品摆放整齐，不堆放杂物（含私人物品）。", "desc": "前台杂物太多，摆放乱，重新整理", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786508832395-13580366994-u6v2FGekd71pq6U3Qf2m.jpg", "ts": "2026-08-12 12:27:12,2026-08-12 12:27:34"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786508854900-13580366994-uZ3PoDp29cQ3Hgmzd2Ch.jpg", "ts": "2026-08-12 12:27:12,2026-08-12 12:27:34"}]}, {"t": "水槽、排水渠清洁无污垢/杂物，水龙头干净无污垢，无破损。", "desc": "水槽角落，死角没有清洁", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786507539386-13580366994-u0Qd8RsA0dXUM1j45kHZ.jpg", "ts": "2026-08-12 12:05:39"}]}, {"t": "冷藏柜温度保持0-5度，内外清洁无污垢，无破损。", "desc": "冰箱封条及边框有没电，清洗", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786507870886-13580366994-uNCFVBIDm8bA65uPcmPB.jpg", "ts": "2026-08-12 12:11:10,2026-08-12 12:26:46,2026-08-12 12:08:57"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786508806953-13580366994-ueGM1EE2mN6Hg7tFbQ3g.jpg", "ts": "2026-08-12 12:11:10,2026-08-12 12:26:46,2026-08-12 12:08:57"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786507737320-13580366994-u2upAjX65yf0Umff4jDN.jpg", "ts": "2026-08-12 12:11:10,2026-08-12 12:26:46,2026-08-12 12:08:57"}]}, {"t": "三文鱼/鲷鱼产品按标准备货（闻看尝摸四个维度检查：储存条件、产品品质、产品尺寸等）。", "desc": "三文鱼长度克重不达标", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1786508010798-13580366994-ujBvVtthbMSm1gsWbQzo.jpg", "ts": "2026-08-12 12:13:30"}]}], "improved": [{"t": "桌椅摆放：归位摆放，整齐清洁，无积尘积水、无垃圾杂物，无破损。", "pdesc": "椅子没有及时归纳整齐", "photos": []}, {"t": "清洁用品定位摆放,后厨及仓库过道整洁卫生,无积尘积水,无垃圾杂物,无异味,无四害迹象。", "pdesc": "有梯子在通道上", "photos": []}]}], "rectify": [{"typ": "CG", "rid": "10000000949251", "sn": "中山健康花城店", "rg": "陈晓君区域", "ps": "新店运营组", "d": "2026-08-12", "total": 8, "done": 8, "tl": "常规巡检（QSC）"}, {"typ": "CG", "rid": "10000000100023", "sn": "中山健康花城店", "rg": "陈晓君区域", "ps": "新店运营组", "d": "2026-07-01", "total": 5, "done": 5, "tl": "常规巡检（QSC）"}]};
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function viewPhoto(u,sn,ts){document.getElementById('lbImg').src=u;document.getElementById('lbCap').innerHTML='<b>'+esc(sn)+'</b> '+(ts?'· 拍摄时间 '+esc(ts):'');document.getElementById('lb').classList.add('show')}
+function photoHtml(ps){if(!ps||!ps.length)return '';return '<div class="photos">'+ps.map(p=>'<img src="'+esc(p.u)+'" referrerpolicy="no-referrer" loading="lazy" onclick="viewPhoto(this.src,"\u4e2d\u5c71\u5065\u5eb7\u82b1\u57ce\u5e97",\''+esc(p.ts||'')+'\')" onerror="this.style.display=\'none\'">').join('')+'</div>'}
+const SNJ = JSON.stringify("中山健康花城店");
+// 汇总芯片
+let totalRect=0,totalDone=0;
+D.rectify.forEach(r=>{totalRect+=r.total;totalDone+=r.done});
+const rate = totalRect? Math.round(totalDone/totalRect*100):100;
+const cmpV = D.compare.map(c=>c.verdict);
+const worse = cmpV.filter(v=>v==='差了').length, better = cmpV.filter(v=>v==='好了').length;
+document.getElementById('chips').innerHTML =
+ '<div class="chip">巡检对比<b>'+D.compare.length+' 次</b></div>'+
+ '<div class="chip">变差<b style="color:#c0392b">'+worse+'</b></div>'+
+ '<div class="chip">变好<b style="color:#1e8e3e">'+better+'</b></div>'+
+ '<div class="chip">应整改<b>'+totalRect+'</b></div>'+
+ '<div class="chip">已整改<b style="color:'+(rate>=80?'#1e8e3e':rate>=50?'#d48806':'#c0392b')+'">'+rate+'%</b></div>';
+let h='';
+// 变化对比
+if(D.compare.length){
+ h += '<div class="card"><h2>常规巡检 · 同店对比（上次 vs 本次）</h2>';
+ D.compare.forEach(c=>{
+  h += '<div style="margin-bottom:12px"><span class="verdict v-'+c.verdict+'">'+c.verdict+'</span> <span style="font-size:12px;color:#5a6377">上次 '+c.pd+'（'+c.pl+'项不合格）→ 本次 '+c.cd+'（'+c.cl+'项不合格）</span></div>';
+  const line=(it,kind)=>{
+    const icon = kind==='imp'?'✅':(it.rep30?'⚠️':'🔴');
+    let s = '<div class="item">'+icon+' '+esc(it.t)+(it.desc?'（'+esc(it.desc)+'）':'')+'</div>';
+    s += photoHtml(it.photos);
+    return s;
+  };
+  if(c.repeated&&c.repeated.length) h+='<div class="sec" style="color:#c0392b">⚠️ 连续不合格 '+c.repeated.length+' 项</div>'+c.repeated.map(it=>line(it,'rep')).join('');
+  if(c.regressed&&c.regressed.length) h+='<div class="sec" style="color:#c0392b">🔴 新劣化 '+c.regressed.length+' 项</div>'+c.regressed.map(it=>line(it,'reg')).join('');
+  if(c.improved&&c.improved.length) h+='<div class="sec" style="color:#1e8e3e">✅ 已改善 '+c.improved.length+' 项</div>'+c.improved.map(it=>line(it,'imp')).join('');
+ });
+ h += '</div>';
+}
+// 整改记录
+if(D.rectify.length){
+ h += '<div class="card"><h2>整改记录</h2><table><tr><th>报告类型</th><th>日期</th><th>应整改</th><th>已整改</th><th>整改率</th></tr>';
+ const sorted = D.rectify.slice().sort((a,b)=>(a.done/a.total)-(b.done/b.total));
+ sorted.forEach(r=>{
+  const rr = r.total? Math.round(r.done/r.total*100):100;
+  const cls = rr>=80?'rate-good':rr>=50?'rate-mid':'rate-bad';
+  h += '<tr><td>'+esc(r.tl||r.typ)+'</td><td>'+esc(r.d)+'</td><td>'+r.total+'</td><td>'+r.done+'</td><td class="'+cls+'">'+rr+'%</td></tr>';
+ });
+ h += '</table></div>';
+}
+if(!D.compare.length && !D.rectify.length) h = '<div class="card" style="text-align:center;color:#5a6377">当前区间内暂无该门店的巡检问题记录 ✅</div>';
+document.getElementById('content').innerHTML = h;
+</script></body></html>
