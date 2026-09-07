@@ -1697,6 +1697,7 @@ function unq2ShowDetail(id){
     <div style="background:#fff;border-radius:12px;width:min(96vw,1200px);max-height:92vh;overflow:auto;padding:16px 18px" onclick="event.stopPropagation()">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-size:15px;font-weight:700;color:#1A2A4A">${html(id.split('|')[2]||'')} <span style="color:#c0392b;font-weight:600;margin-left:8px">共 ${ents.length} 条不合格记录</span></div>
+        <button onclick="openShareOverlay()" style="border:none;background:#2f6fed;color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;margin-right:8px">🔗 分享本视图</button>
         <button onclick="document.getElementById('unq2DetailOverlay').remove()" style="border:none;background:#f0f2f7;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">关闭 ✕</button>
       </div>
       <div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -3937,7 +3938,8 @@ document.querySelectorAll('.subtab').forEach(b=>{
 });
 
 // fix134：分享本视图按钮 —— 页内弹层展示链接（不依赖 alert/prompt/剪贴板权限，内嵌 iframe 也可用）
-$('shareViewBtn').onclick = ()=>{
+// fix136：抽成全局函数，弹窗内「🔗 分享」按钮也调用它
+window.openShareOverlay = function(){
   const url = buildShareUrl();
   let ov = document.getElementById('shareOverlay');
   if(!ov){
@@ -3973,6 +3975,9 @@ $('shareViewBtn').onclick = ()=>{
   };
   setTimeout(()=>{ box.select(); }, 50);
 };
+$('shareViewBtn').onclick = ()=>window.openShareOverlay();
+
+// fix136：shareOverlay 层级高于所有弹窗（99999 > 99998/弹窗），在任何弹窗内都能弹出
 
 // Search bindings (v2: 三类巡检 5 subtab 对应的新 search id)
 $('selfRegionSearch').oninput = ()=>renderSelfInspection(appData);
