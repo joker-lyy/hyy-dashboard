@@ -4102,7 +4102,8 @@ function makeOverlaySolo(ov){
 async function applyShareView(){
   const st = readShareHash();
   if(!st) return;
-  enterShareSolo();
+  // fix140：只有弹窗/报告级分享才进独占模式；#s= 板块级分享要显示 panel 本身，绝不能隐藏
+  if(st.m === 'unq2' || st.m === 'report') enterShareSolo();
   // fix138：弹窗级分享——「查看更多」不合格记录表，对方打开只见这张表，无任何按钮
   if(st.m === 'unq2'){
     const showRoBar = ()=>{
