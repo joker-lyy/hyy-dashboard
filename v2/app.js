@@ -2481,12 +2481,8 @@ function renderTopList(elId, items){
   }).join('');
 }
 
-function renderTopCategories(d){
-  const ov = d.overview || {};
-  renderTopList('selfTopList', (ov.selfTopCategories || []).slice(0, 3));
-  renderTopList('videoTopList', (ov.videoTopCategories || []).slice(0, 3));
-  renderTopList('regularTopList', (ov.regularTopCategories || []).slice(0, 10));
-}
+// fix130：总览「巡检类型高发问题」板块已删除（与问题高发 v2 重复）
+function renderTopCategories(d){}
 
 function renderPositions(d){
   if(!d) return;
