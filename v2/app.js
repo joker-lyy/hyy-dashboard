@@ -1750,11 +1750,10 @@ function unq2RenderTable(){
   const cards = groups.map(g=>{
     const id = unq2State.type+'|'+unq2State.dim+'|'+g.key;
     UNQ2_GROUP_ENTS[id] = g.ents;
-    const open = unq2State.expanded[id];
-    const shown = open ? g.probs.slice(0,15) : g.probs.slice(0,3);
+    const shown = g.probs.slice(0,3);
     const itemRow = p=>`
       <div class="unq-item-row">
-        ${p.photos.length ? unq2ImgHtml(open ? p.photos : p.photos.slice(0,2))
+        ${p.photos.length ? unq2ImgHtml(p.photos.slice(0,2))
           : `<div class="unq-item-img no-photo" style="display:flex;align-items:center;justify-content:center;font-size:11px;color:#999">无图</div>`}
         <div class="unq-item-body" style="flex:1;min-width:0">
           <div class="unq-item-title" style="font-size:13px;font-weight:600;color:#333;line-height:1.45">${html(p.t)}
@@ -1763,7 +1762,6 @@ function unq2RenderTable(){
             <span class="unq-item-cat">${html(p.cat||'-')}</span>
             <span style="color:#7a8399;font-size:11px">${p.reps.size} 份报告 · ${p.stores.size} 家门店</span>
           </div>
-          ${open ? p.descs.slice(0,2).map(x=>`<div style="color:#5a6377;font-size:12px;margin-top:2px">· ${html(x)}</div>`).join('') : ''}
         </div>
       </div>`;
     const metaLine = unq2State.dim==='cat'
@@ -1779,23 +1777,15 @@ function unq2RenderTable(){
           <span class="unq-card-badge">不合格 ${g.count} 项</span>
         </div>
         <div class="unq-card-stats">
-          <span>${open?'全部问题':'高发问题 Top'+Math.min(3,g.probs.length)}</span>
+          <span>高发问题 Top${Math.min(3,g.probs.length)}</span>
         </div>
         <div class="unq-card-items">${shown.map(itemRow).join('')}</div>
         <div style="margin-top:8px;display:flex;gap:12px">
-          ${g.probs.length>3 ? `<a href="javascript:void(0)" class="unq2-more" data-id="${html(id)}" style="font-size:13px;color:#186BEB;text-decoration:none">${open?'收起':'查看全部问题 ('+g.probs.length+')'}</a>` : ''}
           <a href="javascript:void(0)" class="unq2-detail" data-id="${html(id)}" style="font-size:13px;color:#186BEB;text-decoration:none;font-weight:600">查看更多 (${g.ents.length} 条记录)</a>
         </div>
       </div>`;
   }).join('');
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px">${cards}</div>`;
-  el.querySelectorAll('.unq2-more').forEach(a=>{
-    a.onclick = ()=>{
-      const id = a.dataset.id;
-      unq2State.expanded[id] = !unq2State.expanded[id];
-      unq2RenderTable();
-    };
-  });
   el.querySelectorAll('.unq2-detail').forEach(a=>{
     a.onclick = ()=>unq2ShowDetail(a.dataset.id);
   });
