@@ -1943,9 +1943,6 @@ function renderUnqStore(){
       <div class="unq-card-items">
         ${(s.topItems||[]).slice(0,3).map(t=>unqItemRow(t)).join('')}
       </div>
-      <div class="unq-card-actions">
-        <span class="link-btn" onclick="showUnqStoreDetail('${encodeURIComponent(s.store||'')}', '${encodeURIComponent(s.region||'')}', '${encodeURIComponent(s.position||'')}')">查看全部问题</span>
-      </div>
     </div>
   `).join('') || '<div class="empty">无数据</div>';
   refreshUnqPhotos(el);
@@ -4447,9 +4444,6 @@ function renderTypeProblems(type){
         </div>
         <div class="unq-card-items">
           ${(s.topItems||[]).slice(0,3).map(t=>unqItemRow(t)).join('')}
-        </div>
-        <div class="unq-card-actions">
-          <span class="link-btn" onclick="showUnqStoreDetail('${encodeURIComponent(s.store||'')}', '${encodeURIComponent(s.region||'')}', '${encodeURIComponent(s.position||'')}')">查看全部问题</span>
         </div>
       </div>
     `).join('') || '<div class="empty">无数据</div>';
