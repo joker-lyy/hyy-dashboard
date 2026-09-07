@@ -4127,7 +4127,39 @@ async function applyShareView(){
   const st = readShareHash();
   if(!st) return;
   // fix140：只有弹窗/报告级分享才进独占模式；#s= 板块级分享要显示 panel 本身，绝不能隐藏
-  if(st.m === 'unq2' || st.m === 'report') enterShareSolo();
+  if(st.m === 'unq2' || st.m === 'report' || st.m === 'rstores') enterShareSolo();
+  // fix147：门店清单/报告明细弹窗分享还原——重放记录的函数，弹窗独占全屏只读
+  if(st.m === 'rstores'){
+    const showRoBar3 = ()=>{
+      if(!document.getElementById('shareRoBar')){
+        document.body.insertAdjacentHTML('beforeend',
+          '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 只读分享 · 门店报告明细</div>');
+      }
+    };
+    try{
+      const fn = window[st.fn];
+      const a = st.a || [];
+      if(typeof fn !== 'function') throw new Error('fn missing');
+      let n = 0;
+      const iv = setInterval(()=>{
+        n++;
+        const ready = (typeof appData !== 'undefined' && appData && (appData.selfInspection || appData.positions));
+        if(ready){
+          clearInterval(iv);
+          try{ fn.apply(null, a); }catch(e){ console.warn('rstores replay failed', e); }
+          setTimeout(()=>{
+            const ov = $('regionModal');
+            makeOverlaySolo(ov);
+            try{ ov.querySelectorAll('button').forEach(b=>b.style.display='none'); }catch(e){}
+            try{ ov.querySelectorAll('a').forEach(el=>el.style.display='none'); }catch(e){}
+            showRoBar3();
+          }, 300);
+        } else if(n > 60){ clearInterval(iv); }
+      }, 500);
+    }catch(e){ console.warn('rstores share apply failed', e); }
+    showRoBar3();
+    return;
+  }
   // fix138：弹窗级分享——「查看更多」不合格记录表，对方打开只见这张表，无任何按钮
   if(st.m === 'unq2'){
     const showRoBar = ()=>{
