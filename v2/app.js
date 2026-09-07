@@ -4053,7 +4053,13 @@ function buildShareUrl(){
       return location.origin + location.pathname + '#r=' + b64uEnc(JSON.stringify(st));
     }catch(e){}
   }
+  // fix142：把组别/区域筛选状态一并存入分享链接，对方打开与停留画面一致
+  const regVar = { regularInspection: 'regularRankRegionFilter', selfInspection: 'selfRankRegionFilter', videoInspection: 'videoRankRegionFilter' }[activeMainTab];
   const st = { t: activeMainTab, sub: activeSubTab[activeMainTab] || '', s: currentStart, e: currentEnd, ro: 1 };
+  if(activePosFilter && activePosFilter !== '__all__'){
+    st.g = activePosFilter;
+    try{ const rv = regVar ? window[regVar] : '__all__'; if(rv && rv !== '__all__') st.rf = rv; }catch(e){}
+  }
   return location.origin + location.pathname + '#s=' + b64uEnc(JSON.stringify(st));
 }
 function readShareHash(){
@@ -4173,6 +4179,12 @@ async function applyShareView(){
       if(typeof applyDateRange === 'function') await applyDateRange();
     }
     const tb = document.querySelector(`#mainTabs .tab[data-t="${st.t}"]`);
+    // fix142：还原组别/区域筛选（须在渲染前设置，子页签渲染时即生效）
+    if(st.g){
+      activePosFilter = st.g;
+      const regVar = { regularInspection: 'regularRankRegionFilter', selfInspection: 'selfRankRegionFilter', videoInspection: 'videoRankRegionFilter' }[st.t];
+      try{ if(regVar) window[regVar] = st.rf || '__all__'; }catch(e){}
+    }
     if(tb) tb.click();
     if(st.sub){
       setTimeout(()=>{
@@ -4185,7 +4197,7 @@ async function applyShareView(){
   if(!document.getElementById('shareLockStyle')){
     const ls = document.createElement('style');
     ls.id = 'shareLockStyle';
-    ls.textContent = 'body.share-ro section.panel button:not(.keep-ro),body.share-ro section.panel a,body.share-ro section.panel input,body.share-ro section.panel select,body.share-ro section.panel .chip,body.share-ro section.panel [onclick],body.share-ro section.panel .subtab{pointer-events:none!important;cursor:default!important}body.share-ro section.panel input,body.share-ro section.panel select{opacity:.7}';
+    ls.textContent = 'body.share-ro section.panel button:not(.keep-ro),body.share-ro section.panel a,body.share-ro section.panel input,body.share-ro section.panel select,body.share-ro section.panel .chip,body.share-ro section.panel [onclick],body.share-ro section.panel .subtab{pointer-events:none!important;cursor:default!important}body.share-ro section.panel input,body.share-ro section.panel select{opacity:.7}body.share-ro .filterbar{position:static!important}';
     document.head.appendChild(ls);
   }
   document.body.classList.add('share-ro');
