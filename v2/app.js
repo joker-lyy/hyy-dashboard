@@ -4039,7 +4039,7 @@ function b64uEnc(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,
 function b64uDec(s){ s = String(s).replace(/-/g,'+').replace(/_/g,'/'); while(s.length % 4) s += '='; try{ return decodeURIComponent(escape(atob(s))); }catch(e){ return ''; } }
 // fix144：包装所有「门店清单」弹窗函数——打开时把函数名+参数记到 #regionModal dataset，供分享链接还原
 (function(){
-  ['showRegionStores','showSelfRegionStores','showVideoRegionStores','showAiRegionStores','showRankRegionStores','showRegionStoresByName'].forEach(fn=>{
+  ['showRegionStores','showSelfRegionStores','showVideoRegionStores','showAiRegionStores','showRankRegionStores','showRegionStoresByName','showStoreSelfReports','showStoreInspReports'].forEach(fn=>{
     const orig = window[fn];
     if(typeof orig !== 'function') return;
     window[fn] = function(...a){
