@@ -597,6 +597,10 @@ function _finishReportDetail(body, sn){
 }
 
 function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
+  // fix137：记录当前弹窗状态，供「分享本视图」把弹窗内容编码进链接
+  try{
+    $('reportDetailModal').dataset.share = JSON.stringify({m:'report', a:[ridEnc, sidEnc, pt||'', snEnc, rgEnc, rdEnc, (sc==null?'':sc), (ip==null?'':ip)]});
+  }catch(e){}
   const rid = decodeURIComponent(ridEnc || '');
   const sid = decodeURIComponent(sidEnc || '');
   const sn = decodeURIComponent(snEnc || '');
@@ -3941,6 +3945,7 @@ document.querySelectorAll('.subtab').forEach(b=>{
 // fix136：抽成全局函数，弹窗内「🔗 分享」按钮也调用它
 window.openShareOverlay = function(){
   const url = buildShareUrl();
+  const isReport = url.indexOf('#r=') === 0 || url.includes('%22m%22%3A%22report%22') || url.includes('"m":"report"');
   let ov = document.getElementById('shareOverlay');
   if(!ov){
     ov = document.createElement('div');
@@ -3952,7 +3957,7 @@ window.openShareOverlay = function(){
   ov.innerHTML = `
     <div style="background:#fff;border-radius:12px;max-width:560px;width:100%;padding:18px 20px" onclick="event.stopPropagation()">
       <div style="font-size:15px;font-weight:700;color:#1A2A4A;margin-bottom:6px">🔗 分享链接已生成</div>
-      <div style="font-size:12px;color:#7a8399;margin-bottom:10px">对方打开后仅能看到当前板块的只读视图</div>
+      <div style="font-size:12px;color:#7a8399;margin-bottom:10px">${isReport ? '对方打开后仅能看到这一份报告详情（只读，无任何操作按钮）' : '对方打开后仅能看到当前板块的只读视图'}</div>
       <textarea id="shareUrlBox" readonly style="width:100%;height:72px;border:1px solid #e3e6ee;border-radius:8px;padding:8px;font-size:12px;color:#1A2A4A;resize:none">${url}</textarea>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
         <button id="shareCopyBtn" style="background:#2f6fed;color:#fff;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px">复制链接</button>
@@ -4028,18 +4033,55 @@ initDates();
 function b64uEnc(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function b64uDec(s){ s = String(s).replace(/-/g,'+').replace(/_/g,'/'); while(s.length % 4) s += '='; try{ return decodeURIComponent(escape(atob(s))); }catch(e){ return ''; } }
 function buildShareUrl(){
+  // fix137：报告详情弹窗打开时，分享「这一份报告」——对方打开只看到该报告内容，无任何按钮
+  const rmodal = $('reportDetailModal');
+  if(rmodal && rmodal.classList.contains('active') && rmodal.dataset.share){
+    try{
+      const st = JSON.parse(rmodal.dataset.share);
+      return location.origin + location.pathname + '#r=' + b64uEnc(JSON.stringify(st));
+    }catch(e){}
+  }
   const st = { t: activeMainTab, sub: activeSubTab[activeMainTab] || '', s: currentStart, e: currentEnd, ro: 1 };
   return location.origin + location.pathname + '#s=' + b64uEnc(JSON.stringify(st));
 }
 function readShareHash(){
-  const m = (location.hash || '').match(/[#&]s=([A-Za-z0-9\-_]+)/);
-  if(!m) return null;
-  const raw = b64uDec(m[1]);
+  const m = (location.hash || '').match(/[#&]r=([A-Za-z0-9\-_]+)/);
+  if(m){
+    const raw = b64uDec(m[1]);
+    try{ const o = JSON.parse(raw); return (o && o.m==='report') ? o : null; }catch(e){ return null; }
+  }
+  const m2 = (location.hash || '').match(/[#&]s=([A-Za-z0-9\-_]+)/);
+  if(!m2) return null;
+  const raw = b64uDec(m2[1]);
   try{ const o = JSON.parse(raw); return (o && o.t) ? o : null; }catch(e){ return null; }
 }
 async function applyShareView(){
   const st = readShareHash();
   if(!st) return;
+  // fix137：报告级分享——只渲染这一份报告详情，无页签/筛选/返回/关闭等任何按钮
+  if(st.m === 'report'){
+    try{
+      const a = st.a || [];
+      if(typeof showReportDetail === 'function') showReportDetail(a[0]||'', a[1]||'', a[2]||'', a[3]||'', a[4]||'', a[5]||'', a[6]===''?null:a[6], a[7]===''?null:a[7]);
+    }catch(e){ console.warn('report share apply failed', e); }
+    document.getElementById('mainTabs').style.display = 'none';
+    const db = document.querySelector('.datebar'); if(db) db.style.display = 'none';
+    const sb2 = $('shareViewBtn'); if(sb2) sb2.style.display = 'none';
+    // 弹窗头部按钮全部隐藏（返回上一页/关闭/分享），只留标题
+    try{
+      const hd = document.querySelector('#reportDetailModal .modal-header');
+      if(hd) hd.querySelectorAll('button').forEach(b=>b.style.display='none');
+    }catch(e){}
+    // 弹窗内容里的操作按钮/外链也隐藏（照片仍可点击放大）
+    try{
+      document.querySelectorAll('#reportDetailBody button, #reportDetailBody a').forEach(el=>el.style.display='none');
+    }catch(e){}
+    if(!document.getElementById('shareRoBar')){
+      document.body.insertAdjacentHTML('beforeend',
+        '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 只读分享 · 报告详情</div>');
+    }
+    return;
+  }
   try{
     if(st.s && st.e){
       $('startDate').value = st.s; $('endDate').value = st.e;
