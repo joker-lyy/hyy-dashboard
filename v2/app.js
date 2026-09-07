@@ -4053,12 +4053,15 @@ function buildShareUrl(){
       return location.origin + location.pathname + '#r=' + b64uEnc(JSON.stringify(st));
     }catch(e){}
   }
-  // fix142：把组别/区域筛选状态一并存入分享链接，对方打开与停留画面一致
-  const regVar = { regularInspection: 'regularRankRegionFilter', selfInspection: 'selfRankRegionFilter', videoInspection: 'videoRankRegionFilter' }[activeMainTab];
+  // fix142b：把组别/区域筛选状态一并存入分享链接（同作用域直接读 let 变量）
+  let rf = '__all__';
+  try{
+    rf = { regularInspection: regularRankRegionFilter, selfInspection: selfRankRegionFilter, videoInspection: videoRankRegionFilter }[activeMainTab] || '__all__';
+  }catch(e){}
   const st = { t: activeMainTab, sub: activeSubTab[activeMainTab] || '', s: currentStart, e: currentEnd, ro: 1 };
   if(activePosFilter && activePosFilter !== '__all__'){
     st.g = activePosFilter;
-    try{ const rv = regVar ? window[regVar] : '__all__'; if(rv && rv !== '__all__') st.rf = rv; }catch(e){}
+    if(rf && rf !== '__all__') st.rf = rf;
   }
   return location.origin + location.pathname + '#s=' + b64uEnc(JSON.stringify(st));
 }
@@ -4179,17 +4182,31 @@ async function applyShareView(){
       if(typeof applyDateRange === 'function') await applyDateRange();
     }
     const tb = document.querySelector(`#mainTabs .tab[data-t="${st.t}"]`);
-    // fix142：还原组别/区域筛选（须在渲染前设置，子页签渲染时即生效）
-    if(st.g){
-      activePosFilter = st.g;
-      const regVar = { regularInspection: 'regularRankRegionFilter', selfInspection: 'selfRankRegionFilter', videoInspection: 'videoRankRegionFilter' }[st.t];
-      try{ if(regVar) window[regVar] = st.rf || '__all__'; }catch(e){}
-    }
+    // fix142：还原组别筛选（须在渲染前设置，子页签渲染时即生效；区域筛选由下方模拟点击还原）
+    if(st.g) activePosFilter = st.g;
     if(tb) tb.click();
     if(st.sub){
       setTimeout(()=>{
         const sb = document.querySelector(`.subtab[data-sub="${st.sub}"]`);
         if(sb) sb.click();
+        // fix142b：还原组别/区域筛选——直接模拟点击对应按钮（与手点完全等价，选中态+过滤同时生效）
+        const ttype = { regularInspection:'regular', selfInspection:'self', videoInspection:'video', aiInspection:'ai' }[st.t];
+        if(st.g && ttype){
+          let n = 0;
+          const iv = setInterval(()=>{
+            n++;
+            const gb = document.querySelector(`#${ttype}StoreRankPosFilter .fbtn[data-pos="${CSS.escape(st.g)}"]`) ||
+                       document.querySelector(`#${ttype}RegionPosFilter .fbtn[data-pos="${CSS.escape(st.g)}"]`);
+            if(gb){
+              if(!gb.classList.contains('active')) gb.click();
+              if(st.rf && st.rf !== '__all__'){
+                const rb = document.querySelector(`#${ttype}StoreRankRegionFilter .fbtn[data-region="${CSS.escape(st.rf)}"]`);
+                if(rb && !rb.classList.contains('active')) rb.click();
+              }
+              clearInterval(iv);
+            } else if(n > 40){ clearInterval(iv); }
+          }, 250);
+        }
       }, 500);
     }
   }catch(e){ console.warn('share view apply failed', e); }
