@@ -894,16 +894,11 @@ function showRangeBanner(start, end, partialMonths, rawMonths){
   let level = 'ok';
   // fix87 + fixGitSync：优先使用 publishedAt（与 Git 提交时间一致），其次 refreshCompletedAt；旧快照才回退到 cachedAt/generatedAt。
   // reportDetailsGeneratedAt 仅代表明细文件写入时间，不能代表整轮报表已完成。
-  const at = toBeijing(reportRefreshCompletedAt)
-    || toBeijing(appData && appData.publishedAt)
-    || toBeijing(appData && appData.refreshCompletedAt)
-    || toBeijing(appData && appData.generatedAt)
-    || toBeijing(reportDetailsGeneratedAt);
-  const atTxt = at ? ` · 报表刷新于 ${at}` : '';
-  let msg = `当前区间 ${start} ~ ${end} · 由原始数据实时计算（覆盖 ${months} 个月，完整对齐${atTxt}）`;
+  // fix146：横条不再显示「报表刷新于」——该处渲染早于 loadRefreshToken，曾回退到明细分片旧 generatedAt（停在9/3）误导；刷新时间以右上角绿色徽标为准
+  let msg = `当前区间 ${start} ~ ${end} · 由原始数据实时计算（覆盖 ${months} 个月，完整对齐）`;
   if(partialMonths && partialMonths.length){
     level = 'warn';
-    msg = `当前区间 ${start} ~ ${end} · 分数/完成次数按天精确${atTxt}；`
+    msg = `当前区间 ${start} ~ ${end} · 分数/完成次数按天精确；`
         + `其中 ${partialMonths.join('、')} 为部分月份，其「不合格项数 / 整改进度」按整月计入，略偏高`;
   }
   el.className = 'range-banner ' + level;
