@@ -548,13 +548,23 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
    门店自检（ZJ）
    ============================================================================ */
 function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
+  // fix139：完成率分母的「报表刷新时间」不再用 raw/index.json 的 generatedAt——
+  //   该文件常滞后（如停在 9/3），会把 9/3 之后已采集的天全当「未采集」，
+  //   分母被低估 → 完成率虚高（实测 235%）。改为取已加载月文件里最新的 fetchedAt
+  //   （collect_raw 每天都会更新月文件的 fetchedAt），无则回退 index.generatedAt。
+  const latestFetchAt = (months || [])
+    .map(m => (rawMonthCache[m] && rawMonthCache[m].fetchedAt) || '')
+    .filter(Boolean)
+    .sort()
+    .pop();
+  const effGeneratedAt = latestFetchAt || generatedAt;
   // fix37：每店应完成份数按「区间逐天 × 报表刷新日」逐天求和：
   //   · 报表刷新日之前的天 = 2 份
   //   · 报表刷新日当天 = 按刷新时刻分档（14前 0 / 14~20 1 / ≥20 2）
   //   · 报表刷新日之后的天 = 0 份（数据未到，计入分母会拉低完成率）
   // 例：报表刷新 9/2 15:43（1 份），区间 9/1~9/3
   //     → 9/1=2 + 9/2=1 + 9/3=0 = 3 份/店；7 店 × 3 = **21 份**（与用户期望一致）
-  const perStoreExpected = dailyExpected(generatedAt, start, end);
+  const perStoreExpected = dailyExpected(effGeneratedAt, start, end);
   const storeBuckets = {};
   const zjCategoryAgg = {};
   // fix39：整改单聚合（第二阶段见下方 —— rectifyMap 在 storeBuckets 完成后再按"门店名"反查 region）
