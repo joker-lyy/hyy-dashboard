@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>广州天河正佳广场店 · 巡检问题跟进</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f4f6fa;color:#1A2A4A;padding-bottom:56px}
+header{background:#1A2A4A;color:#fff;padding:18px 20px}
+header h1{font-size:18px}
+header .sub{font-size:12px;opacity:.75;margin-top:4px}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{background:#fff;border-radius:10px;padding:10px 14px;font-size:13px;border:1px solid #e3e6ee;min-width:110px}
+.chip b{display:block;font-size:20px;margin-top:2px}
+.card{background:#fff;border:1px solid #e3e6ee;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:15px;margin-bottom:10px}
+.verdict{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:700}
+.v-差了{background:#ffe3e3;color:#c0392b}.v-好了{background:#e3f7e3;color:#1e8e3e}.v-持平{background:#eef0f3;color:#5a6377}
+.sec{font-size:12px;font-weight:700;margin:8px 0 4px}
+.item{font-size:13px;margin:4px 0;line-height:1.5}
+.photos img{width:88px;height:66px;object-fit:cover;border-radius:6px;border:1px solid #e3e6ee;margin:4px 6px 0 0;cursor:zoom-in}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid #eef0f3;text-align:left}
+th{background:#f8f9fc;font-size:12px;color:#5a6377}
+.rate-good{color:#1e8e3e;font-weight:700}.rate-mid{color:#d48806;font-weight:700}.rate-bad{color:#c0392b;font-weight:700}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;padding:20px}
+#lb.show{display:flex}
+#lb img{max-width:92vw;max-height:78vh;object-fit:contain;border-radius:8px}
+#lb .cap{color:#fff;font-size:13px;margin-top:10px;text-align:center}
+footer{position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;font-size:12px;text-align:center;padding:7px}
+</style></head><body>
+<header><h1>广州天河正佳广场店</h1><div class="sub">区域：直营组 ｜ 组别：培训组（直营组） ｜ 数据生成：2026-09-07 05:20:53</div></header>
+<div class="wrap">
+<div class="chips" id="chips"></div>
+<div id="content"></div>
+</div>
+<div id="lb" onclick="this.classList.remove('show')"><img id="lbImg"><div class="cap" id="lbCap"></div></div>
+<footer>📖 只读分享页面 · 仅含本门店数据</footer>
+<script>
+const D = {"compare": [{"pd": "2026-08-20", "cd": "2026-09-04", "pl": 10, "cl": 10, "verdict": "差了", "repeated": [{"t": "冷藏柜温度保持0-5度，内外清洁无污垢，无破损。", "desc": "冰箱门有污垢", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504039527-18998601634-uHIXl82VKhilaFeMFuKH.jpg", "ts": "2026-09-04 14:40:39"}]}, {"t": "所有操作台或不锈钢器具用品，干净、不粘手，无破损。", "desc": "层架有污渍，放米的操作台门有污渍", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504321168-18998601634-ug7Q8Vworped7N4R5x3B.jpg", "ts": "2026-09-04 14:45:20,2026-09-04 14:36:12,2026-09-04 14:36:04,2026-09-04 14:36:43"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503772712-18998601634-up8iuwZXwEJOdWIumOt6.jpg", "ts": "2026-09-04 14:45:20,2026-09-04 14:36:12,2026-09-04 14:36:04,2026-09-04 14:36:43"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503764782-18998601634-uoDcsvuaqDz5uZqwEMCl.jpg", "ts": "2026-09-04 14:45:20,2026-09-04 14:36:12,2026-09-04 14:36:04,2026-09-04 14:36:43"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503803428-18998601634-us6JZ7rlCs4NAcCm8Mxt.jpg", "ts": "2026-09-04 14:45:20,2026-09-04 14:36:12,2026-09-04 14:36:04,2026-09-04 14:36:43"}]}, {"t": "手部卫生：定期剪指甲（不超0.1cm），整洁清洁无污渍无异味，不涂指甲不贴甲片。", "desc": "指甲有点长", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504865058-18998601634-uDMMPdXEThgIdSrmaANy.jpg", "ts": "2026-09-04 14:54:24"}]}, {"t": "各项原材物料和食材无过期使用，无变质/无缺货/断货。", "desc": "食材过期使用", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503984585-18998601634-uBckN7ygIuH0eWaRGVc2.jpg", "ts": "2026-09-04 14:39:44,2026-09-04 14:38:16,2026-09-04 14:38:02,2026-09-04 14:37:35,2026-09-04 14:37:21"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503896787-18998601634-uMbPYkAK1aOoRzt7bnzb.jpg", "ts": "2026-09-04 14:39:44,2026-09-04 14:38:16,2026-09-04 14:38:02,2026-09-04 14:37:35,2026-09-04 14:37:21"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503882290-18998601634-upBOV1PlJY786JviXFfZ.jpg", "ts": "2026-09-04 14:39:44,2026-09-04 14:38:16,2026-09-04 14:38:02,2026-09-04 14:37:35,2026-09-04 14:37:21"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503856047-18998601634-uXhcFgAQacftv7DsSUgv.jpg", "ts": "2026-09-04 14:39:44,2026-09-04 14:38:16,2026-09-04 14:38:02,2026-09-04 14:37:35,2026-09-04 14:37:21"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503841281-18998601634-uZQgRZext3E5EgulgBP3.jpg", "ts": "2026-09-04 14:39:44,2026-09-04 14:38:16,2026-09-04 14:38:02,2026-09-04 14:37:35,2026-09-04 14:37:21"}]}, {"t": "开封后的食品按规定方式密封保存/备用，正确使用期效卡（食材、半成品等）。", "desc": "三文鱼没有有效期，鲷鱼没有密封保存", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504199569-18998601634-uarYtbNOUs4CcX29BX1T.jpg", "ts": "2026-09-04 14:43:19,2026-09-04 14:43:11,2026-09-04 14:42:54,2026-09-04 14:42:43,2026-09-04 14:40:22,2026-09-04 14:38:36"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504191717-18998601634-uycqroQyIraF3LwTiw3s.jpg", "ts": "2026-09-04 14:43:19,2026-09-04 14:43:11,2026-09-04 14:42:54,2026-09-04 14:42:43,2026-09-04 14:40:22,2026-09-04 14:38:36"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504174202-18998601634-uSBrqZH6UYXn6AnWva82.jpg", "ts": "2026-09-04 14:43:19,2026-09-04 14:43:11,2026-09-04 14:42:54,2026-09-04 14:42:43,2026-09-04 14:40:22,2026-09-04 14:38:36"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504163718-18998601634-uwVOs7vePpY0UXOgc0W4.jpg", "ts": "2026-09-04 14:43:19,2026-09-04 14:43:11,2026-09-04 14:42:54,2026-09-04 14:42:43,2026-09-04 14:40:22,2026-09-04 14:38:36"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504023048-18998601634-urcDVZPfJRrl0cxknHQx.jpg", "ts": "2026-09-04 14:43:19,2026-09-04 14:43:11,2026-09-04 14:42:54,2026-09-04 14:42:43,2026-09-04 14:40:22,2026-09-04 14:38:36"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503916687-18998601634-uZvlUb9eIlxje6jnsqvj.jpg", "ts": "2026-09-04 14:43:19,2026-09-04 14:43:11,2026-09-04 14:42:54,2026-09-04 14:42:43,2026-09-04 14:40:22,2026-09-04 14:38:36"}]}], "regressed": [{"t": "收款设备：正常使用，下方置物柜物品摆放整齐、清洁无积尘无破损。", "desc": "柜筒里摆放不整齐，有污渍", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504438724-18998601634-uukpvx1EWgoSeNR2TMRl.jpg", "ts": "2026-09-04 14:47:18,2026-09-04 14:47:04,2026-09-04 14:46:42"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504424256-18998601634-uvqhxNQgEfLEgm2RYwNY.jpg", "ts": "2026-09-04 14:47:18,2026-09-04 14:47:04,2026-09-04 14:46:42"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504402901-18998601634-u9UNwmso7EwJmBgqHf4b.jpg", "ts": "2026-09-04 14:47:18,2026-09-04 14:47:04,2026-09-04 14:46:42"}]}, {"t": "空气炸锅/炸炉/电饭锅/微波炉/电磁炉/压饭机/电子秤等设备正常使用，无污渍无破损。", "desc": "空气炸锅有污渍，微波炉有污渍", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504287139-18998601634-uLHdK9Vs039cW7Qlg7Wq.jpg", "ts": "2026-09-04 14:44:47,2026-09-04 14:35:40"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503740215-18998601634-u6UAZSdUBP1YL1xRgwGz.jpg", "ts": "2026-09-04 14:44:47,2026-09-04 14:35:40"}]}, {"t": "各种刀具/厨具/砧板及其他用具清洁光亮无污渍无损坏无凹凸。", "desc": "香松瓶有污渍，油壶有污渍", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504093003-18998601634-uqNUtOicpuTQONN88ruu.jpg", "ts": "2026-09-04 14:41:32,2026-09-04 14:46:17"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504377859-18998601634-ujdKMWjiEH6WyQybg3vP.jpg", "ts": "2026-09-04 14:41:32,2026-09-04 14:46:17"}]}, {"t": "所有盛装食品或工具的盒子、碗碟表面清洁无污垢，无破损。", "desc": "紫菜盒有污渍，盒子有污渍", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504338910-18998601634-uEzWX6dRUW0mFz94Yitr.jpg", "ts": "2026-09-04 14:45:38,2026-09-04 14:42:05,2026-09-04 14:41:58"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504126056-18998601634-uJ733jE3IE5UjGVrFTsO.jpg", "ts": "2026-09-04 14:45:38,2026-09-04 14:42:05,2026-09-04 14:41:58"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788504118163-18998601634-uyTw6c8fi2MhmNf0BHLy.jpg", "ts": "2026-09-04 14:45:38,2026-09-04 14:42:05,2026-09-04 14:41:58"}]}, {"t": "各项备料产品按标准制作，储存条件标准、口感正常，无变色变味无变质。", "desc": "半成品没有完全密封", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202609/1788503723793-18998601634-u7YsB0IWofo38ToqtyoB.jpg", "ts": "2026-09-04 14:35:23"}]}], "improved": [{"t": "三文鱼/鲷鱼产品按标准备货（闻看尝摸四个维度检查：储存条件、产品品质、产品尺寸等）。", "pdesc": "三文鱼宽度不够", "photos": []}, {"t": "寿司饭品质：拌饭次数、口感软硬度、放凉时间", "pdesc": "", "photos": []}]}], "rectify": [{"typ": "CG", "rid": "10000001362301", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-09-04", "total": 10, "done": 10, "tl": "常规巡检（QSC）"}, {"typ": "ZJ", "rid": "10000001339213", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-09-03", "total": 1, "done": 1, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000001310791", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-09-01", "total": 1, "done": 0, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000001248638", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-28", "total": 1, "done": 1, "tl": "门店自检"}, {"typ": "SP", "rid": "10000001213422", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-27", "total": 1, "done": 1, "tl": "视频巡检"}, {"typ": "CG", "rid": "10000001059453", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-20", "total": 7, "done": 7, "tl": "常规巡检（QSC）"}, {"typ": "ZJ", "rid": "10000001045068", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-19", "total": 1, "done": 1, "tl": "门店自检"}, {"typ": "SP", "rid": "10000000949814", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-12", "total": 1, "done": 1, "tl": "视频巡检"}, {"typ": "ZJ", "rid": "10000000954479", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-12", "total": 1, "done": 1, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000000923108", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-10", "total": 1, "done": 1, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000000915224", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-09", "total": 1, "done": 1, "tl": "门店自检"}, {"typ": "SP", "rid": "10000000856999", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-06", "total": 1, "done": 1, "tl": "视频巡检"}, {"typ": "ZJ", "rid": "10000000860416", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-08-06", "total": 1, "done": 1, "tl": "门店自检"}, {"typ": "CG", "rid": "10000000439626", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-07-23", "total": 7, "done": 7, "tl": "常规巡检（QSC）"}, {"typ": "SP", "rid": "10000000384636", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-07-21", "total": 1, "done": 1, "tl": "视频巡检"}, {"typ": "ZJ", "rid": "10000000334709", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-07-17", "total": 1, "done": 1, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000000197105", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-07-10", "total": 1, "done": 1, "tl": "门店自检"}, {"typ": "ZJ", "rid": "10000000105741", "sn": "广州天河正佳广场店", "rg": "直营组", "ps": "培训组（直营组）", "d": "2026-07-02", "total": 1, "done": 1, "tl": "门店自检"}]};
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function viewPhoto(u,sn,ts){document.getElementById('lbImg').src=u;document.getElementById('lbCap').innerHTML='<b>'+esc(sn)+'</b> '+(ts?'· 拍摄时间 '+esc(ts):'');document.getElementById('lb').classList.add('show')}
+function photoHtml(ps){if(!ps||!ps.length)return '';return '<div class="photos">'+ps.map(p=>'<img src="'+esc(p.u)+'" referrerpolicy="no-referrer" loading="lazy" onclick="viewPhoto(this.src,"\u5e7f\u5dde\u5929\u6cb3\u6b63\u4f73\u5e7f\u573a\u5e97",\''+esc(p.ts||'')+'\')" onerror="this.style.display=\'none\'">').join('')+'</div>'}
+const SNJ = JSON.stringify("广州天河正佳广场店");
+// 汇总芯片
+let totalRect=0,totalDone=0;
+D.rectify.forEach(r=>{totalRect+=r.total;totalDone+=r.done});
+const rate = totalRect? Math.round(totalDone/totalRect*100):100;
+const cmpV = D.compare.map(c=>c.verdict);
+const worse = cmpV.filter(v=>v==='差了').length, better = cmpV.filter(v=>v==='好了').length;
+document.getElementById('chips').innerHTML =
+ '<div class="chip">巡检对比<b>'+D.compare.length+' 次</b></div>'+
+ '<div class="chip">变差<b style="color:#c0392b">'+worse+'</b></div>'+
+ '<div class="chip">变好<b style="color:#1e8e3e">'+better+'</b></div>'+
+ '<div class="chip">应整改<b>'+totalRect+'</b></div>'+
+ '<div class="chip">已整改<b style="color:'+(rate>=80?'#1e8e3e':rate>=50?'#d48806':'#c0392b')+'">'+rate+'%</b></div>';
+let h='';
+// 变化对比
+if(D.compare.length){
+ h += '<div class="card"><h2>常规巡检 · 同店对比（上次 vs 本次）</h2>';
+ D.compare.forEach(c=>{
+  h += '<div style="margin-bottom:12px"><span class="verdict v-'+c.verdict+'">'+c.verdict+'</span> <span style="font-size:12px;color:#5a6377">上次 '+c.pd+'（'+c.pl+'项不合格）→ 本次 '+c.cd+'（'+c.cl+'项不合格）</span></div>';
+  const line=(it,kind)=>{
+    const icon = kind==='imp'?'✅':(it.rep30?'⚠️':'🔴');
+    let s = '<div class="item">'+icon+' '+esc(it.t)+(it.desc?'（'+esc(it.desc)+'）':'')+'</div>';
+    s += photoHtml(it.photos);
+    return s;
+  };
+  if(c.repeated&&c.repeated.length) h+='<div class="sec" style="color:#c0392b">⚠️ 连续不合格 '+c.repeated.length+' 项</div>'+c.repeated.map(it=>line(it,'rep')).join('');
+  if(c.regressed&&c.regressed.length) h+='<div class="sec" style="color:#c0392b">🔴 新劣化 '+c.regressed.length+' 项</div>'+c.regressed.map(it=>line(it,'reg')).join('');
+  if(c.improved&&c.improved.length) h+='<div class="sec" style="color:#1e8e3e">✅ 已改善 '+c.improved.length+' 项</div>'+c.improved.map(it=>line(it,'imp')).join('');
+ });
+ h += '</div>';
+}
+// 整改记录
+if(D.rectify.length){
+ h += '<div class="card"><h2>整改记录</h2><table><tr><th>报告类型</th><th>日期</th><th>应整改</th><th>已整改</th><th>整改率</th></tr>';
+ const sorted = D.rectify.slice().sort((a,b)=>(a.done/a.total)-(b.done/b.total));
+ sorted.forEach(r=>{
+  const rr = r.total? Math.round(r.done/r.total*100):100;
+  const cls = rr>=80?'rate-good':rr>=50?'rate-mid':'rate-bad';
+  h += '<tr><td>'+esc(r.tl||r.typ)+'</td><td>'+esc(r.d)+'</td><td>'+r.total+'</td><td>'+r.done+'</td><td class="'+cls+'">'+rr+'%</td></tr>';
+ });
+ h += '</table></div>';
+}
+if(!D.compare.length && !D.rectify.length) h = '<div class="card" style="text-align:center;color:#5a6377">当前区间内暂无该门店的巡检问题记录 ✅</div>';
+document.getElementById('content').innerHTML = h;
+</script></body></html>
