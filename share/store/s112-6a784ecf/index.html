@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>广州番禺汽车小镇店 · 巡检问题跟进</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f4f6fa;color:#1A2A4A;padding-bottom:56px}
+header{background:#1A2A4A;color:#fff;padding:18px 20px}
+header h1{font-size:18px}
+header .sub{font-size:12px;opacity:.75;margin-top:4px}
+.wrap{max-width:960px;margin:0 auto;padding:16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.chip{background:#fff;border-radius:10px;padding:10px 14px;font-size:13px;border:1px solid #e3e6ee;min-width:110px}
+.chip b{display:block;font-size:20px;margin-top:2px}
+.card{background:#fff;border:1px solid #e3e6ee;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:15px;margin-bottom:10px}
+.verdict{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:700}
+.v-差了{background:#ffe3e3;color:#c0392b}.v-好了{background:#e3f7e3;color:#1e8e3e}.v-持平{background:#eef0f3;color:#5a6377}
+.sec{font-size:12px;font-weight:700;margin:8px 0 4px}
+.item{font-size:13px;margin:4px 0;line-height:1.5}
+.photos img{width:88px;height:66px;object-fit:cover;border-radius:6px;border:1px solid #e3e6ee;margin:4px 6px 0 0;cursor:zoom-in}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid #eef0f3;text-align:left}
+th{background:#f8f9fc;font-size:12px;color:#5a6377}
+.rate-good{color:#1e8e3e;font-weight:700}.rate-mid{color:#d48806;font-weight:700}.rate-bad{color:#c0392b;font-weight:700}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:999;flex-direction:column;padding:20px}
+#lb.show{display:flex}
+#lb img{max-width:92vw;max-height:78vh;object-fit:contain;border-radius:8px}
+#lb .cap{color:#fff;font-size:13px;margin-top:10px;text-align:center}
+footer{position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;font-size:12px;text-align:center;padding:7px}
+</style></head><body>
+<header><h1>广州番禺汽车小镇店</h1><div class="sub">区域：陆海婷区域 ｜ 组别：加盟营运组 ｜ 数据生成：2026-09-07 05:20:53</div></header>
+<div class="wrap">
+<div class="chips" id="chips"></div>
+<div id="content"></div>
+</div>
+<div id="lb" onclick="this.classList.remove('show')"><img id="lbImg"><div class="cap" id="lbCap"></div></div>
+<footer>📖 只读分享页面 · 仅含本门店数据</footer>
+<script>
+const D = {"compare": [{"pd": "2026-07-28", "cd": "2026-08-21", "pl": 14, "cl": 14, "verdict": "差了", "repeated": [{"t": "地面卫生：清洁干爽无污渍，无积尘积水、无垃圾杂物，无破损。", "desc": "地面有垃圾及时清扫", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295212822-13423674983-uqIaA2r1dUAy2xdHJ1X3.jpg", "ts": "2026-08-21 14:53:32,2026-08-21 14:44:04"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787294644561-13423674983-uz1TnjVDU5L6uGLe4pqT.jpg", "ts": "2026-08-21 14:53:32,2026-08-21 14:44:04"}]}, {"t": "宣传电视：正常运作，按规定播放公司宣传片，音乐音量适中，无积尘无污渍无破损。", "desc": "没有播放电视", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787296129069-13423674983-uLRmF1iQL3RrOMxJ6C17.jpg", "ts": "2026-08-21 15:08:49"}]}, {"t": "水槽、排水渠清洁无污垢/杂物，水龙头干净无污垢，无破损。", "desc": "低峰期时要及时清理，不可以什么都留到晚上打烊", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295186611-13423674983-uPO2khlr7JoDD3BLU2nw.jpg", "ts": "2026-08-21 14:53:06"}]}, {"t": "所有操作台或不锈钢器具用品，干净、不粘手，无破损。", "desc": "工作台清洗，不要粘手", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295929574-13423674983-utZ4pt9bOwx3bnuSMBFH.jpg", "ts": "2026-08-21 15:05:29,2026-08-21 15:02:07,2026-08-21 14:44:04"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295727416-13423674983-ugRAAdT2X1xEeo6hWjei.jpg", "ts": "2026-08-21 15:05:29,2026-08-21 15:02:07,2026-08-21 14:44:04"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787294644561-13423674983-uz1TnjVDU5L6uGLe4pqT.jpg", "ts": "2026-08-21 15:05:29,2026-08-21 15:02:07,2026-08-21 14:44:04"}]}, {"t": "标准着装：按规定穿戴好工服/帽子/围裙/口罩/裤子/鞋子等,无破损无污垢无异味或明显皱褶。", "desc": "没有穿工衣，进入后厨不带口罩，关乎食品安全问题", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295882705-13423674983-u5rEjjgytrjpoW65YxTP.jpg", "ts": "2026-08-21 15:04:42"}]}, {"t": "三文鱼/鲷鱼产品按标准备货（闻看尝摸四个维度检查：储存条件、产品品质、产品尺寸等）。", "desc": "三文鱼，鲷鱼的克重明显不达标，需按标准备货", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295720727-13423674983-u87ibcWxIFeVXZJBBRT8.jpg", "ts": "2026-08-21 15:02:00,2026-08-21 15:01:10,2026-08-21 15:03:18"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295670162-13423674983-uufUZg7RkmAldRi2zIYH.jpg", "ts": "2026-08-21 15:02:00,2026-08-21 15:01:10,2026-08-21 15:03:18"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295798331-13423674983-utWwqdFtbehl2tYVgkcQ.jpg", "ts": "2026-08-21 15:02:00,2026-08-21 15:01:10,2026-08-21 15:03:18"}]}, {"t": "开封后的食品按规定方式密封保存/备用，正确使用期效卡（食材、半成品等）。", "desc": "效期卡过期", "rep30": false, "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295429745-13423674983-uxFPI9snSyRZOfsIpq2x.jpg", "ts": "2026-08-21 14:57:09"}]}], "regressed": [{"t": "公共区域：不堆放杂物（顾客视野可见之处，含私人物品），店铺没有任何四害物出没。", "desc": "大厅不允许放杂物，包括私人物品，清理走并且以后也不能摆放在这里", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787296027311-13423674983-uUzBlCMKGPVXZVbtzTeM.jpg", "ts": "2026-08-21 15:07:07"}]}, {"t": "桌椅摆放：归位摆放，整齐清洁，无积尘积水、无垃圾杂物，无破损。", "desc": "低峰期大厅顾客用完餐后的垃圾没有清扫", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787297679744-13423674983-uEEU3MVWTT124ZAyToTk.jpg", "ts": "2026-08-21 15:34:39"}]}, {"t": "打包区域：干净整洁无积尘积水，物品摆放整齐，不堆放杂物（含私人物品）。", "desc": "前台包括打包区域不得放私人物品，不得存放工作台用到以外的东西", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295351741-13423674983-unp4ZVVDwcnpHDADgNmb.jpg", "ts": "2026-08-21 14:55:51"}]}, {"t": "清洁用品定位摆放,后厨及仓库过道整洁卫生,无积尘积水,无垃圾杂物,无异味,无四害迹象。", "desc": "清洁工具比较脏，清洗", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787294742830-13423674983-uS9JQLd9g3uCEdDzIOVH.jpg", "ts": "2026-08-21 14:45:42"}]}, {"t": "冷冻柜温度＜18℃，内外清洁无污垢，无破损。", "desc": "边框清洗", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787294688342-13423674983-uq3FLyYBk4ytxhVleseh.jpg", "ts": "2026-08-21 14:44:48,2026-08-21 14:45:21"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787294722026-13423674983-uF8AveOlcooVl3oIWYEk.jpg", "ts": "2026-08-21 14:44:48,2026-08-21 14:45:21"}]}, {"t": "空气炸锅/炸炉/电饭锅/微波炉/电磁炉/压饭机/电子秤等设备正常使用,无污渍无破损。", "desc": "电子秤，锅盖，这些设备清洗好", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295656648-13423674983-u5TW7Nh79eenjqJoQn8t.jpg", "ts": "2026-08-21 15:00:56,2026-08-21 15:03:50"}, {"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295830746-13423674983-u5nFnwGwFg1dgtXxe5al.jpg", "ts": "2026-08-21 15:00:56,2026-08-21 15:03:50"}]}, {"t": "所有食材分类存放于指定位置并离地摆放，避免交叉污染。", "desc": "所有的货物离地摆放，建议加多个货架", "photos": [{"u": "https://testhyy.ruipos.com/cjss/ri/runtime/202608/1787295167492-13423674983-uuMMpDq2w66Ghisyn0Gu.jpg", "ts": "2026-08-21 14:52:47"}]}], "improved": [{"t": "门头显眼：能清晰看到门店招牌，招牌正常使用，无污渍并无破损。", "pdesc": "招牌要冲洗了", "photos": []}, {"t": "冷藏柜温度保持0-5度，内外清洁无污垢，无破损。", "pdesc": "冰箱框注意清洁", "photos": []}, {"t": "所有盛装食品或工具的盒子、碗碟表面清洁无污垢，无破损。", "pdesc": "小器具清洁", "photos": []}]}], "rectify": [{"typ": "CG", "rid": "10000001080429", "sn": "广州番禺汽车小镇店", "rg": "陆海婷区域", "ps": "加盟营运组", "d": "2026-08-21", "total": 14, "done": 14, "tl": "常规巡检（QSC）"}, {"typ": "CG", "rid": "10000000640838", "sn": "广州番禺汽车小镇店", "rg": "陆海婷区域", "ps": "加盟营运组", "d": "2026-07-28", "total": 10, "done": 10, "tl": "常规巡检（QSC）"}]};
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function viewPhoto(u,sn,ts){document.getElementById('lbImg').src=u;document.getElementById('lbCap').innerHTML='<b>'+esc(sn)+'</b> '+(ts?'· 拍摄时间 '+esc(ts):'');document.getElementById('lb').classList.add('show')}
+function photoHtml(ps){if(!ps||!ps.length)return '';return '<div class="photos">'+ps.map(p=>'<img src="'+esc(p.u)+'" referrerpolicy="no-referrer" loading="lazy" onclick="viewPhoto(this.src,"\u5e7f\u5dde\u756a\u79ba\u6c7d\u8f66\u5c0f\u9547\u5e97",\''+esc(p.ts||'')+'\')" onerror="this.style.display=\'none\'">').join('')+'</div>'}
+const SNJ = JSON.stringify("广州番禺汽车小镇店");
+// 汇总芯片
+let totalRect=0,totalDone=0;
+D.rectify.forEach(r=>{totalRect+=r.total;totalDone+=r.done});
+const rate = totalRect? Math.round(totalDone/totalRect*100):100;
+const cmpV = D.compare.map(c=>c.verdict);
+const worse = cmpV.filter(v=>v==='差了').length, better = cmpV.filter(v=>v==='好了').length;
+document.getElementById('chips').innerHTML =
+ '<div class="chip">巡检对比<b>'+D.compare.length+' 次</b></div>'+
+ '<div class="chip">变差<b style="color:#c0392b">'+worse+'</b></div>'+
+ '<div class="chip">变好<b style="color:#1e8e3e">'+better+'</b></div>'+
+ '<div class="chip">应整改<b>'+totalRect+'</b></div>'+
+ '<div class="chip">已整改<b style="color:'+(rate>=80?'#1e8e3e':rate>=50?'#d48806':'#c0392b')+'">'+rate+'%</b></div>';
+let h='';
+// 变化对比
+if(D.compare.length){
+ h += '<div class="card"><h2>常规巡检 · 同店对比（上次 vs 本次）</h2>';
+ D.compare.forEach(c=>{
+  h += '<div style="margin-bottom:12px"><span class="verdict v-'+c.verdict+'">'+c.verdict+'</span> <span style="font-size:12px;color:#5a6377">上次 '+c.pd+'（'+c.pl+'项不合格）→ 本次 '+c.cd+'（'+c.cl+'项不合格）</span></div>';
+  const line=(it,kind)=>{
+    const icon = kind==='imp'?'✅':(it.rep30?'⚠️':'🔴');
+    let s = '<div class="item">'+icon+' '+esc(it.t)+(it.desc?'（'+esc(it.desc)+'）':'')+'</div>';
+    s += photoHtml(it.photos);
+    return s;
+  };
+  if(c.repeated&&c.repeated.length) h+='<div class="sec" style="color:#c0392b">⚠️ 连续不合格 '+c.repeated.length+' 项</div>'+c.repeated.map(it=>line(it,'rep')).join('');
+  if(c.regressed&&c.regressed.length) h+='<div class="sec" style="color:#c0392b">🔴 新劣化 '+c.regressed.length+' 项</div>'+c.regressed.map(it=>line(it,'reg')).join('');
+  if(c.improved&&c.improved.length) h+='<div class="sec" style="color:#1e8e3e">✅ 已改善 '+c.improved.length+' 项</div>'+c.improved.map(it=>line(it,'imp')).join('');
+ });
+ h += '</div>';
+}
+// 整改记录
+if(D.rectify.length){
+ h += '<div class="card"><h2>整改记录</h2><table><tr><th>报告类型</th><th>日期</th><th>应整改</th><th>已整改</th><th>整改率</th></tr>';
+ const sorted = D.rectify.slice().sort((a,b)=>(a.done/a.total)-(b.done/b.total));
+ sorted.forEach(r=>{
+  const rr = r.total? Math.round(r.done/r.total*100):100;
+  const cls = rr>=80?'rate-good':rr>=50?'rate-mid':'rate-bad';
+  h += '<tr><td>'+esc(r.tl||r.typ)+'</td><td>'+esc(r.d)+'</td><td>'+r.total+'</td><td>'+r.done+'</td><td class="'+cls+'">'+rr+'%</td></tr>';
+ });
+ h += '</table></div>';
+}
+if(!D.compare.length && !D.rectify.length) h = '<div class="card" style="text-align:center;color:#5a6377">当前区间内暂无该门店的巡检问题记录 ✅</div>';
+document.getElementById('content').innerHTML = h;
+</script></body></html>
