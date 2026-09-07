@@ -1712,6 +1712,11 @@ function unq2ShowDetail(id){
         <tbody>${ents.map(row).join('')}</tbody>
       </table></div>
     </div>`;
+  // fix138：记录弹窗分享上下文，供「分享本视图」生成弹窗级链接（#u=）
+  try{
+    const parts = id.split('|');
+    ov.dataset.share = JSON.stringify({m:'unq2', type:parts[0]||'CG', dim:parts[1]||'cat', key:parts.slice(2).join('|'), s:(currentStart||'').slice(0,10), e:(currentEnd||'').slice(0,10)});
+  }catch(e){}
 }
 
 function unq2RenderChips(){
@@ -4033,6 +4038,13 @@ initDates();
 function b64uEnc(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function b64uDec(s){ s = String(s).replace(/-/g,'+').replace(/_/g,'/'); while(s.length % 4) s += '='; try{ return decodeURIComponent(escape(atob(s))); }catch(e){ return ''; } }
 function buildShareUrl(){
+  // fix138：「查看更多」弹窗打开时，优先分享弹窗内容（弹窗级 #u= 链接）
+  const uov = document.getElementById('unq2DetailOverlay');
+  if(uov && document.body.contains(uov) && uov.dataset.share){
+    try{
+      return location.origin + location.pathname + '#u=' + b64uEnc(uov.dataset.share);
+    }catch(e){}
+  }
   // fix137：报告详情弹窗打开时，分享「这一份报告」——对方打开只看到该报告内容，无任何按钮
   const rmodal = $('reportDetailModal');
   if(rmodal && rmodal.classList.contains('active') && rmodal.dataset.share){
@@ -4045,6 +4057,11 @@ function buildShareUrl(){
   return location.origin + location.pathname + '#s=' + b64uEnc(JSON.stringify(st));
 }
 function readShareHash(){
+  // fix138：弹窗级分享（#u=）——「查看更多」记录表
+  const mu = (location.hash || '').match(/[#&]u=([A-Za-z0-9\-_]+)/);
+  if(mu){
+    try{ const o = JSON.parse(b64uDec(mu[1])); return (o && o.m==='unq2') ? o : null; }catch(e){ return null; }
+  }
   const m = (location.hash || '').match(/[#&]r=([A-Za-z0-9\-_]+)/);
   if(m){
     const raw = b64uDec(m[1]);
@@ -4055,18 +4072,85 @@ function readShareHash(){
   const raw = b64uDec(m2[1]);
   try{ const o = JSON.parse(raw); return (o && o.t) ? o : null; }catch(e){ return null; }
 }
+// fix138：分享独占模式——隐藏页面全部背景内容（头部/页签/板块），只留分享目标本身
+function enterShareSolo(){
+  if(document.getElementById('shareSoloStyle')) return;
+  const st2 = document.createElement('style');
+  st2.id = 'shareSoloStyle';
+  st2.textContent = 'body.share-solo>header,body.share-solo #mainTabs,body.share-solo section.panel,body.share-solo #loading,body.share-solo #error{display:none!important}body.share-solo{overflow:hidden;background:#f2f4f8}';
+  document.head.appendChild(st2);
+  document.body.classList.add('share-solo');
+}
+// fix138：让弹窗独占整屏（不透明全屏，看不到/点不到弹窗以外的任何内容）
+function makeOverlaySolo(ov){
+  if(!ov) return;
+  ov.style.background = '#f2f4f8';
+  ov.style.padding = '0';
+  ov.onclick = null;
+  const box = ov.firstElementChild;
+  if(box){
+    box.style.maxWidth = '100%';
+    box.style.width = '100%';
+    box.style.maxHeight = '100vh';
+    box.style.minHeight = '100vh';
+    box.style.height = '100vh';
+    box.style.borderRadius = '0';
+    box.style.margin = '0';
+    box.style.overflow = 'auto';
+  }
+}
 async function applyShareView(){
   const st = readShareHash();
   if(!st) return;
-  // fix137：报告级分享——只渲染这一份报告详情，无页签/筛选/返回/关闭等任何按钮
+  enterShareSolo();
+  // fix138：弹窗级分享——「查看更多」不合格记录表，对方打开只见这张表，无任何按钮
+  if(st.m === 'unq2'){
+    const showRoBar = ()=>{
+      if(!document.getElementById('shareRoBar')){
+        document.body.insertAdjacentHTML('beforeend',
+          '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 只读分享 · 不合格记录（' + String(st.key||'').replace(/</g,'&lt;') + '）</div>');
+      }
+    };
+    try{
+      if(st.s && st.e){
+        $('startDate').value = st.s; $('endDate').value = st.e;
+        if(typeof applyDateRange === 'function') await applyDateRange();
+      }
+      const tb = document.querySelector('#mainTabs .tab[data-t="unqualifiedDetail"]');
+      if(tb) tb.click();
+      setTimeout(()=>{
+        unq2State.type = st.type || 'CG';
+        unq2State.dim = st.dim || 'cat';
+        const sb = document.querySelector('.subtab[data-sub="unqSummary2"]');
+        if(sb) sb.click();
+        const targetId = (st.type||'CG') + '|' + (st.dim||'cat') + '|' + st.key;
+        let tries = 0;
+        const timer = setInterval(()=>{
+          tries++;
+          if(UNQ2_GROUP_ENTS[targetId]){
+            clearInterval(timer);
+            unq2ShowDetail(targetId);
+            const ov2 = document.getElementById('unq2DetailOverlay');
+            makeOverlaySolo(ov2);
+            if(ov2) ov2.querySelectorAll('button').forEach(b=>b.style.display='none');
+            showRoBar();
+          } else if(tries > 40){
+            clearInterval(timer);
+          }
+        }, 300);
+      }, 600);
+    }catch(e){ console.warn('unq2 share apply failed', e); }
+    showRoBar();
+    return;
+  }
+  // fix137/fix138：报告级分享——独占整屏只渲染这一份报告，无页签/筛选/返回/关闭等任何按钮
   if(st.m === 'report'){
     try{
       const a = st.a || [];
       if(typeof showReportDetail === 'function') showReportDetail(a[0]||'', a[1]||'', a[2]||'', a[3]||'', a[4]||'', a[5]||'', a[6]===''?null:a[6], a[7]===''?null:a[7]);
     }catch(e){ console.warn('report share apply failed', e); }
-    document.getElementById('mainTabs').style.display = 'none';
-    const db = document.querySelector('.datebar'); if(db) db.style.display = 'none';
-    const sb2 = $('shareViewBtn'); if(sb2) sb2.style.display = 'none';
+    // fix138：独占显示——背景全部隐藏，弹窗全屏不透明
+    makeOverlaySolo($('reportDetailModal'));
     // 弹窗头部按钮全部隐藏（返回上一页/关闭/分享），只留标题
     try{
       const hd = document.querySelector('#reportDetailModal .modal-header');
