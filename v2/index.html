@@ -244,7 +244,6 @@ a.fbtn{text-decoration:none;display:inline-block}
       <div class="datebar">
         <button class="fbtn" id="rangeLastMonthBtn" onclick="applyQuickRange('lastMonth')" title="选上月 1 号到月底并应用">上月数据</button>
         <button class="fbtn active" id="rangeThisMonthBtn" onclick="applyQuickRange('thisMonth')" title="选本月 1 号到今天并应用">本月数据</button>
-        <button class="fbtn" id="rangeAllBtn" onclick="applyQuickRange('all')" title="全部数据（按 data.json 时间窗）">全部数据</button>
         <label>开始</label><input type="date" id="startDate">
         <label>结束</label><input type="date" id="endDate">
         <button class="fbtn" id="applyDateBtn" onclick="applyDateRange()">应用</button>
@@ -513,8 +512,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260907fix131"></script>
-<script src="app.js?v=20260907fix131"></script>
+<script src="aggregate.js?v=20260907fix132"></script>
+<script src="app.js?v=20260907fix132"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
