@@ -4181,6 +4181,14 @@ async function applyShareView(){
       }, 500);
     }
   }catch(e){ console.warn('share view apply failed', e); }
+  // fix141：只读锁定——点过的按钮保持蓝色选中（active），但所有可交互元素一律禁点
+  if(!document.getElementById('shareLockStyle')){
+    const ls = document.createElement('style');
+    ls.id = 'shareLockStyle';
+    ls.textContent = 'body.share-ro section.panel button:not(.keep-ro),body.share-ro section.panel a,body.share-ro section.panel input,body.share-ro section.panel select,body.share-ro section.panel .chip,body.share-ro section.panel [onclick],body.share-ro section.panel .subtab{pointer-events:none!important;cursor:default!important}body.share-ro section.panel input,body.share-ro section.panel select{opacity:.7}';
+    document.head.appendChild(ls);
+  }
+  document.body.classList.add('share-ro');
   // 只读模式：隐藏顶部页签 + 日期筛选，底部挂提示条
   document.getElementById('mainTabs').style.display = 'none';
   const db = document.querySelector('.datebar'); if(db) db.style.display = 'none';
