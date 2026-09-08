@@ -1,26 +1,24 @@
 /* ============================================================
- * export.js —— 隐藏报表输出模块（fix154 品牌巡检报告版）
+ * export.js —— 隐藏报表输出模块（fix155：HTML 品牌巡检报告 + 问题导向深度分析）
  * 仅当 URL 带 ?key=888 时由 app.js 动态加载；普通访问/分享链接完全不加载。
- * 报告口径：
- *   覆盖率 = 区间内有报告的门店数 / 组别门店数
- *   平均分 = 组别内门店区间平均分的均值
- *   门店合格率 = 门店区间平均分 ≥ 达标线的门店占比（达标线：直营90/新店运营90/新店筹建90/加盟营运80）
- *   环比 = 上一等长周期（aggregateRange 重算）
- *   不合格项提取分析 = 高发问题类别 + AI 提炼食品安全风险/提升点/行动计划
+ * fix155 变化：
+ *   1) 放弃 PPT（pptxgenjs 排版差），改为生成排版好的独立 HTML 报告（新窗口打开，可一键打印成 PDF）
+ *   2) 分析重心从"分数"转向"问题"：接入巡检问题汇总及整改跟进数据（unqualified_v2.json），
+ *      提取高发问题项、重复出问题的门店（整改未落实证据）、问题在组别/区域的分布、
+ *      问题项环比，再交给 AI 做【问题诊断→根因→培训部改善动作→老板想听的结论】
+ *   3) 分数只做背景指标（覆盖率/合格率表保留），报告主线是问题与行动
  * 智谱 Key 存 localStorage('zhipu_api_key')，不进代码库。
  * ============================================================ */
 (function(){
   'use strict';
 
   const AI_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-  const PPTJS_CDN = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
   const TAB_NAMES = { overview:'总览', regularInspection:'常规巡检', selfInspection:'门店自检', videoInspection:'视频巡检', aiInspection:'AI 慧检', unqualifiedDetail:'巡检问题汇总及整改跟进' };
   const TYPES = ['regularInspection','selfInspection','videoInspection','aiInspection'];
-  // fix154：门店合格率达标线（按组别）
   function thresholdOf(posName){
     const n = String(posName||'');
-    if(n.indexOf('加盟')>=0 && n.indexOf('新店')<0 && n.indexOf('筹建')<0) return 80; // 加盟营运组
-    return 90; // 培训组（直营）/新店运营/新店筹建
+    if(n.indexOf('加盟')>=0 && n.indexOf('新店')<0 && n.indexOf('筹建')<0) return 80;
+    return 90;
   }
 
   function tabData(){
@@ -28,8 +26,7 @@
   }
   function blockOf(t){
     const d = tabData(); if(!d) return null;
-    if(t==='regularInspection') return d;
-    return d[t] || null;
+    return t==='regularInspection' ? d : (d[t] || null);
   }
   function curType(){
     return TYPES.includes(activeMainTab) ? activeMainTab : 'regularInspection';
@@ -51,7 +48,7 @@
   #expPanel .sub{color:#7a8399;font-size:12px;margin-bottom:14px}
   #expPanel .sec{border-top:1px dashed #dfe4ee;padding-top:12px;margin-top:12px}
   #expPanel label{font-size:13px;font-weight:600;display:block;margin:8px 0 4px}
-  #expPanel input[type=text],#expPanel select{width:100%;padding:7px 10px;border:1px solid #ccd4e4;
+  #expPanel input[type=text]{width:100%;padding:7px 10px;border:1px solid #ccd4e4;
     border-radius:8px;font-size:13px;box-sizing:border-box}
   #expPanel .row{display:flex;gap:10px;margin-top:14px}
   #expPanel button.act{flex:1;padding:10px 0;border:none;border-radius:9px;font-size:14px;font-weight:600;
@@ -75,7 +72,7 @@
   ov.innerHTML = `
     <div id="expPanel">
       <h3>📊 品牌巡检报告输出</h3>
-      <div class="sub">仅本机可见 · 覆盖率/平均分/门店合格率（达标线：直营90 · 新店90 · 加盟营运80）· 自动环比上一周期</div>
+      <div class="sub">仅本机可见 · 问题导向深度分析（高发问题/重复问题门店/培训部改善动作）· 排版好的 HTML 报告，可打印成 PDF</div>
       <label>输出范围</label>
       <div class="chipbar" id="expTypeBar"></div>
       <div class="sub" id="expScope"></div>
@@ -85,7 +82,7 @@
       </div>
       <div class="row">
         <button class="act gray" id="expCsvBtn">① 导出数据 Excel</button>
-        <button class="act" id="expPptBtn">② 生成品牌巡检分析报告 PPT</button>
+        <button class="act" id="expHtmlBtn">② 生成品牌巡检分析报告</button>
       </div>
       <div id="expStat"></div>
     </div>`;
@@ -125,11 +122,10 @@
     return { s: ps, e: pe, len };
   }
 
-  /* ---------- 数据抽取（本期，取自看板当前聚合） ---------- */
+  /* ---------- 基础指标抽取（分数只做背景） ---------- */
   function num(v,d){ v=Number(v); return isFinite(v)?v:(d||0); }
 
   function groupMetrics(block){
-    // 按组别（position）汇总：覆盖率/平均分/门店合格率（达标线）/完成率/点评率/不合格项
     const posList = block.positions || [];
     const storesAll = block.stores || [];
     return posList.map(p=>{
@@ -140,29 +136,19 @@
       const scored = pStores.filter(s=>num(s.score)>0);
       const passStores = scored.filter(s=>num(s.score)>=th).length;
       const unq = pStores.reduce((a,s)=>a+num(s.unqualifiedItems),0);
-      const reports = pStores.reduce((a,s)=>a+num(s.reportCount),0);
       return {
-        name: pname,
-        th,
+        name: pname, th,
         storeCount: num(p.storeCount) || pStores.length,
         covered: withReport.length,
         coverage: (num(p.storeCount)||pStores.length)>0 ? Math.round(withReport.length/(num(p.storeCount)||pStores.length)*1000)/10 : 0,
         avgScore: num(p.avgScore),
         passStores, scoredCount: scored.length,
         passRate: scored.length ? Math.round(passStores/scored.length*1000)/10 : 0,
-        reports,
-        completed: num(p.completed), expected: num(p.expected),
-        completion: num(p.completionRate),
-        review: num(p.reviewRate),
         unqItems: unq
       };
     });
   }
-  function topCats(block, n){
-    return (block.topCategories||[]).slice(0,n).map(c=>({ t:c.category||c.title||c.name||'-', n:num(c.count) }));
-  }
   function failedStores(block, limit){
-    // 未达标门店（按组别达标线），按分数升序
     const out = [];
     (block.positions||[]).forEach(p=>{
       const pname = p.position||p.name||'-';
@@ -175,23 +161,83 @@
   function collect(type){
     const b = blockOf(type);
     if(!b) return null;
-    return { type, name:TAB_NAMES[type], groups:groupMetrics(b), cats:topCats(b,8), fails:failedStores(b,10) };
+    return { type, name:TAB_NAMES[type], groups:groupMetrics(b), fails:failedStores(b,10) };
   }
-
-  /* ---------- 环比（重算上一等长周期） ---------- */
   async function loadPrev(){
     const pr = prevRange();
-    if(!pr) return null;
-    if(typeof aggregateRange !== 'function') return null;
+    if(!pr || typeof aggregateRange !== 'function') return null;
     const prev = await aggregateRange(pr.s, pr.e);
-    const pick = (d,t)=>{
-      const b = t==='regularInspection' ? d : d[t];
-      return b ? collectFrom(b, t) : null;
-    };
-    function collectFrom(b, type){
-      return { type, name:TAB_NAMES[type], groups:groupMetrics(b), cats:topCats(b,8) };
-    }
-    return { range: pr, byType: TYPES.map(t=>pick(prev,t)) };
+    return { range: pr, byType: TYPES.map(t=>{
+      const b = t==='regularInspection' ? prev : prev[t];
+      return b ? { type:t, groups:groupMetrics(b) } : null;
+    })};
+  }
+
+  /* ============================================================
+   * 核心：巡检问题汇总及整改跟进数据深度提取（unqualified_v2.json）
+   * entry 字段：d 日期 / t 问题项 / sn 门店 / rg 区域 / ps 组别 / rid 报告 / desc 描述
+   * ============================================================ */
+  async function loadUnqData(){
+    if(typeof loadUnq2 === 'function'){ try{ await loadUnq2(); }catch(e){} }
+    if(typeof unq2State !== 'undefined' && unq2State.loaded) return unq2State.data;
+    const r = await fetch(`${DATA_BASE}/unqualified_v2.json?v=${Date.now()}`);
+    if(!r.ok) throw new Error('问题数据加载失败 HTTP '+r.status);
+    return await r.json();
+  }
+  function unqEntriesForRange(uq, s, e){
+    const out = [];
+    const types = (uq && uq.types) || {};
+    Object.keys(types).forEach(t=>{
+      ((types[t]&&types[t].entries)||[]).forEach(x=>{
+        if(s && x.d < s) return;
+        if(e && x.d > e) return;
+        out.push(Object.assign({ src:t }, x));
+      });
+    });
+    return out;
+  }
+  function analyzeProblems(cur, prev){
+    // 1) 高发问题项 Top：次数 / 涉及门店 / 区域分布 / 组别分布 / 样例描述 / 环比
+    const map = new Map();
+    cur.forEach(x=>{
+      const key = (x.t||'-').trim();
+      let g = map.get(key);
+      if(!g){ g = { t:key, count:0, stores:new Set(), regions:new Map(), groups:new Map(), descs:[], srcs:new Map() }; map.set(key,g); }
+      g.count++; g.stores.add(x.sn||'-');
+      g.regions.set(x.rg||'-', (g.regions.get(x.rg||'-')||0)+1);
+      g.groups.set(x.ps||'-', (g.groups.get(x.ps||'-')||0)+1);
+      g.srcs.set(x.src, (g.srcs.get(x.src)||0)+1);
+      if(x.desc && g.descs.length<3 && !g.descs.includes(x.desc)) g.descs.push(x.desc);
+    });
+    const pmap = new Map();
+    (prev||[]).forEach(x=>{ const k=(x.t||'-').trim(); pmap.set(k,(pmap.get(k)||0)+1); });
+    const items = [...map.values()].map(g=>({
+      t:g.t, count:g.count, storeCount:g.stores.size,
+      topRegion: [...g.regions.entries()].sort((a,b)=>b[1]-a[1])[0]||['-',0],
+      groupDist: [...g.groups.entries()].sort((a,b)=>b[1]-a[1]).map(x=>x[0]+'×'+x[1]).slice(0,4).join('、'),
+      descs:g.descs,
+      prevCount: pmap.get(g.t)!=null ? pmap.get(g.t) : null
+    })).sort((a,b)=>b.count-a.count);
+    items.forEach(x=>x.delta = x.prevCount!=null ? x.count-x.prevCount : null);
+
+    // 2) 重复出问题的门店（同一门店同一问题出现 ≥2 份报告 = 整改未落实）
+    const repMap = new Map();
+    cur.forEach(x=>{ const k=(x.sn||'-')+'||'+(x.t||'-').trim(); repMap.set(k,(repMap.get(k)||0)+1); });
+    const repeats = [...repMap.entries()].filter(x=>x[1]>=2).map(x=>{
+      const parts = x[0].split('||');
+      const sample = cur.find(y=>y.sn===parts[0] && (y.t||'').trim()===parts[1]);
+      return { sn:parts[0], t:parts[1], times:x[1], ps:sample?sample.ps:'-', rg:sample?sample.rg:'-' };
+    }).sort((a,b)=>b.times-a.times);
+
+    // 3) 问题门店排行（出现问题的门店按问题条数）
+    const sMap = new Map();
+    cur.forEach(x=>{ const k=x.sn||'-'; sMap.set(k, (sMap.get(k)||0)+1); });
+    const worstStores = [...sMap.entries()].map(x=>{
+      const sample = cur.find(y=>y.sn===x[0]);
+      return { sn:x[0], count:x[1], ps:sample?sample.ps:'-', rg:sample?sample.rg:'-' };
+    }).sort((a,b)=>b.count-a.count).slice(0,12);
+
+    return { items, repeats, worstStores, total:cur.length };
   }
 
   /* ---------- Excel 导出 ---------- */
@@ -202,10 +248,8 @@
     lines.push(`苍井寿司巡检数据导出\t区间 ${currentStart} ~ ${currentEnd}\t达标线：直营90/新店90/加盟营运80`);
     list.forEach(d=>{
       lines.push(''); lines.push(`【${d.name}】`);
-      lines.push('组别\t达标线\t门店数\t覆盖门店\t覆盖率\t平均分\t合格门店\t门店合格率\t报告数\t完成率\t点评率\t不合格项');
-      d.groups.forEach(g=>lines.push([g.name,g.th,g.storeCount,g.covered,g.coverage+'%',g.avgScore,g.passStores+'/'+g.scoredCount,g.passRate+'%',g.reports,g.completion+'%',g.review+'%',g.unqItems].join('\t')));
-      if(d.cats.length){ lines.push(''); lines.push('高发问题（不合格项提取）\t次数');
-        d.cats.forEach(c=>lines.push([c.t,c.n].join('\t'))); }
+      lines.push('组别\t达标线\t门店数\t覆盖门店\t覆盖率\t平均分\t合格门店\t门店合格率\t不合格项');
+      d.groups.forEach(g=>lines.push([g.name,g.th,g.storeCount,g.covered,g.coverage+'%',g.avgScore,g.passStores+'/'+g.scoredCount,g.passRate+'%',g.unqItems].join('\t')));
       if(d.fails.length){ lines.push(''); lines.push('未达标门店\t组别\t区域\t平均分\t达标线\t不合格项\t报告数');
         d.fails.forEach(s=>lines.push([s.name,s.pos,s.region,s.score,s.th,s.unq,s.reports].join('\t'))); }
     });
@@ -217,36 +261,27 @@
     stat('✅ Excel 数据已下载');
   };
 
-  /* ---------- 智谱 AI：结构化分析 ---------- */
-  async function aiAnalysis(datasets, prev){
+  /* ---------- 智谱 AI：问题导向深度分析 ---------- */
+  async function aiAnalysis(bg, problems, prevTxt){
     const key = (ov.querySelector('#expKey').value||'').trim();
     if(!key) throw new Error('请先填写智谱 API Key');
     localStorage.setItem('zhipu_api_key', key);
-    const brief = {
-      本期区间: currentStart+' ~ '+currentEnd,
-      上一周期: prev ? prev.range.s+' ~ '+prev.range.e : '无',
-      板块: datasets.map(d=>({
-        名称:d.name,
-        组别指标:d.groups.map(g=>({
-          组别:g.name, 达标线:g.th, 门店数:g.storeCount, 覆盖率:g.coverage+'%',
-          平均分:g.avgScore, 门店合格率:g.passRate+'%', 不合格项:g.unqItems,
-          环比: (()=>{ const pg = prev && prev.byType.find(x=>x&&x.type===d.type); if(!pg) return '无上期';
-            const p = pg.groups.find(x=>x.name===g.name); if(!p) return '上期无该组';
-            return `平均分${g.avgScore-p.avgScore>=0?'+':''}${Math.round((g.avgScore-p.avgScore)*100)/100}、合格率${Math.round((g.passRate-p.passRate)*10)/10}pp、不合格项${g.unqItems-p.unqItems>=0?'+':''}${g.unqItems-p.unqItems}`; })()
-        })),
-        高发问题:d.cats,
-        未达标门店:d.fails.map(f=>`${f.name}(${f.score}分,线${f.th})`)
-      }))
-    };
     const body = {
-      model:'glm-4-flash', temperature:0.3, max_tokens:2000,
+      model:'glm-4-flash', temperature:0.3, max_tokens:2600,
       messages:[
-        {role:'system', content:`你是连锁寿司品牌（苍井寿司）的食品安全与营运督导专家。根据巡检数据写月度品牌巡检分析，供经营分析会PPT使用。严格按以下格式输出，不要额外寒暄：
-【食品安全问题】3-4条，每条一句话指出具体风险（结合高发问题类别和最差组别/门店，带数据）
-【提升点】3-4条，每条一句话（对比环比变化，指出退步最明显的组别/指标及原因推测）
-【行动计划】4-6条，格式"第N周｜动作｜责任组别｜目标（量化）"，用分号分隔三个字段
-【总结】2句话整体结论`},
-        {role:'user', content:'数据：\n'+JSON.stringify(brief, null, 1)}
+        {role:'system', content:`你是连锁寿司品牌（苍井寿司）培训部的资深分析顾问，报告对象是老板（经营分析会用）。
+写报告的铁律：
+- 分数只是既定事实，不要复述分数、不要说"平均分下降X分"这类废话；老板要听的是：品牌现在有什么食品安全问题、问题出在谁身上、为什么会反复出现、培训部接下来做什么动作把问题压下去。
+- 所有判断必须带数据（问题次数、涉及门店数、环比变化、重复出现次数），不许空话。
+- "培训部能做什么"必须是具体可落地的动作（专项培训/带教/考核/复检安排/材料更新），不写"加强管理""提高意识"这类套话。
+严格按以下格式输出，不要额外寒暄：
+【问题诊断】4-5条。每条格式"问题名：出现了N次/涉及M家门店（环比+X/-X）。集中出现在XX组别/区域，典型情形是……（引用描述）。风险等级：高/中"
+【根因分析】3-4条。每条一句话，从数据推断根因（如：某问题在同一门店重复出现≥2次说明整改未闭环，是执行问题不是认知问题；某问题集中在某组别说明带教标准不一致等）
+【培训部改善动作】5-6条。每条格式"第N周｜动作（具体到培训内容/对象/形式）｜覆盖对象｜衡量目标（量化，如该问题次数环比下降50%）"，用分号分隔字段
+【给老板的结论】3条，结论先行、老板视角：品牌当前最大的食品安全风险是什么、整改闭环断在哪里、培训部承诺下周期达到什么结果`},
+        {role:'user', content:'本期区间：'+currentStart+' ~ '+currentEnd+(prevTxt?('，环比周期：'+prevTxt):'，无环比数据')+
+          '\n\n问题数据（巡检问题汇总及整改跟进提取）：\n'+JSON.stringify(problems, null, 1)+
+          '\n\n背景指标（只供参考，不要复述）：\n'+JSON.stringify(bg, null, 1)}
       ]
     };
     const r = await fetch(AI_URL, { method:'POST',
@@ -255,198 +290,235 @@
     if(!r.ok) throw new Error('智谱接口返回 '+r.status);
     const j = await r.json();
     const txt = (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||'').trim();
-    // 解析分段
     const seg = {};
-    ['食品安全问题','提升点','行动计划','总结'].forEach(k=>{
+    ['问题诊断','根因分析','培训部改善动作','给老板的结论'].forEach(k=>{
       const m = txt.match(new RegExp('【'+k+'】([\\s\\S]*?)(?=【|$)'));
       seg[k] = m ? m[1].split('\n').map(l=>l.trim()).filter(Boolean) : [];
     });
     return seg;
   }
 
-  /* ---------- PPT 生成 ---------- */
-  function loadPptx(){
-    return new Promise((res,rej)=>{
-      if(window.PptxGenJS) return res();
-      const s = document.createElement('script');
-      s.src = PPTJS_CDN; s.onload=res; s.onerror=()=>rej(new Error('pptxgenjs 加载失败（检查网络）'));
-      document.head.appendChild(s);
-    });
-  }
-  const deltaTxt = (cur, pv, unit, goodWhenUp=true)=>{
-    if(pv==null || !isFinite(pv)) return '';
+  /* ============================================================
+   * HTML 报告生成（排版好的独立文档，新窗口打开，可打印 PDF）
+   * ============================================================ */
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function deltaBadge(cur, pv, goodWhenDown){
+    if(pv==null || !isFinite(pv)) return '<span class="dnull">无上期</span>';
     const d = Math.round((cur-pv)*10)/10;
-    if(d===0) return '持平';
-    const up = d>0;
-    const good = goodWhenUp ? up : !up;
-    return (up?'▲':'▼')+Math.abs(d)+(unit||'')+(good?'（改善）':'（退步）');
-  };
+    if(d===0) return '<span class="dflat">持平</span>';
+    const down = d<0;
+    const good = goodWhenDown ? down : !down;
+    return `<span class="${good?'dgood':'dbad'}">${d>0?'+':''}${d}</span>`;
+  }
 
-  ov.querySelector('#expPptBtn').onclick = async ()=>{
-    const btn = ov.querySelector('#expPptBtn');
+  ov.querySelector('#expHtmlBtn').onclick = async ()=>{
+    const btn = ov.querySelector('#expHtmlBtn');
     try{
       const datasets = expType==='all' ? TYPES.map(collect).filter(Boolean) : [collect(expType)].filter(Boolean);
       if(!datasets.length){ stat('❌ 数据还没加载完，稍等几秒再试'); return; }
       btn.disabled = true;
-      stat('⏳ 1/4 加载 PPT 组件…');
-      await loadPptx();
-      stat('⏳ 2/4 重算上一周期做环比…（约 1~2 分钟，请勿关闭）');
+      stat('⏳ 1/3 提取「巡检问题汇总及整改跟进」数据…');
+      const pr = prevRange();
+      const uq = await loadUnqData();
+      const curEnts = unqEntriesForRange(uq, currentStart, currentEnd);
+      const prevEnts = pr ? unqEntriesForRange(uq, pr.s, pr.e) : [];
+      const prob = analyzeProblems(curEnts, prevEnts);
+
+      stat('⏳ 2/3 重算上一周期背景指标…');
       let prev = null;
       try{ prev = await loadPrev(); }catch(e){ console.warn('prev load failed', e); }
-      stat('⏳ 3/4 智谱 AI 分析中…（食品安全问题/提升点/行动计划）');
-      let ai = null;
-      try{ ai = await aiAnalysis(datasets, prev); }
-      catch(e){ stat('⚠️ AI 分析失败（'+e.message+'），先生成无 AI 页的报告'); }
-      stat('⏳ 4/4 生成 16:9 品牌 PPT…');
+      const prevTxt = prev ? (prev.range.s+' ~ '+prev.range.e) : '';
 
-      const pptx = new PptxGenJS();
-      pptx.defineLayout({ name:'W169', width:13.333, height:7.5 });
-      pptx.layout = 'W169';
-      const NAVY='1A2A4A', BLUE='186BEB', RED='C0392B', GREEN='1E8E4D', GRAY='5A6377', LG='F5F7FB';
-      const rangeTxt = `${currentStart} ~ ${currentEnd}`;
-      const prevTxt = prev ? `环比周期 ${prev.range.s} ~ ${prev.range.e}` : '';
-
-      // 每组别取上期同组数据
+      stat('⏳ 3/3 智谱 AI 深度分析中…（问题诊断/根因/培训部动作/老板结论）');
       const pvGroup = (type, gname)=>{ const t = prev && prev.byType.find(x=>x&&x.type===type); if(!t) return null; return t.groups.find(g=>g.name===gname)||null; };
-      const pvCat = (type, t)=>{ const x = prev && prev.byType.find(y=>y&&y.type===type); if(!x) return null; return x.cats.find(c=>c.t===t)||null; };
+      const bg = {
+        达标线: '直营90/新店90/加盟营运80',
+        板块: datasets.map(d=>({
+          名称:d.name,
+          组别: d.groups.map(g=>{
+            const pv = pvGroup(d.type, g.name);
+            return { 组别:g.name, 覆盖率:g.coverage+'%', 门店合格率:g.passRate+'%',
+              环比: pv ? { 平均分: Math.round((g.avgScore-pv.avgScore)*100)/100, 合格率pp: Math.round((g.passRate-pv.passRate)*10)/10, 不合格项: g.unqItems-pv.unqItems } : '无上期' };
+          }),
+          未达标门店: d.fails.map(f=>`${f.name}(${f.score}分,线${f.th},不合格${f.unq}项)`)
+        }))
+      };
+      let ai = null;
+      try{ ai = await aiAnalysis(bg, { 高发问题: prob.items.slice(0,15), 重复出现问题的门店: prob.repeats.slice(0,12), 问题最集中的门店: prob.worstStores }, prevTxt); }
+      catch(e){ stat('⚠️ AI 分析失败（'+e.message+'），先生成无 AI 章节的报告'); }
+      if(ai && (!ai['问题诊断'] || !ai['问题诊断'].length)) ai = null;
 
-      // S1 封面
-      let s = pptx.addSlide();
-      s.background = { color:NAVY };
-      s.addText('品牌巡检月度分析报告', { x:0.9,y:2.2,w:11.5,h:1.2, fontSize:42,bold:true,color:'FFFFFF' });
-      s.addText(`食品安全 · 营运质量 · 整改跟进`, { x:0.9,y:3.5,w:11.5,h:0.6, fontSize:20,color:'9FB4D8' });
-      s.addText(`${rangeTxt}　·　${prevTxt}`, { x:0.9,y:4.3,w:11.5,h:0.5, fontSize:16,color:'9FB4D8' });
-      s.addText('苍井寿司 · 培训部', { x:0.9,y:6.5,w:6,h:0.4, fontSize:14,color:'9FB4D8' });
+      stat('🧩 渲染 HTML 报告…');
 
-      // S2 执行摘要（取第一个有数据板块的全局均值）
-      {
-        const sl = pptx.addSlide();
-        sl.addText('执行摘要 · 核心指标', { x:0.7,y:0.5,w:12,h:0.7, fontSize:26,bold:true,color:NAVY });
-        sl.addText(`${rangeTxt}${prevTxt?' · '+prevTxt:''} · 合格线：直营/新店 90 分，加盟营运 80 分`, { x:0.7,y:1.15,w:12,h:0.4, fontSize:13,color:GRAY });
-        // 汇总全部门店口径
-        let cov={c:0,n:0}, pass={p:0,s:0}, unq=0, reports=0, scSum=0, scCnt=0;
-        datasets.forEach(d=>d.groups.forEach(g=>{
-          cov.c+=g.covered; cov.n+=g.storeCount; pass.p+=g.passStores; pass.s+=g.scoredCount;
-          unq+=g.unqItems; reports+=g.reports;
-          if(g.avgScore>0){ scSum+=g.avgScore*g.scoredCount; scCnt+=g.scoredCount; }
-        }));
-        let pcov=null,ppass=null,punq=null;
-        if(prev){ pcov={c:0,n:0}; ppass={p:0,s:0}; punq=0;
-          prev.byType.forEach(t=>t&&t.groups.forEach(g=>{ pcov.c+=g.covered; pcov.n+=g.storeCount; ppass.p+=g.passStores; ppass.s+=g.scoredCount; punq+=g.unqItems; })); }
-        const cards = [
-          {t:'门店覆盖率', v:(cov.n?Math.round(cov.c/cov.n*1000)/10:0)+'%', d: pcov&&pcov.n?deltaTxt(cov.c/cov.n*100, pcov.c/pcov.n*100, 'pp'):'无上期'},
-          {t:'整体平均分', v:(scCnt?Math.round(scSum/scCnt*100)/100:'-'), d:''},
-          {t:'门店合格率', v:(pass.s?Math.round(pass.p/pass.s*1000)/10:0)+'%', d: ppass&&ppass.s?deltaTxt(pass.p/pass.s*100, ppass.p/ppass.s*100, 'pp'):''},
-          {t:'不合格项数', v:String(unq), d: pcov?deltaTxt(unq, punq, '', false):''},
-        ];
-        cards.forEach((c,i)=>{
-          const x = 0.7 + i*3.1;
-          sl.addShape('roundRect', { x, y:1.9, w:2.85, h:1.7, fill:{color:LG}, line:{color:'D8DEEA',pt:1} });
-          sl.addText(c.t, { x:x+0.2,y:2.05,w:2.5,h:0.4, fontSize:13,color:GRAY });
-          sl.addText(c.v, { x:x+0.2,y:2.45,w:2.5,h:0.8, fontSize:32,bold:true,color:NAVY });
-          sl.addText(c.d, { x:x+0.2,y:3.2,w:2.5,h:0.35, fontSize:11,color:(c.d.indexOf('改善')>=0?GREEN:c.d.indexOf('退步')>=0?RED:GRAY) });
-        });
-        sl.addText(`报告总数 ${reports}　·　未达标门店清单与高发问题见后页`, { x:0.7,y:4.0,w:12,h:0.4, fontSize:13,color:GRAY });
-        // 组别达标一览条
-        const rows = [[
-          {text:'组别',options:{bold:true,fill:{color:BLUE},color:'FFFFFF'}},
-          {text:'达标线',options:{bold:true,fill:{color:BLUE},color:'FFFFFF'}},
-          {text:'覆盖率',options:{bold:true,fill:{color:BLUE},color:'FFFFFF'}},
-          {text:'平均分',options:{bold:true,fill:{color:BLUE},color:'FFFFFF'}},
-          {text:'门店合格率',options:{bold:true,fill:{color:BLUE},color:'FFFFFF'}},
-          {text:'平均分环比',options:{bold:true,fill:{color:BLUE},color:'FFFFFF'}}]];
-        datasets[0].groups.forEach(g=>{
-          const pv = pvGroup(datasets[0].type, g.name);
-          const dcol = pv?deltaTxt(g.avgScore, pv.avgScore, '分'):'无上期';
-          rows.push([g.name, g.th+'分', g.coverage+'%', String(g.avgScore), g.passRate+'% ('+g.passStores+'/'+g.scoredCount+')',
-            {text:dcol, options:{color:(dcol.indexOf('改善')>=0?GREEN:dcol.indexOf('退步')>=0?RED:GRAY)}}]);
-        });
-        sl.addTable(rows, { x:0.7,y:4.5,w:12,colW:[3.2,1.4,1.6,1.6,2.6,1.6], fontSize:12, rowH:0.4, border:{pt:0.5,color:'D8DEEA'}, align:'center', valign:'middle' });
+      /* ---- 组装报告 HTML ---- */
+      const rangeTxt = `${currentStart} ~ ${currentEnd}`;
+      const nowTxt = new Date().toLocaleString('zh-CN',{hour12:false});
+      const h = [];
+      h.push(`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<title>苍井寿司品牌巡检分析报告 ${rangeTxt}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;color:#1a2a4a;background:#eef1f6;line-height:1.65}
+.page{max-width:960px;margin:0 auto;background:#fff;padding:48px 56px;box-shadow:0 0 24px rgba(0,0,0,.08)}
+.cover{background:linear-gradient(135deg,#1A2A4A,#186BEB);color:#fff;margin:-48px -56px 40px;padding:56px}
+.cover .brand{font-size:14px;letter-spacing:4px;opacity:.75;margin-bottom:18px}
+.cover h1{font-size:34px;margin-bottom:10px}
+.cover .meta{font-size:14px;opacity:.85;margin-top:14px}
+h2.sec{font-size:20px;margin:38px 0 6px;padding-left:12px;border-left:5px solid #186BEB;color:#1A2A4A}
+h2.sec .no{color:#186BEB;margin-right:8px}
+.subnote{font-size:12px;color:#7a8399;margin:0 0 14px 17px}
+.cards{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+.card{flex:1;min-width:150px;background:#f5f7fb;border:1px solid #e2e8f3;border-radius:10px;padding:14px 16px}
+.card .k{font-size:12px;color:#7a8399}
+.card .v{font-size:28px;font-weight:700;margin:2px 0}
+.card .d{font-size:11px}
+table{width:100%;border-collapse:collapse;margin:12px 0 6px;font-size:12.5px}
+th{background:#186BEB;color:#fff;font-weight:600;padding:8px 8px;text-align:center;white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid #e8edf5;text-align:center}
+tr:nth-child(even) td{background:#f8fafd}
+td.l,th.l{text-align:left}
+.dgood{color:#1E8E4D;font-weight:700}.dbad{color:#C0392B;font-weight:700}.dflat{color:#7a8399}.dnull{color:#a9b2c4;font-size:11px}
+.risk-high{display:inline-block;background:#C0392B;color:#fff;font-size:11px;border-radius:4px;padding:1px 7px}
+.risk-mid{display:inline-block;background:#E67E22;color:#fff;font-size:11px;border-radius:4px;padding:1px 7px}
+.risk-low{display:inline-block;background:#7a8399;color:#fff;font-size:11px;border-radius:4px;padding:1px 7px}
+.bar-row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13px}
+.bar-row .lb{width:34%;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-row .track{flex:1;background:#eef1f6;border-radius:4px;height:20px;position:relative}
+.bar-row .fill{height:100%;background:linear-gradient(90deg,#186BEB,#5a9cf8);border-radius:4px}
+.bar-row .num{width:120px;font-size:12px;color:#5a6377}
+.ai-block{background:#f8fafd;border:1px solid #e2e8f3;border-radius:10px;padding:18px 22px;margin:14px 0}
+.ai-block h3{font-size:15px;color:#186BEB;margin-bottom:10px}
+.ai-block ol{padding-left:20px}
+.ai-block li{margin:7px 0;font-size:13.5px}
+.ai-block.action{background:#f2faf5;border-color:#cdebd8}
+.ai-block.action h3{color:#1E8E4D}
+.ai-block.boss{background:#fdf6f4;border-color:#f2d8d2}
+.ai-block.boss h3{color:#C0392B}
+.foot{margin-top:44px;padding-top:16px;border-top:1px dashed #dfe4ee;font-size:11px;color:#9aa3b5;display:flex;justify-content:space-between}
+.toolbar{position:sticky;top:0;z-index:9;background:#fff;border-bottom:1px solid #e2e8f3;padding:10px 56px;display:flex;gap:10px;align-items:center;max-width:960px;margin:0 auto}
+.toolbar button{border:none;border-radius:8px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;color:#fff;background:#186BEB}
+.toolbar .tip{font-size:12px;color:#7a8399}
+@media print{body{background:#fff}.toolbar{display:none}.page{box-shadow:none;max-width:none;padding:24px 32px}}
+</style></head><body>
+<div class="toolbar"><button onclick="window.print()">🖨 打印 / 另存为 PDF</button><span class="tip">报告仅本机生成 · 建议用 Chrome 打印，边距选「默认」、勾选「背景图形」</span></div>
+<div class="page">
+<div class="cover"><div class="brand">CANGJING SUSHI · 苍井寿司</div>
+<h1>品牌巡检分析报告</h1>
+<div class="meta">统计区间 ${esc(rangeTxt)}${prevTxt?'　·　环比上一周期 '+esc(prevTxt):''}<br>数据来源：慧运营巡检（常规/自检/视频/AI慧检）+ 巡检问题汇总及整改跟进 · 生成时间 ${esc(nowTxt)} · 培训部出品</div></div>`);
+
+      /* 01 执行摘要：结论先行的卡片 */
+      const totalUnq = prob.total;
+      const repeatCnt = prob.repeats.reduce((a,x)=>a+x.times,0);
+      let cov={c:0,n:0}, pass={p:0,s:0};
+      datasets.forEach(d=>d.groups.forEach(g=>{ cov.c+=g.covered; cov.n+=g.storeCount; pass.p+=g.passStores; pass.s+=g.scoredCount; }));
+      h.push(`<h2 class="sec"><span class="no">01</span>执行摘要 · 这一期品牌发生了什么</h2>
+<div class="subnote">分数只是既定事实，本报告的核心是：问题出在哪、为什么反复、培训部怎么做</div>
+<div class="cards">
+<div class="card"><div class="k">巡检不合格记录总数</div><div class="v">${totalUnq}</div><div class="d">覆盖 ${prob.items.length} 个不同问题项</div></div>
+<div class="card"><div class="k">重复出现的整改漏洞</div><div class="v" style="color:#C0392B">${prob.repeats.length}</div><div class="d">同一门店同一问题出现≥2次，共 ${repeatCnt} 条记录</div></div>
+<div class="card"><div class="k">问题最集中的门店</div><div class="v" style="font-size:18px;padding-top:6px">${esc(prob.worstStores[0]?prob.worstStores[0].sn:'-')}</div><div class="d">${prob.worstStores[0]?('共 '+prob.worstStores[0].count+' 条不合格记录'):'-'}</div></div>
+<div class="card"><div class="k">门店覆盖率 / 合格率</div><div class="v" style="font-size:20px;padding-top:4px">${cov.n?Math.round(cov.c/cov.n*1000)/10:0}% / ${pass.s?Math.round(pass.p/pass.s*1000)/10:0}%</div><div class="d">合格线：直营/新店90 · 加盟营运80</div></div>
+</div>`);
+
+      /* 02 高发问题提取分析（核心章节） */
+      h.push(`<h2 class="sec"><span class="no">02</span>巡检问题提取分析 · 高发问题 Top 10</h2>
+<div class="subnote">提取自「巡检问题汇总及整改跟进」全部四类巡检 · 括号内为环比上一等长周期出现次数变化</div>`);
+      const top10 = prob.items.slice(0,10);
+      const maxC = Math.max(...top10.map(x=>x.count),1);
+      top10.forEach(x=>{
+        const dl = x.delta==null ? '<span class="dnull">无上期</span>' : (x.delta===0?'<span class="dflat">持平</span>':(x.delta>0?`<span class="dbad">▲+${x.delta}（恶化）</span>`:`<span class="dgood">▼${x.delta}（改善）</span>`));
+        h.push(`<div class="bar-row"><div class="lb" title="${esc(x.t)}">${esc(x.t)}</div>
+<div class="track"><div class="fill" style="width:${Math.round(x.count/maxC*100)}%"></div></div>
+<div class="num">${x.count} 次 · ${x.storeCount} 家门店 · ${dl}</div></div>`);
+      });
+      h.push(`<table><tr><th class="l" style="width:34%">问题项</th><th>次数</th><th>涉及门店</th><th>最集中区域</th><th class="l">组别分布</th><th>环比</th></tr>`);
+      top10.forEach(x=>{
+        h.push(`<tr><td class="l" title="${esc((x.descs[0]||''))}">${esc(x.t)}</td><td><b>${x.count}</b></td><td>${x.storeCount}</td><td>${esc(x.topRegion[0])}(${x.topRegion[1]})</td><td class="l" style="font-size:11.5px">${esc(x.groupDist)}</td><td>${x.delta==null?'<span class="dnull">无上期</span>':(x.delta>0?`<span class="dbad">+${x.delta}</span>`:(x.delta<0?`<span class="dgood">${x.delta}</span>`:'<span class="dflat">持平</span>'))}</td></tr>`);
+      });
+      h.push('</table>');
+      // 典型问题描述摘录
+      const withDesc = prob.items.filter(x=>x.descs.length).slice(0,6);
+      if(withDesc.length){
+        h.push(`<div class="subnote" style="margin-top:14px"><b style="color:#1A2A4A">典型问题描述摘录</b>（一线检查员原话，帮助理解问题实际情形）</div>
+<div class="ai-block"><ol>${withDesc.map(x=>`<li><b>${esc(x.t)}</b>（${x.count}次）：${esc(x.descs[0])}</li>`).join('')}</ol></div>`);
       }
 
-      // S3 每个板块一页详细指标 + 环比
+      /* 03 整改闭环分析：重复出现的问题门店 */
+      h.push(`<h2 class="sec"><span class="no">03</span>整改闭环分析 · 重复出问题的门店（整改未落实证据）</h2>
+<div class="subnote">同一门店同一问题在区间内出现 ≥2 份报告 → 说明上一次整改没有落地，是执行问题不是认知问题</div>`);
+      if(prob.repeats.length){
+        h.push(`<table><tr><th class="l">门店</th><th>组别</th><th>区域</th><th>重复问题</th><th>出现次数</th></tr>`);
+        prob.repeats.slice(0,15).forEach(x=>{
+          h.push(`<tr><td class="l"><b>${esc(x.sn)}</b></td><td>${esc(x.ps)}</td><td>${esc(x.rg)}</td><td class="l">${esc(x.t)}</td><td><span class="risk-high">${x.times} 次</span></td></tr>`);
+        });
+        h.push('</table>');
+      } else {
+        h.push('<div class="ai-block" style="color:#1E8E4D">✅ 本期未发现同一门店同一问题重复出现 2 次以上的情况，整改闭环情况良好。</div>');
+      }
+      // 问题最集中的门店
+      h.push(`<div class="subnote" style="margin-top:16px"><b style="color:#1A2A4A">不合格记录最集中的门店 Top 12</b></div>
+<table><tr><th class="l">门店</th><th>组别</th><th>区域</th><th>不合格记录数</th></tr>`);
+      prob.worstStores.forEach(x=>{ h.push(`<tr><td class="l">${esc(x.sn)}</td><td>${esc(x.ps)}</td><td>${esc(x.rg)}</td><td>${x.count}</td></tr>`); });
+      h.push('</table>');
+
+      /* 04 组别背景指标表 */
+      h.push(`<h2 class="sec"><span class="no">04</span>组别指标速览（背景参考）</h2>
+<div class="subnote">达标线：直营/新店 90 分，加盟营运 80 分 · 环比上一等长周期</div>`);
       datasets.forEach(d=>{
-        const sl = pptx.addSlide();
-        sl.addText(`${d.name} · 组别指标与环比`, { x:0.7,y:0.5,w:12,h:0.7, fontSize:26,bold:true,color:NAVY });
-        sl.addText(`${rangeTxt}${prevTxt?' · '+prevTxt:''}`, { x:0.7,y:1.15,w:12,h:0.4, fontSize:13,color:GRAY });
-        const head = ['组别','达标线','门店数','覆盖率','平均分','门店合格率','完成率','点评率','不合格项','环比(分/合格率pp)'].map(t=>({text:t,options:{bold:true,fill:{color:BLUE},color:'FFFFFF'}}));
-        const rows = [head];
+        h.push(`<div style="font-size:14px;font-weight:700;margin:16px 0 4px">${esc(d.name)}</div>
+<table><tr><th class="l">组别</th><th>达标线</th><th>覆盖率</th><th>门店合格率</th><th>平均分</th><th>平均分环比</th></tr>`);
         d.groups.forEach(g=>{
           const pv = pvGroup(d.type, g.name);
-          let dcell = '无上期';
-          if(pv){ dcell = deltaTxt(g.avgScore,pv.avgScore,'分')+' / '+deltaTxt(g.passRate,pv.passRate,'pp'); }
-          rows.push([g.name, g.th+'分', String(g.storeCount), g.coverage+'%', String(g.avgScore),
-            g.passRate+'% ('+g.passStores+'/'+g.scoredCount+')', g.completion+'%', g.review+'%', String(g.unqItems),
-            {text:dcell, options:{color:(dcell.indexOf('改善')>=0?GREEN:dcell.indexOf('退步')>=0?RED:GRAY), fontSize:10}}]);
+          h.push(`<tr><td class="l">${esc(g.name)}</td><td>${g.th}分</td><td>${g.coverage}%</td><td>${g.passRate}%（${g.passStores}/${g.scoredCount}）</td><td>${g.avgScore}</td><td>${pv?deltaBadge(g.avgScore,pv.avgScore,true):'<span class="dnull">无上期</span>'}</td></tr>`);
         });
-        sl.addTable(rows, { x:0.7,y:1.7,w:12,colW:[2.2,1,1,1.2,1.1,2.2,1.2,1.1,1.1,1.9], fontSize:11, rowH:0.42, border:{pt:0.5,color:'D8DEEA'}, align:'center', valign:'middle' });
+        h.push('</table>');
       });
 
-      // S4 高发问题（不合格项提取分析）+ 环比
-      datasets.forEach(d=>{
-        if(!d.cats.length) return;
-        const sl = pptx.addSlide();
-        sl.addText(`${d.name} · 不合格项提取分析`, { x:0.7,y:0.5,w:12,h:0.7, fontSize:26,bold:true,color:NAVY });
-        sl.addText('高发问题 Top8 · 括号为环比上一周期变化', { x:0.7,y:1.15,w:12,h:0.4, fontSize:13,color:GRAY });
-        const max = Math.max(...d.cats.map(c=>c.n), 1);
-        d.cats.forEach((c,i)=>{
-          const y = 1.75 + i*0.66;
-          const pv = pvCat(d.type, c.t);
-          const dl = pv!=null ? deltaTxt(c.n, pv.n, '', false) : '';
-          sl.addText(c.t, { x:0.7,y:y,w:6.4,h:0.5, fontSize:13,bold:true,color:NAVY, valign:'middle' });
-          sl.addShape('rect', { x:7.2,y:y+0.09,w:4.2*(c.n/max),h:0.32, fill:{color:BLUE} });
-          sl.addText(String(c.n)+(dl?'  '+dl:''), { x:7.2+4.2*(c.n/max)+0.1,y:y,w:2.2,h:0.5, fontSize:11,color:(dl.indexOf('退步')>=0?RED:dl.indexOf('改善')>=0?GREEN:GRAY), valign:'middle' });
-        });
-      });
-
-      // S5 未达标门店清单（全板块合并，取最差 12 家）
-      {
-        const all = [];
-        datasets.forEach(d=>d.fails.forEach(f=>all.push({...f, src:d.name})));
-        all.sort((a,b)=>a.score-b.score);
-        if(all.length){
-          const sl = pptx.addSlide();
-          sl.addText('未达标门店清单（整改优先级）', { x:0.7,y:0.5,w:12,h:0.7, fontSize:26,bold:true,color:NAVY });
-          sl.addText('按门店区间平均分升序 · 达标线：直营/新店 90，加盟营运 80', { x:0.7,y:1.15,w:12,h:0.4, fontSize:13,color:GRAY });
-          const rows = [['门店','组别','区域','平均分','达标线','差距','不合格项','报告数','所属板块'].map(t=>({text:t,options:{bold:true,fill:{color:RED},color:'FFFFFF'}}))];
-          all.slice(0,12).forEach(f=>rows.push([f.name,f.pos,f.region||'-',String(f.score),f.th+'分',(f.score-f.th).toFixed(1),String(f.unq),String(f.reports),f.src]));
-          sl.addTable(rows, { x:0.7,y:1.7,w:12,colW:[2.4,1.9,1.5,1,1,0.9,1.1,0.9,1.3], fontSize:11, rowH:0.42, border:{pt:0.5,color:'D8DEEA'}, align:'center', valign:'middle' });
-        }
-      }
-
-      // S6-S8 AI 分析页
+      /* 05 AI 深度分析 */
       if(ai){
-        const bullet = (arr)=> arr.map(l=>({ text:l.replace(/^[·•\-0-9.、\s]+/,''), options:{ bullet:{code:'2022'}, fontSize:15, color:'1A2A4A', paraSpaceAfter:8 } }));
-        const mk = (title, sub, items, color)=>{
-          const sl = pptx.addSlide();
-          sl.addText(title, { x:0.7,y:0.5,w:12,h:0.7, fontSize:26,bold:true,color:NAVY });
-          sl.addText(sub, { x:0.7,y:1.15,w:12,h:0.4, fontSize:12,color:GRAY });
-          sl.addShape('rect', { x:0.7,y:1.65,w:0.12,h:0.6, fill:{color:color} });
-          sl.addText(bullet(items), { x:1.0,y:1.8,w:11.6,h:5.2, valign:'top' });
-        };
-        if(ai['食品安全问题']&&ai['食品安全问题'].length) mk('食品安全问题与风险', rangeTxt+' · AI 提炼自高发问题与最差组别/门店', ai['食品安全问题'], RED);
-        if(ai['提升点']&&ai['提升点'].length) mk('提升点（含环比对比）', prevTxt, ai['提升点'], BLUE);
-        if(ai['行动计划']&&ai['行动计划'].length){
-          const sl = pptx.addSlide();
-          sl.addText('整改行动计划', { x:0.7,y:0.5,w:12,h:0.7, fontSize:26,bold:true,color:NAVY });
-          sl.addText('AI 生成 · 供培训部与营运复核后下发', { x:0.7,y:1.15,w:12,h:0.4, fontSize:12,color:GRAY });
-          const rows = [['周次','动作','责任组别','目标'].map(t=>({text:t,options:{bold:true,fill:{color:GREEN},color:'FFFFFF'}}))];
-          ai['行动计划'].forEach(l=>{
-            const parts = l.replace(/^[·•\-0-9.、\s]+/,'').split(/[;；｜|]/).map(x=>x.trim()).filter(Boolean);
-            rows.push([parts[0]||'',parts[1]||'',parts[2]||'',parts.slice(3).join('；')||'']);
+        const list = (k,cls,tit)=> ai[k]&&ai[k].length ? `<div class="ai-block ${cls}"><h3>${tit}</h3><ol>${ai[k].map(l=>`<li>${esc(l.replace(/^[·•\-0-9.、\s]+/,''))}</li>`).join('')}</ol></div>` : '';
+        h.push(`<h2 class="sec"><span class="no">05</span>深度分析 · 问题诊断与根因（AI 提炼，培训部复核后使用）</h2>`);
+        h.push(list('问题诊断','','🔍 问题诊断：品牌现在的食品安全问题'));
+        h.push(list('根因分析','','🧩 根因分析：为什么这些问题反复出现'));
+        h.push(`<h2 class="sec"><span class="no">06</span>培训部改善行动计划</h2>
+<div class="subnote">格式：周次｜动作｜覆盖对象｜衡量目标 · 供培训部与营运复核后下发</div>`);
+        if(ai['培训部改善动作']&&ai['培训部改善动作'].length){
+          h.push(`<table><tr><th style="width:9%">周次</th><th class="l" style="width:42%">动作</th><th class="l" style="width:20%">覆盖对象</th><th class="l">衡量目标</th></tr>`);
+          ai['培训部改善动作'].forEach(l=>{
+            const parts = l.replace(/^[·•\-0-9.、\s]+/,'').split(/[;；｜|]/).map(x=>x.trim());
+            h.push(`<tr><td>${esc(parts[0]||'')}</td><td class="l">${esc(parts[1]||'')}</td><td class="l">${esc(parts[2]||'')}</td><td class="l">${esc(parts.slice(3).join('；'))}</td></tr>`);
           });
-          sl.addTable(rows, { x:0.7,y:1.7,w:12,colW:[1.4,4.8,2.4,3.4], fontSize:12, rowH:0.5, border:{pt:0.5,color:'D8DEEA'}, valign:'middle' });
+          h.push('</table>');
         }
-        if(ai['总结']&&ai['总结'].length) mk('月度总结', rangeTxt, ai['总结'], NAVY);
+        h.push(`<h2 class="sec"><span class="no">07</span>给老板的结论</h2>`);
+        h.push(list('给老板的结论','boss','📌 结论'));
+      } else {
+        h.push(`<h2 class="sec"><span class="no">05</span>深度分析</h2><div class="ai-block">⚠️ AI 分析未生成（未填 Key 或调用失败）。填写智谱 API Key 后重新生成即可包含：问题诊断 / 根因分析 / 培训部改善行动计划 / 老板结论。</div>`);
       }
 
-      const fname = `品牌巡检分析报告_${currentStart}_${currentEnd}.pptx`;
-      await pptx.writeFile({ fileName: fname });
-      stat('✅ 报告已生成：'+fname+(ai?'（含AI分析4页）':'（AI页跳过）')+(prev?'':'（无环比数据）'));
+      /* 06 未达标门店清单 */
+      const allFails = [];
+      datasets.forEach(d=>d.fails.forEach(f=>allFails.push({...f, src:d.name})));
+      allFails.sort((a,b)=>a.score-b.score);
+      if(allFails.length){
+        h.push(`<h2 class="sec"><span class="no">${ai?'08':'05'}</span>未达标门店清单（整改优先级）</h2>
+<table><tr><th class="l">门店</th><th>组别</th><th>区域</th><th>平均分</th><th>达标线</th><th>差距</th><th>不合格项</th></tr>`);
+        allFails.slice(0,15).forEach(f=>{ h.push(`<tr><td class="l"><b>${esc(f.name)}</b></td><td>${esc(f.pos)}</td><td>${esc(f.region||'-')}</td><td>${f.score}</td><td>${f.th}分</td><td><span class="dbad">${(f.score-f.th).toFixed(1)}</span></td><td>${f.unq}</td></tr>`); });
+        h.push('</table>');
+      }
+
+      h.push(`<div class="foot"><span>苍井寿司 · 培训部 · 内部资料</span><span>${esc(rangeTxt)} · 慧运营看板自动生成</span></div>
+</div></body></html>`);
+
+      const w = window.open('', '_blank');
+      if(!w){ stat('❌ 浏览器拦截了新窗口，请允许弹出窗口后重试'); return; }
+      w.document.open(); w.document.write(h.join('\n')); w.document.close();
+      stat('✅ HTML 报告已在新窗口打开！可点页内「打印 / 另存为 PDF」保存'+(ai?'（含 AI 深度分析）':'（AI 章节缺失）')+(prev?'':'（无环比）'));
     }catch(e){
       stat('❌ 生成失败：'+e.message);
+      console.error(e);
     }finally{ btn.disabled=false; }
   };
 
-  console.log('[export] 品牌巡检报告模块已加载（暗号模式 fix154）');
+  console.log('[export] 品牌巡检报告模块已加载（HTML 版 fix155，暗号模式）');
 })();
