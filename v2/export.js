@@ -34,6 +34,11 @@
   function curType(){
     return TYPES.includes(activeMainTab) ? activeMainTab : 'regularInspection';
   }
+  /* 默认勾选：当前所在巡检板块 + 问题汇总；其余由用户复选 */
+  function defaultTypes(){
+    const s = new Set([curType(), 'unq']);
+    return s;
+  }
 
   /* ---------- 样式 ---------- */
   const css = document.createElement('style');
@@ -78,7 +83,7 @@
       <div class="sub">对标大厂审计报告标准：问题分级 · 整改闭环 · 决策建议。<br>报告只在浏览器里打开，<b>不保存文件、不占内存</b>；要留存就在报告页点「打印 / 另存为 PDF」。</div>
       <label>报告视角</label>
       <div class="chipbar" id="expModeBar"></div>
-      <label>输出范围</label>
+      <label>输出范围（可多选，✓ 为已勾选）</label>
       <div class="chipbar" id="expTypeBar"></div>
       <div class="sub" id="expScope"></div>
       <div class="sec">
@@ -93,7 +98,7 @@
     </div>`;
   document.body.appendChild(ov);
 
-  let expType = curType();
+  let expTypes = defaultTypes();
   let expMode = 'boss'; // boss=老板版(经营决策) train=培训版(课件)
   function chip(id, opts, cur, cb){
     const bar = ov.querySelector(id);
@@ -102,11 +107,27 @@
   }
   function renderMode(){ chip('#expModeBar', [{k:'boss',l:'👔 老板版（经营决策）'},{k:'train',l:'🎓 培训版（课件）'}], expMode, v=>{ expMode=v; renderMode(); }); }
   function renderChips(){
+    /* 输出范围 = 复选：四类巡检可多选，「全部四类巡检」一键全选/清空，「问题汇总及整改跟进」独立复选 */
+    const bar = ov.querySelector('#expTypeBar');
     const opts = [...TYPES.map(t=>({k:t,l:TAB_NAMES[t]})), {k:'unq',l:'巡检问题汇总及整改跟进'}, {k:'all',l:'全部四类巡检'}];
-    chip('#expTypeBar', opts, expType, v=>{ expType=v; renderChips(); renderScope(); });
+    bar.innerHTML = opts.map(o=>{
+      const on = o.k==='all' ? TYPES.every(t=>expTypes.has(t)) : expTypes.has(o.k);
+      return `<span class="chip${on?' on':''}" data-k="${o.k}">${on&&o.k!=='all'?'✓ ':''}${o.l}</span>`;
+    }).join('');
+    bar.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+      const k = c.dataset.k;
+      if(k==='all'){
+        const allOn = TYPES.every(t=>expTypes.has(t));
+        if(allOn) TYPES.forEach(t=>expTypes.delete(t)); else TYPES.forEach(t=>expTypes.add(t));
+      } else {
+        if(expTypes.has(k)){ expTypes.delete(k); } else { expTypes.add(k); }
+      }
+      renderChips(); renderScope();
+    });
   }
   function scopeText(){
-    return `日期区间：${currentStart||'-'} ~ ${currentEnd||'-'}　|　环比：上一等长周期`;
+    const n = expTypes.size;
+    return `已选 ${n} 项：${[...expTypes].map(k=>k==='unq'?'问题汇总及整改跟进':TAB_NAMES[k]).join('、')}　|　日期区间：${currentStart||'-'} ~ ${currentEnd||'-'}　|　环比：上一等长周期`;
   }
   function renderScope(){ ov.querySelector('#expScope').textContent = scopeText(); }
   renderMode(); renderChips(); renderScope();
@@ -299,7 +320,7 @@
 
   /* ---------- Excel ---------- */
   ov.querySelector('#expCsvBtn').onclick = async ()=>{
-    const list = expType==='all' ? TYPES.map(collect).filter(Boolean) : [collect(expType)].filter(Boolean);
+    const list = TYPES.filter(t=>expTypes.has(t)).map(collect).filter(Boolean);
     if(!list.length){ stat('❌ 数据还没加载完，稍等几秒再试'); return; }
     let prev = null;
     try{ prev = await loadPrev(); }catch(e){}
@@ -510,11 +531,12 @@ ${bodyHtml}
       const prob = analyzeProblems(curEnts, prevEnts);
       if(!prob.items.length){ stat('❌ 该区间没有问题数据，换个区间试试'); return; }
 
-      const needScores = !isTrain && expType!=='unq';
+      const selTypes = TYPES.filter(t=>expTypes.has(t));
+      const needScores = !isTrain && selTypes.length>0;
       let datasets = [], prev = null, pvGroup = ()=>null;
       if(needScores){
         stat('⏳ 2/3 加载组别指标与环比…');
-        datasets = expType==='all' ? TYPES.map(collect).filter(Boolean) : [collect(expType)].filter(Boolean);
+        datasets = selTypes.map(collect).filter(Boolean);
         try{ prev = await loadPrev(); }catch(e){}
         pvGroup = (type, gname)=>{ if(!prev) return null; const t = prev.byType.find(x=>x&&x.type===type); if(!t) return null; return t.groups.find(g=>g.name===gname)||null; };
       } else { stat('⏳ 2/3 跳过组别指标（本视角不需要）…'); }
