@@ -4460,3 +4460,15 @@ function renderTypeProblems(type){
   el.innerHTML = cardsHtml;
   refreshUnqPhotos(el);
 }
+
+/* fix153：报表输出（隐藏模块）——仅 URL 带 ?key=888 时动态加载 export.js，
+   普通访问/分享链接不加载该文件，页面无任何痕迹 */
+(function(){
+  try{
+    if(new URLSearchParams(location.search).get('key') === '888'){
+      const s = document.createElement('script');
+      s.src = 'export.js?v=fix153';
+      document.head.appendChild(s);
+    }
+  }catch(e){ console.warn('export load skipped', e); }
+})();
