@@ -251,9 +251,13 @@
 
     const lv = { C:0, M:0, L:0 };
     items.forEach(x=>lv[x.level]+=x.count);
-    const storeTotal = sMap.size || 1;
-    const loopRate = Math.round((1 - repeats.length/storeTotal)*1000)/10;
-    return { items, repeats, worstStores, total:cur.length, level:lv, loopRate };
+    /* 闭环率 = 已闭环记录数 ÷ 问题记录总数。
+       分母只算真实发生的问题记录（第1次出现即计入），与门店总数无关；
+       同一「门店+问题」第2次及以后出现的记录 = 上次整改未闭环。 */
+    let notClosed = 0;
+    repMap.forEach(times=>{ if(times>=2) notClosed += times-1; });
+    const loopRate = cur.length ? Math.round((1 - notClosed/cur.length)*1000)/10 : 100;
+    return { items, repeats, worstStores, total:cur.length, level:lv, loopRate, notClosed };
   }
 
   /* ---------- Excel ---------- */
@@ -545,7 +549,7 @@ ${bodyHtml}
 <div class="cards">
 <div class="card"><div class="k">不合格记录总量</div><div class="v">${prob.total}</div><div class="d">涉及 ${prob.items.length} 类问题</div></div>
 <div class="card"><div class="k">Critical 关键食安问题</div><div class="v" style="color:#C0392B">${prob.level.C}</div><div class="d">占比 ${critPct}% · 72小时整改窗口</div></div>
-<div class="card"><div class="k">整改闭环率</div><div class="v" style="color:${prob.loopRate<90?'#C0392B':'#1E8E4D'}">${prob.loopRate}%</div><div class="d">${prob.repeats.length} 家门店改了又犯</div></div>
+<div class="card"><div class="k">整改闭环率</div><div class="v" style="color:${prob.loopRate<90?'#C0392B':'#1E8E4D'}">${prob.loopRate}%</div><div class="d">已闭环记录÷问题记录总数 · ${prob.notClosed} 条记录改了又犯（${prob.repeats.length} 家门店）</div></div>
 <div class="card"><div class="k">风险最集中门店</div><div class="v" style="font-size:17px;padding-top:7px">${esc(prob.worstStores[0]?prob.worstStores[0].sn:'-')}</div><div class="d">${prob.worstStores[0]?prob.worstStores[0].count+' 条记录':'-'}</div></div>
 </div>`);
       if(ai && ai['经营层结论'] && ai['经营层结论'].length){
