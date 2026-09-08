@@ -1746,7 +1746,8 @@ function unq2RenderTable(){
     <span>｜不合格条目 <b style="color:#c0392b">${ents.length}</b></span>
     <span>｜涉及报告 <b>${repN}</b></span>
     <span>｜涉及门店 <b>${storeN}</b></span>
-    <span style="margin-left:auto">${html(dimLabel)} · 点「查看更多」看该卡片完整记录与照片</span>`;
+    <span style="margin-left:auto">${html(dimLabel)} · 点「查看更多」看该卡片完整记录与照片
+      <button id="unq2KbBtn" style="margin-left:10px;border:1px solid #186BEB;background:#fff;color:#186BEB;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600">📖 巡检知识库</button></span>`;
   const cards = groups.map(g=>{
     const id = unq2State.type+'|'+unq2State.dim+'|'+g.key;
     UNQ2_GROUP_ENTS[id] = g.ents;
@@ -1789,6 +1790,57 @@ function unq2RenderTable(){
   el.querySelectorAll('.unq2-detail').forEach(a=>{
     a.onclick = ()=>unq2ShowDetail(a.dataset.id);
   });
+  const kbBtn = $('unq2KbBtn');
+  if(kbBtn) kbBtn.onclick = unq2ShowKb;
+}
+
+/* ---------- 巡检知识库：问题分级标准 / 闭环率口径 / 整改处置规则 ---------- */
+const UNQ2_KB = {
+  crit: ['温度','过期','变质','腐败','发霉','异味','交叉','生熟','虫','鼠','蟑','异物','毛发','留样','健康证','直接入口','裸露','消毒','中毒','疑似'],
+  mod:  ['标签','效期','记录','储存','存放','解冻','洗手','手套','口罩','工作帽','清洁','清洗','垃圾','废油','食材','原料','冰箱','冷柜','货架','离墙离地','返库','先进先出']
+};
+function unq2ShowKb(){
+  const critList = UNQ2_KB.crit.map(k=>`<span style="display:inline-block;background:#fdecea;color:#C0392B;border-radius:4px;padding:2px 8px;margin:2px;font-size:12px;font-weight:600">${k}</span>`).join('');
+  const modList = UNQ2_KB.mod.map(k=>`<span style="display:inline-block;background:#fff4e0;color:#B26A00;border-radius:4px;padding:2px 8px;margin:2px;font-size:12px">${k}</span>`).join('');
+  const ov = document.createElement('div');
+  ov.id = 'unq2KbOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99990;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:14px;max-width:860px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-bottom:1px solid #eef0f5">
+        <div style="font-size:17px;font-weight:700;color:#1A2A4A">📖 巡检知识库 · 问题分级与整改闭环标准</div>
+        <button onclick="document.getElementById('unq2KbOverlay').remove()" style="border:none;background:#f0f2f7;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">关闭 ✕</button>
+      </div>
+      <div style="overflow:auto;padding:20px 24px;font-size:13.5px;line-height:1.75;color:#333">
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">一、问题分级标准（对标国际连锁餐饮审计体系）</div>
+        <div style="margin-bottom:14px">系统按<b>问题标题中的关键词</b>自动分级，命中优先级：C &gt; M &gt; L（一条问题同时涉及多级时按最高级计）。</div>
+        <div style="border-left:4px solid #C0392B;background:#fdf6f5;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:10px">
+          <b style="color:#C0392B">C · Critical 关键食安问题</b> —— 直接食安风险，<b>72 小时内必须整改并复检</b><br>
+          <span style="color:#666;font-size:12.5px">命中关键词：</span>${critList}
+        </div>
+        <div style="border-left:4px solid #E67E22;background:#fffaf2;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:10px">
+          <b style="color:#B26A00">M · Moderate 流程执行缺陷</b> —— 未命中 C 类，但属于流程/规范执行问题，<b>30 天整改窗口</b><br>
+          <span style="color:#666;font-size:12.5px">命中关键词：</span>${modList}
+        </div>
+        <div style="border-left:4px solid #7f8c9b;background:#f7f9fb;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:16px">
+          <b style="color:#4a5a70">L · Minor 一般不规范</b> —— 未命中以上任何关键词，纳入例行辅导，随下次巡检跟踪
+        </div>
+        <div style="font-size:15px;font-weight:700;margin:16px 0 6px">二、整改闭环率口径</div>
+        <div style="background:#f6f8fc;border-radius:8px;padding:12px 16px;margin-bottom:8px">
+          <b>整改闭环率 = 已闭环记录数 ÷ 问题记录总数</b><br>
+          · 某条问题记录，若为该「门店 + 问题」的<b>第 1 次出现</b> → 计为<b>已闭环</b>（整改后未再犯）<br>
+          · <b>第 2 次及以后</b>出现 → 计为<b>未闭环</b>（上次整改未落实，每多出现一次多记一条）<br>
+          · 从未发生该问题的门店<b>不进入公式</b>（不作为分母，避免注水）
+        </div>
+        <div style="color:#8a5a00;background:#fff8e8;border-radius:8px;padding:10px 14px;margin-bottom:16px">
+          ⚠️ 同一门店同一问题重复出现 ≥2 次，视作<b>最严重信号</b>：单店重复 = 管理闭环问题，跨店共性 = 培训/标准问题，第二次出现即按系统性问题升级处理（复检触发、责任到人、与考核挂钩）。
+        </div>
+        <div style="font-size:15px;font-weight:700;margin:16px 0 6px">三、门店合格率达标线</div>
+        <div>合格门店 ÷ 已巡检门店：直营组达标线 <b>90 分</b> · 新店运营组 <b>90 分</b> · 加盟营运组 <b>80 分</b>。报告分按检查项数计（合格=1），不做百分制换算。</div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.remove(); });
 }
 
 function renderUnqSummary(){
