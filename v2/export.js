@@ -241,15 +241,23 @@
   }
 
   /* ---------- Excel 导出 ---------- */
-  ov.querySelector('#expCsvBtn').onclick = ()=>{
+  ov.querySelector('#expCsvBtn').onclick = async ()=>{
     const list = expType==='all' ? TYPES.map(collect).filter(Boolean) : [collect(expType)].filter(Boolean);
     if(!list.length){ stat('❌ 数据还没加载完，稍等几秒再试'); return; }
+    let prev = null;
+    try{ prev = await loadPrev(); }catch(e){}
+    const pvGroup = (type, gname)=>{ if(!prev) return null; const t = prev.byType.find(x=>x&&x.type===type); if(!t) return null; return t.groups.find(g=>g.name===gname)||null; };
     const lines = [];
     lines.push(`苍井寿司巡检数据导出\t区间 ${currentStart} ~ ${currentEnd}\t达标线：直营90/新店90/加盟营运80`);
+    lines.push('覆盖率 = 已巡检门店÷应巡检门店；门店合格率 = 达标门店÷已巡检门店');
     list.forEach(d=>{
-      lines.push(''); lines.push(`【${d.name}】`);
-      lines.push('组别\t达标线\t门店数\t覆盖门店\t覆盖率\t平均分\t合格门店\t门店合格率\t不合格项');
-      d.groups.forEach(g=>lines.push([g.name,g.th,g.storeCount,g.covered,g.coverage+'%',g.avgScore,g.passStores+'/'+g.scoredCount,g.passRate+'%',g.unqItems].join('\t')));
+      lines.push(''); lines.push(`【${d.name}（数据采集）】`);
+      lines.push('组别\t门店\t巡检覆盖率\t门店合格率\t平均分\t平均分环比');
+      d.groups.forEach(g=>{
+        const pv = pvGroup(d.type, g.name);
+        const dl = pv ? (Math.round((g.avgScore-pv.avgScore)*100)/100) : '无上期';
+        lines.push([g.name,g.storeCount,`${g.coverage}%（${g.covered}/${g.storeCount}）`,`${g.passRate}%（${g.passStores}/${g.scoredCount}）`,g.avgScore,dl].join('\t'));
+      });
       if(d.fails.length){ lines.push(''); lines.push('未达标门店\t组别\t区域\t平均分\t达标线\t不合格项\t报告数');
         d.fails.forEach(s=>lines.push([s.name,s.pos,s.region,s.score,s.th,s.unq,s.reports].join('\t'))); }
     });
@@ -461,15 +469,15 @@ td.l,th.l{text-align:left}
       prob.worstStores.forEach(x=>{ h.push(`<tr><td class="l">${esc(x.sn)}</td><td>${esc(x.ps)}</td><td>${esc(x.rg)}</td><td>${x.count}</td></tr>`); });
       h.push('</table>');
 
-      /* 04 组别背景指标表 */
-      h.push(`<h2 class="sec"><span class="no">04</span>组别指标速览（背景参考）</h2>
-<div class="subnote">达标线：直营/新店 90 分，加盟营运 80 分 · 环比上一等长周期</div>`);
+      /* 04 巡检数据表（统一口径：组别/门店/覆盖率/门店合格率/平均分/平均分环比） */
+      h.push(`<h2 class="sec"><span class="no">04</span>巡检数据表</h2>
+<div class="subnote">覆盖率 = 已巡检门店 ÷ 应巡检门店；门店合格率 = 达标门店 ÷ 已巡检门店（达标线：直营/新店 90 分，加盟营运 80 分）· 环比为上一等长周期</div>`);
       datasets.forEach(d=>{
-        h.push(`<div style="font-size:14px;font-weight:700;margin:16px 0 4px">${esc(d.name)}</div>
-<table><tr><th class="l">组别</th><th>达标线</th><th>覆盖率</th><th>门店合格率</th><th>平均分</th><th>平均分环比</th></tr>`);
+        h.push(`<div style="font-size:14px;font-weight:700;margin:16px 0 4px">巡检项目：${esc(d.name)}</div>
+<table><tr><th class="l">组别</th><th>门店</th><th>巡检覆盖率</th><th>门店合格率</th><th>平均分</th><th>平均分环比</th></tr>`);
         d.groups.forEach(g=>{
           const pv = pvGroup(d.type, g.name);
-          h.push(`<tr><td class="l">${esc(g.name)}</td><td>${g.th}分</td><td>${g.coverage}%</td><td>${g.passRate}%（${g.passStores}/${g.scoredCount}）</td><td>${g.avgScore}</td><td>${pv?deltaBadge(g.avgScore,pv.avgScore,true):'<span class="dnull">无上期</span>'}</td></tr>`);
+          h.push(`<tr><td class="l">${esc(g.name)}</td><td>${g.storeCount}</td><td>${g.coverage}%（${g.covered}/${g.storeCount}）</td><td>${g.passRate}%（${g.passStores}/${g.scoredCount}）</td><td>${g.avgScore}</td><td>${pv?deltaBadge(g.avgScore,pv.avgScore,true):'<span class="dnull">无上期</span>'}</td></tr>`);
         });
         h.push('</table>');
       });
