@@ -211,10 +211,33 @@
     if(MOD_KW.some(k=>s.indexOf(k)>=0)) return 'M';
     return 'L';
   }
+  /* 情形拆解：从问题描述里按检查员常用词提取高频细节（如着装→工衣/帽子/围裙各多少次） */
+  const KW_VOCAB = ['工衣','工作服','工服','便装','帽子','帽','围裙','口罩','裤子','鞋','头发','发网','发帽','指甲','美甲','首饰','戒指','手表','工牌','仪容','着装',
+    '过期','临期','变质','发霉','异味','标签','效期','生产日期','保质期','解冻','生熟','交叉','裸露','直接入口','食材','原料','三文鱼','食材检查',
+    '冷藏','冷冻','冰箱','冷柜','温度','留样','消毒','虫','鼠','蟑','异物','毛发',
+    '清洁','清洗','垃圾','垃圾桶','洗手','手套','抹布','砧板','刀具','记录','表单','台账','健康证'];
+  function extractKw(descs){
+    const cnt = {};
+    descs.forEach(d=>{
+      const s = String(d||'');
+      if(!s) return;
+      const seen = new Set();
+      KW_VOCAB.forEach(k=>{ if(s.indexOf(k)>=0 && !seen.has(k)){ seen.add(k); cnt[k]=(cnt[k]||0)+1; } });
+    });
+    /* 归并近义词：工作服/工服→工衣，发网/发帽→头发相关 */
+    if(cnt['工作服']) cnt['工衣'] = (cnt['工衣']||0)+cnt['工作服'], delete cnt['工作服'];
+    if(cnt['工服']) cnt['工衣'] = (cnt['工衣']||0)+cnt['工服'], delete cnt['工服'];
+    if(cnt['发网']) cnt['发帽'] = (cnt['发帽']||0)+cnt['发网'], delete cnt['发网'];
+    return Object.entries(cnt).filter(x=>x[1]>=1).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  }
   function analyzeProblems(cur, prev){
+    const descMap = new Map(); /* 问题标题 → 全部问题描述（情形拆解用） */
     const map = new Map();
     cur.forEach(x=>{
       const key = (x.t||'-').trim();
+      if(!descMap.has(key)) descMap.set(key, []);
+      const dm = descMap.get(key);
+      if(x.desc) dm.push(x.desc);
       let g = map.get(key);
       if(!g){ g = { t:key, count:0, stores:new Set(), regions:new Map(), groups:new Map(), descs:[], srcs:new Map() }; map.set(key,g); }
       g.count++; g.stores.add(x.sn||'-');
@@ -226,20 +249,34 @@
     (prev||[]).forEach(x=>{ const k=(x.t||'-').trim(); pmap.set(k,(pmap.get(k)||0)+1); });
     const items = [...map.values()].map(g=>{
       const lv = classify(g.t);
+      const allDesc = descMap.get(g.t) || [];
+      const descFreq = new Map();
+      allDesc.forEach(d=>{ const k=String(d||'').trim(); if(k) descFreq.set(k,(descFreq.get(k)||0)+1); });
+      const topDescs = [...descFreq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>({ d:x[0], n:x[1] }));
       return { t:g.t, level:lv, count:g.count, storeCount:g.stores.size,
         topRegion:[...g.regions.entries()].sort((a,b)=>b[1]-a[1])[0]||['-',0],
         groupDist:[...g.groups.entries()].sort((a,b)=>b[1]-a[1]).map(x=>x[0]+'×'+x[1]).slice(0,4).join('、'),
-        descs:g.descs, prevCount: pmap.get(g.t)!=null ? pmap.get(g.t) : null };
+        descs:g.descs, kw: extractKw(allDesc), topDescs, prevCount: pmap.get(g.t)!=null ? pmap.get(g.t) : null };
     }).sort((a,b)=>(a.level===b.level? b.count-a.count : (a.level>b.level?1:-1)));
     items.forEach(x=>x.delta = x.prevCount!=null ? x.count-x.prevCount : null);
 
     // 重复出问题门店（闭环失败证据）
     const repMap = new Map();
-    cur.forEach(x=>{ const k=(x.sn||'-')+'||'+(x.t||'-').trim(); repMap.set(k,(repMap.get(k)||0)+1); });
+    const repDescs = new Map(); /* 门店||问题 → 描述清单 */
+    cur.forEach(x=>{
+      const k=(x.sn||'-')+'||'+(x.t||'-').trim();
+      repMap.set(k,(repMap.get(k)||0)+1);
+      if(!repDescs.has(k)) repDescs.set(k,[]);
+      if(x.desc) repDescs.get(k).push(x.desc);
+    });
     const repeats = [...repMap.entries()].filter(x=>x[1]>=2).map(x=>{
       const parts = x[0].split('||');
       const sample = cur.find(y=>y.sn===parts[0] && (y.t||'').trim()===parts[1]);
-      return { sn:parts[0], t:parts[1], times:x[1], ps:sample?sample.ps:'-', rg:sample?sample.rg:'-', level:classify(parts[1]) };
+      const dl = repDescs.get(x[0]) || [];
+      const df = new Map();
+      dl.forEach(d=>{ const s=String(d||'').trim(); if(s) df.set(s,(df.get(s)||0)+1); });
+      const top = [...df.entries()].sort((a,b)=>b[1]-a[1]).slice(0,2).map(y=>y[0]+(y[1]>1?`（${y[1]}次）`:''));
+      return { sn:parts[0], t:parts[1], times:x[1], ps:sample?sample.ps:'-', rg:sample?sample.rg:'-', level:classify(parts[1]), kw: extractKw(dl), topDescs: top };
     }).sort((a,b)=>b.times-a.times);
 
     const sMap = new Map();
@@ -337,7 +374,7 @@
     if(!key) throw new Error('请先填写智谱 API Key');
     localStorage.setItem('zhipu_api_key', key);
     const brief = {
-      高频问题: problems.items.slice(0,6).map(x=>({ 问题:x.t, 次数:x.count, 涉及门店:x.storeCount, 典型情形:x.descs })),
+      高频问题: problems.items.slice(0,6).map(x=>({ 问题:x.t, 次数:x.count, 涉及门店:x.storeCount, 情形拆解:x.kw, 典型情形:x.descs })),
       重复出问题的门店: problems.repeats.slice(0,8).map(x=>x.sn+'（'+x.t+'出现'+x.times+'次）')
     };
     const body = {
@@ -347,6 +384,7 @@
 严格按以下格式输出，不要寒暄：
 【教学卡】5-6张，每张一行，格式（用竖线分隔）：
 问题名｜为什么危险（一句话讲清食安后果，如"顾客吃了会拉肚子甚至上新闻"）｜正确做法（具体步骤，2-3步，包含数字标准如温度/时长）｜门店自查（伙伴每天怎么快速自查这一项）
+教学卡的"为什么危险"和"正确做法"必须结合数据里的【情形拆解】展开——比如着装问题拆解出工衣×58、帽子×31，就要点明"本期116次里最多的是没穿工衣（58次）和没戴帽（31次）"，用真实占比讲课，不许泛泛而谈。
 【每日自查清单】8条，每条一句话、可打勾执行，覆盖上面高频问题。
 【给加盟商的话】3条，加盟商视角：我该盯什么、我该给门店什么支持、发现问题第一时间做什么。`},
         {role:'user', content:'本期巡检发现的问题（真实数据，教学卡按出现次数从高到低）：\n'+JSON.stringify(brief, null, 1)}
@@ -493,15 +531,21 @@ ${bodyHtml}
         if(ai && ai['教学卡'] && ai['教学卡'].length){
           ai['教学卡'].forEach(card=>{
             const p = card.split('｜');
-            h.push(`<div class="tcard"><div class="thead">📋 ${esc((p[0]||'').replace(/^[·•\-0-9.、\s]+/,''))}</div>
+            const title = (p[0]||'').replace(/^[·•\-0-9.、\s]+/,'');
+            const it = prob.items.find(x=> x.t.indexOf(title.trim())>=0 || title.indexOf(x.t.slice(0,6))>=0 ) ||
+                       prob.items.find(x=> title && x.t.slice(0,4)===title.slice(0,4));
+            h.push(`<div class="tcard"><div class="thead">📋 ${esc(title)}</div>
 <div class="trow"><div class="tk">为什么危险</div><div class="tv">${esc(p[1]||'')}</div></div>
 <div class="trow"><div class="tk">正确做法</div><div class="tv">${esc(p[2]||'')}</div></div>
-<div class="trow"><div class="tk">门店自查</div><div class="tv">${esc(p.slice(3).join('｜')||'')}</div></div></div>`);
+<div class="trow"><div class="tk">门店自查</div><div class="tv">${esc(p.slice(3).join('｜')||'')}</div></div>
+${it && it.kw && it.kw.length?`<div class="trow"><div class="tk">本期情形拆解</div><div class="tv">${it.kw.map(k=>`<span style="display:inline-block;background:#fff1e0;color:#B26A00;border-radius:4px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px;font-weight:600">${esc(k[0])} ×${k[1]}</span>`).join('')}${it.topDescs&&it.topDescs.length?`<div style="color:#777;font-size:12px;margin-top:4px">典型记录：${esc(it.topDescs[0].d)}${it.topDescs[0].n>1?`（${it.topDescs[0].n} 次一模一样的描述）`:''}</div>`:''}</div></div>`:''}
+</div>`);
           });
         } else {
           prob.items.slice(0,6).forEach(x=>{
             h.push(`<div class="tcard"><div class="thead">📋 ${esc(x.t)}（本期 ${x.count} 次）</div>
 <div class="trow"><div class="tk">真实情形</div><div class="tv">${esc(x.descs[0]||'见巡检照片记录')}</div></div>
+${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div class="tv">${x.kw.map(k=>`<span style="display:inline-block;background:#fff1e0;color:#B26A00;border-radius:4px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px;font-weight:600">${esc(k[0])} ×${k[1]}</span>`).join('')}</div></div>`:''}
 <div class="trow"><div class="tk">涉及门店</div><div class="tv">${x.storeCount} 家 · 集中在 ${esc(x.topRegion[0])} · 组别：${esc(x.groupDist)}</div></div></div>`);
           });
         }
@@ -516,8 +560,11 @@ ${bodyHtml}
         if(prob.repeats.length){
           h.push(`<h2 class="sec"><span style="color:#F59E0B">05</span>　改了又犯的门店 · 请店长重点对照</h2>
 <div class="subnote">以下门店同一问题出现 2 次以上——不是不会做，是没当回事。晨会请点名复盘</div>
-<table><tr><th class="l">门店</th><th>区域</th><th class="l">重复的问题</th><th>出现次数</th></tr>`);
-          prob.repeats.slice(0,12).forEach(x=>{ h.push(`<tr><td class="l"><b>${esc(x.sn)}</b></td><td>${esc(x.rg)}</td><td class="l">${esc(x.t)}</td><td><span class="risk-high">${x.times} 次</span></td></tr>`); });
+<table><tr><th class="l">门店</th><th>区域</th><th class="l">重复的问题</th><th>出现次数</th><th class="l">具体情况</th></tr>`);
+          prob.repeats.slice(0,12).forEach(x=>{
+            const detail = x.kw && x.kw.length ? x.kw.slice(0,5).map(k=>`${k[0]}×${k[1]}`).join(' · ') : (x.topDescs||[]).join('；');
+            h.push(`<tr><td class="l"><b>${esc(x.sn)}</b></td><td>${esc(x.rg)}</td><td class="l">${esc(x.t)}</td><td><span class="risk-high">${x.times} 次</span></td><td class="l" style="font-size:12px;color:#666">${esc(detail||'-')}</td></tr>`);
+          });
           h.push('</table>');
         }
         const w = openReport(`苍井寿司门店食品安全专项培训课件 ${currentStart}~${currentEnd}`, h.join('\n'), true);
@@ -529,7 +576,7 @@ ${bodyHtml}
       stat('⏳ 3/3 智谱 AI 经营决策分析…');
       const aiProb = {
         总量:{ 不合格记录:prob.total, 问题项数:prob.items.length, 关键食安问题条数:prob.level.C, 流程执行问题条数:prob.level.M, 一般问题条数:prob.level.L, 整改闭环率估算:prob.loopRate+'%' },
-        高发问题: prob.items.slice(0,15).map(x=>({ 问题:x.t, 分级:x.level, 次数:x.count, 门店数:x.storeCount, 最集中区域:x.topRegion[0], 组别分布:x.groupDist, 环比:x.delta, 典型情形:x.descs[0] })),
+        高发问题: prob.items.slice(0,15).map(x=>({ 问题:x.t, 分级:x.level, 次数:x.count, 门店数:x.storeCount, 最集中区域:x.topRegion[0], 组别分布:x.groupDist, 环比:x.delta, 情形拆解:x.kw, 典型情形:x.descs[0] })),
         重复出问题的门店: prob.repeats.slice(0,12).map(x=>`${x.sn}(${x.ps})「${x.t}」${x.times}次`),
         问题最集中门店: prob.worstStores
       };
@@ -561,7 +608,8 @@ ${bodyHtml}
 <table><tr><th style="width:12%">分级</th><th class="l" style="width:34%">问题项</th><th>次数</th><th>门店数</th><th>最集中区域</th><th>环比</th></tr>`);
       prob.items.slice(0,15).forEach(x=>{
         const lv = LV[x.level];
-        h.push(`<tr><td><span class="${lv.cls}">${x.level}</span></td><td class="l" title="${esc(x.descs[0]||'')}">${esc(x.t)}</td><td><b>${x.count}</b></td><td>${x.storeCount}</td><td>${esc(x.topRegion[0])}</td><td>${x.delta==null?'<span class="dnull">无上期</span>':(x.delta>0?`<span class="dbad">+${x.delta}</span>`:(x.delta<0?`<span class="dgood">${x.delta}</span>`:'<span class="dflat">持平</span>'))}</td></tr>`);
+        const kwTxt = x.kw && x.kw.length ? `<div style="font-size:11.5px;color:#888;margin-top:2px">情形拆解：${x.kw.slice(0,6).map(k=>`${esc(k[0])}×${k[1]}`).join(' · ')}</div>` : '';
+        h.push(`<tr><td><span class="${lv.cls}">${x.level}</span></td><td class="l" title="${esc(x.descs[0]||'')}">${esc(x.t)}${kwTxt}</td><td><b>${x.count}</b></td><td>${x.storeCount}</td><td>${esc(x.topRegion[0])}</td><td>${x.delta==null?'<span class="dnull">无上期</span>':(x.delta>0?`<span class="dbad">+${x.delta}</span>`:(x.delta<0?`<span class="dgood">${x.delta}</span>`:'<span class="dflat">持平</span>'))}</td></tr>`);
       });
       h.push('</table>');
       const withDesc = prob.items.filter(x=>x.descs.length).slice(0,6);
@@ -573,10 +621,11 @@ ${bodyHtml}
       h.push(`<h2 class="sec"><span style="color:#186BEB">03</span>　整改闭环审计 · 改了又犯的门店</h2>
 <div class="subnote">同一门店同一问题出现 ≥2 份报告 = 上一次整改未闭环。国际连锁品牌将此视作最严重信号：第二次出现按系统性问题升级处理</div>`);
       if(prob.repeats.length){
-        h.push(`<table><tr><th class="l">门店</th><th>组别</th><th>区域</th><th class="l">重复问题</th><th>分级</th><th>次数</th></tr>`);
+        h.push(`<table><tr><th class="l">门店</th><th>组别</th><th>区域</th><th class="l">重复问题</th><th>分级</th><th>次数</th><th class="l">具体情况</th></tr>`);
         prob.repeats.slice(0,15).forEach(x=>{
           const lv = LV[x.level]||LV.L;
-          h.push(`<tr><td class="l"><b>${esc(x.sn)}</b></td><td>${esc(x.ps)}</td><td>${esc(x.rg)}</td><td class="l">${esc(x.t)}</td><td><span class="${lv.cls}">${x.level}</span></td><td><span class="risk-high">${x.times} 次</span></td></tr>`);
+          const detail = x.kw && x.kw.length ? x.kw.slice(0,5).map(k=>`${k[0]}×${k[1]}`).join(' · ') : (x.topDescs||[]).join('；');
+          h.push(`<tr><td class="l"><b>${esc(x.sn)}</b></td><td>${esc(x.ps)}</td><td>${esc(x.rg)}</td><td class="l">${esc(x.t)}</td><td><span class="${lv.cls}">${x.level}</span></td><td><span class="risk-high">${x.times} 次</span></td><td class="l" style="font-size:12px;color:#666">${esc(detail||'-')}</td></tr>`);
         });
         h.push('</table>');
       } else {
