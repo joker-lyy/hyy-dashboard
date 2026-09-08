@@ -237,19 +237,45 @@
     '过期','临期','变质','发霉','异味','标签','效期','生产日期','保质期','解冻','生熟','交叉','裸露','直接入口','食材','原料','三文鱼','食材检查',
     '冷藏','冷冻','冰箱','冷柜','温度','留样','消毒','虫','鼠','蟑','异物','毛发',
     '清洁','清洗','垃圾','垃圾桶','洗手','手套','抹布','砧板','刀具','记录','表单','台账','健康证'];
+  /* 从描述里截取关键词周边短语（多带1~4个字支撑，如“冰箱”→“冰箱边框未清洁”） */
+  function ctxPhrase(s, kw){
+    const i = s.indexOf(kw);
+    if(i<0) return kw;
+    const isW = c=>/[\u4e00-\u9fa5A-Za-z0-9℃°.\-]/.test(c);
+    let a=i, b=i+kw.length;
+    while(b<s.length && isW(s[b]) && (b-a)<9) b++;
+    while(a>0 && isW(s[a-1]) && (b-a)<9) a--;
+    return s.slice(a,b).replace(/^[\s，。、；,;]+|[\s，。、；,;]+$/g,'') || kw;
+  }
   function extractKw(descs){
-    const cnt = {};
+    const cnt = {};          /* 关键词 → 出现描述条数 */
+    const phr = {};          /* 关键词 → 短语频次（用于挑最有代表性的说法） */
     descs.forEach(d=>{
-      const s = String(d||'');
+      const s = String(d||'').trim();
       if(!s) return;
       const seen = new Set();
-      KW_VOCAB.forEach(k=>{ if(s.indexOf(k)>=0 && !seen.has(k)){ seen.add(k); cnt[k]=(cnt[k]||0)+1; } });
+      KW_VOCAB.forEach(k=>{
+        if(s.indexOf(k)>=0 && !seen.has(k)){
+          seen.add(k); cnt[k]=(cnt[k]||0)+1;
+          const p = ctxPhrase(s, k);
+          phr[k] = phr[k]||{}; phr[k][p]=(phr[k][p]||0)+1;
+        }
+      });
     });
-    /* 归并近义词：工作服/工服→工衣，发网/发帽→头发相关 */
-    if(cnt['工作服']) cnt['工衣'] = (cnt['工衣']||0)+cnt['工作服'], delete cnt['工作服'];
-    if(cnt['工服']) cnt['工衣'] = (cnt['工衣']||0)+cnt['工服'], delete cnt['工服'];
-    if(cnt['发网']) cnt['发帽'] = (cnt['发帽']||0)+cnt['发网'], delete cnt['发网'];
-    return Object.entries(cnt).filter(x=>x[1]>=1).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    /* 归并近义词：工作服/工服→工衣，发网→发帽 */
+    ['工作服','工服'].forEach(x=>{ if(cnt[x]){ cnt['工衣']=(cnt['工衣']||0)+cnt[x]; phr['工衣']=Object.assign(phr['工衣']||{},phr[x]); delete cnt[x]; delete phr[x]; } });
+    if(cnt['发网']){ cnt['发帽']=(cnt['发帽']||0)+cnt['发网']; phr['发帽']=Object.assign(phr['发帽']||{},phr['发网']); delete cnt['发网']; delete phr['发网']; }
+    return Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>{
+      const k = x[0], total = x[1];
+      const ps = Object.entries(phr[k]||{}).sort((a,b)=>b[1]-a[1]);
+      let label = k;
+      if(ps.length){
+        /* 优先选比关键词更长、出现最多的短语；若最长见短语≈关键词本身就保留关键词 */
+        const best = ps.find(p=>p[0].length>k.length) || ps[0];
+        label = best[0].length>k.length ? best[0] : k;
+      }
+      return [label, total];
+    });
   }
   function analyzeProblems(cur, prev){
     const descMap = new Map(); /* 问题标题 → 全部问题描述（情形拆解用） */
