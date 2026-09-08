@@ -378,15 +378,26 @@
       重复出问题的门店: problems.repeats.slice(0,8).map(x=>x.sn+'（'+x.t+'出现'+x.times+'次）')
     };
     const body = {
-      model:'glm-4-flash', temperature:0.4, max_tokens:3000,
+      model:'glm-4-flash', temperature:0.4, max_tokens:4000,
       messages:[
-        {role:'system', content:`你是苍井寿司培训部讲师，正在为加盟商和门店伙伴（一线店员）做食品安全专项培训。语言要求：说人话、不吓唬人但讲清楚后果、每一条都告诉伙伴"具体怎么做"。禁止英文术语、禁止专业黑话，对门店工作人员一律称"伙伴"。
+        {role:'system', content:`你是苍井寿司培训部金牌讲师，正在为加盟商和门店店长做食品安全专项培训课件。这门课的核心使命：**戳痛点**——让加盟商真切感觉到"这些事不做，亏的是我自己的钱、砸的是我自己的店"，痛了才讲得明、听得进、做得到。语言要求：说人话、敢说重话、句句带代价；禁止英文术语；对门店工作人员一律称"伙伴"。
+
+【法规依据（只许引用以下条款，不许编造）】
+1.《中华人民共和国食品安全法》第三十四条：禁止生产经营腐败变质、油脂酸败、霉变生虫、污秽不洁、混有异物、掺假掺杂或者感官性状异常的食品；超过保质期的食品。
+2.《食品安全法》第四十五条：从事接触直接入口食品工作的从业人员应当每年进行健康检查，取得健康证明后方可上岗。患有国务院卫生行政部门规定的有碍食品安全疾病的人员，不得从事接触直接入口食品的工作。
+3.《食品安全法》第五十四条：食品经营者应当按照保证食品安全的要求贮存食品，定期检查库存食品，及时清理变质或者超过保质期的食品。食品经营者贮存、运输和装卸食品的容器、工具和设备应当安全、无害，保持清洁。
+4.《食品安全法》第一百二十四条：生产经营用超过保质期的食品原料、食品添加剂生产食品，或生产经营致病性微生物、农药残留、兽药残留、重金属等污染物质超过食品安全标准限量的食品，尚不构成犯罪的，没收违法所得，货值金额不足一万元的，并处五万元以上十万元以下罚款；货值金额一万元以上的，并处货值金额十倍以上二十倍以下罚款。
+5.《食品安全法》第一百二十六条：未按规定对从业人员进行食品安全培训和考核、未建立并遵守食品进货查验记录制度等，由监管部门责令改正，给予警告；拒不改正的，处五千元以上五万元以下罚款；情节严重的，责令停产停业，直至吊销许可证。
+6.《食品安全法》第一百三十五条：因食品安全犯罪被判处有期徒刑以上刑罚的，终身不得从事食品生产经营管理工作。
+7. 国家标准《餐饮服务通用卫生规范》（GB 31654-2021）：从业人员应保持个人卫生，穿戴清洁的工作衣、帽、口罩；留样食品按品种分别盛放于清洗消毒后的专用密闭容器内，在专用冷藏设备中冷藏存放48小时以上，每个品种留样量不少于125g，并记录留样食品名称、留样量、留样时间、留样人员等。
+8. 市场监管部门"餐饮服务食品安全操作规范"要求：食品贮存做到离墙离地10cm以上、分类分架存放，遵循先进先出；需要冷藏的熟制食品应在清洁密闭容器中冷藏。
+
 严格按以下格式输出，不要寒暄：
+【痛点开场】3条，每条算一笔加盟商自己的账：一次食安事故的直接代价（罚款额度引上面条款的数字）+ 间接代价（停业整顿期间房租人工照付、外卖平台评分和下架、顾客流失、品牌加盟资格）+ 对比做好只要花多少心思。要写"这一笔账你自己算"这种口吻。
 【教学卡】5-6张，每张一行，格式（用竖线分隔）：
-问题名｜为什么危险（一句话讲清食安后果，如"顾客吃了会拉肚子甚至上新闻"）｜正确做法（具体步骤，2-3步，包含数字标准如温度/时长）｜门店自查（伙伴每天怎么快速自查这一项）
-教学卡的"为什么危险"和"正确做法"必须结合数据里的【情形拆解】展开——比如着装问题拆解出工衣×58、帽子×31，就要点明"本期116次里最多的是没穿工衣（58次）和没戴帽（31次）"，用真实占比讲课，不许泛泛而谈。
+问题名｜真实发生（引数据里的次数与情形拆解，如"本期116次着装问题里没穿工衣最多"）｜踩了哪条法规（引用上面条款名+关键数字，如"《食品安全法》第126条：拒不改正可罚5千到5万、停产停业"）｜疼在哪（对加盟商的账：罚款/停业/赔偿/外卖分）｜正确做法（具体步骤含数字标准）｜门店自查（伙伴每天怎么快速自查）
 【每日自查清单】8条，每条一句话、可打勾执行，覆盖上面高频问题。
-【给加盟商的话】3条，加盟商视角：我该盯什么、我该给门店什么支持、发现问题第一时间做什么。`},
+【给加盟商的话】3条，加盟商视角，要带痛感：我该盯什么、出了问题第一时间做什么、不盯的代价是什么。`},
         {role:'user', content:'本期巡检发现的问题（真实数据，教学卡按出现次数从高到低）：\n'+JSON.stringify(brief, null, 1)}
       ]
     };
@@ -397,7 +408,7 @@
     const j = await r.json();
     const txt = (j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content||'').trim();
     const seg = {};
-    ['教学卡','每日自查清单','给加盟商的话'].forEach(k=>{
+    ['痛点开场','教学卡','每日自查清单','给加盟商的话'].forEach(k=>{
       const m = txt.match(new RegExp('【'+k+'】([\\s\\S]*?)(?=【|$)'));
       seg[k] = m ? m[1].split('\n').map(l=>l.trim()).filter(Boolean).filter(l=>l.indexOf('｜')>=0 || k!=='教学卡') : [];
     });
@@ -517,7 +528,13 @@ ${bodyHtml}
         const h = [];
         h.push(`<div class="cover train"><div class="brand">CANGJING SUSHI · 苍井寿司</div>
 <h1>门店食品安全专项培训课件</h1>
-<div class="meta">面向：加盟商 · 门店伙伴　|　数据区间 ${esc(rangeTxt)}<br>内容依据：本期真实巡检发现（${prob.total} 条不合格记录）· 由培训部整理</div></div>`);
+<div class="meta">面向：加盟商 · 门店伙伴　|　数据区间 ${esc(rangeTxt)}<br>内容依据：本期真实巡检发现（${prob.total} 条不合格记录）· 国家食品安全法律法规 · 由培训部整理</div></div>`);
+        if(ai && ai['痛点开场'] && ai['痛点开场'].length){
+          h.push(`<div style="background:#7c2d12;color:#fff;border-radius:12px;padding:22px 26px;margin:18px 0">
+<div style="font-size:17px;font-weight:800;margin-bottom:10px">开场 · 先算一笔你自己的账</div>
+<ol style="margin:0;padding-left:20px;line-height:1.9">${ai['痛点开场'].map(l=>`<li>${esc(l.replace(/^[·•\-0-9.、\s]+/,''))}</li>`).join('')}</ol>
+<div style="margin-top:10px;font-size:12.5px;opacity:.85">食品安全从来不是"公司找麻烦"——上面每一条罚款、每一次停业，都是国家法律白纸黑字写着的，砸的是你自己的营业额。</div></div>`);
+        }
         const top3 = prob.items.slice(0,3);
         h.push(`<h2 class="sec"><span style="color:#F59E0B">01</span>　上一期，我们的门店真实发生了什么</h2>
 <div class="subnote">下面不是编的案例，全部来自本期巡检现场记录</div>
@@ -526,24 +543,39 @@ ${bodyHtml}
 <div class="card"><div class="k">最高频的问题</div><div class="v" style="font-size:15px;padding-top:8px">${esc(top3[0]?top3[0].t:'-')}</div><div class="d">出现了 ${top3[0]?top3[0].count:0} 次 · ${top3[0]?top3[0].storeCount:0} 家门店</div></div>
 <div class="card"><div class="k">同一问题出现2次以上的门店</div><div class="v" style="color:#C0392B">${prob.repeats.length}</div><div class="d">说明上次改了又犯，这次重点讲</div></div>
 </div>`);
-        h.push(`<h2 class="sec"><span style="color:#F59E0B">02</span>　高频问题教学卡 · 逐条教会怎么做</h2>
-<div class="subnote">每张卡：为什么危险 → 正确做法 → 每天自查。建议店内晨会逐条过一遍</div>`);
+        h.push(`<h2 class="sec"><span style="color:#F59E0B">02</span>　高频问题教学卡 · 每一条都有法可依</h2>
+<div class="subnote">每张卡：真实发生 → 踩了哪条国家法规 → 疼在哪 → 正确做法 → 每天自查。建议店内晨会逐条过一遍</div>`);
         if(ai && ai['教学卡'] && ai['教学卡'].length){
           ai['教学卡'].forEach(card=>{
             const p = card.split('｜');
             const title = (p[0]||'').replace(/^[·•\-0-9.、\s]+/,'');
             const it = prob.items.find(x=> x.t.indexOf(title.trim())>=0 || title.indexOf(x.t.slice(0,6))>=0 ) ||
                        prob.items.find(x=> title && x.t.slice(0,4)===title.slice(0,4));
+            const row = (k,v,style)=> v?`<div class="trow"${style?` ${style}`:''}><div class="tk">${k}</div><div class="tv">${v}</div></div>`:'';
             h.push(`<div class="tcard"><div class="thead">📋 ${esc(title)}</div>
-<div class="trow"><div class="tk">为什么危险</div><div class="tv">${esc(p[1]||'')}</div></div>
-<div class="trow"><div class="tk">正确做法</div><div class="tv">${esc(p[2]||'')}</div></div>
-<div class="trow"><div class="tk">门店自查</div><div class="tv">${esc(p.slice(3).join('｜')||'')}</div></div>
+${row('真实发生', esc(p[1]||''))}
+${row('踩了哪条法规', p[2]?`<span style="background:#fdecea;color:#C0392B;border-radius:4px;padding:2px 8px;font-weight:600">${esc(p[2])}</span>`:'')}
+${row('疼在哪（这笔账）', p[3]?esc(p[3]):'')}
+${row('正确做法', esc(p[4]||''))}
+${row('门店自查', esc(p[5]||p.slice(3).join('｜')||''))}
 ${it && it.kw && it.kw.length?`<div class="trow"><div class="tk">本期情形拆解</div><div class="tv">${it.kw.map(k=>`<span style="display:inline-block;background:#fff1e0;color:#B26A00;border-radius:4px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px;font-weight:600">${esc(k[0])} ×${k[1]}</span>`).join('')}${it.topDescs&&it.topDescs.length?`<div style="color:#777;font-size:12px;margin-top:4px">典型记录：${esc(it.topDescs[0].d)}${it.topDescs[0].n>1?`（${it.topDescs[0].n} 次一模一样的描述）`:''}</div>`:''}</div></div>`:''}
 </div>`);
           });
         } else {
+          /* 无AI兜底：静态法规映射 */
+          const lawFor = t=>{
+            const s = String(t||'');
+            if(/过期|变质|腐败|发霉|异味|异物|三文鱼|食材/.test(s)) return '《食品安全法》第34条：禁止经营超过保质期、腐败变质、混有异物的食品';
+            if(/温度|冷藏|冷冻|冰箱|解冻|储存|存放/.test(s)) return '《食品安全法》第54条：按保证食品安全的要求贮存食品 · GB 31654-2021 冷藏规范';
+            if(/健康证/.test(s)) return '《食品安全法》第45条：接触直接入口食品的从业人员必须持有效健康证明上岗';
+            if(/留样/.test(s)) return 'GB 31654-2021：留样专用密闭容器冷藏存放48小时以上，每品种不少于125g并记录';
+            if(/工衣|帽子|口罩|仪容|着装|头发|手套|洗手/.test(s)) return 'GB 31654-2021：从业人员应保持个人卫生，穿戴清洁的工作衣、帽、口罩';
+            if(/离墙离地|先进先出/.test(s)) return '餐饮服务食品安全操作规范：离墙离地10cm以上、分类分架、先进先出';
+            return '《食品安全法》第126条：未落实食品安全管理要求，拒不改正可罚5千～5万元、情节严重停产停业';
+          };
           prob.items.slice(0,6).forEach(x=>{
             h.push(`<div class="tcard"><div class="thead">📋 ${esc(x.t)}（本期 ${x.count} 次）</div>
+<div class="trow"><div class="tk">踩了哪条法规</div><div class="tv"><span style="background:#fdecea;color:#C0392B;border-radius:4px;padding:2px 8px;font-weight:600">${esc(lawFor(x.t))}</span></div></div>
 <div class="trow"><div class="tk">真实情形</div><div class="tv">${esc(x.descs[0]||'见巡检照片记录')}</div></div>
 ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div class="tv">${x.kw.map(k=>`<span style="display:inline-block;background:#fff1e0;color:#B26A00;border-radius:4px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px;font-weight:600">${esc(k[0])} ×${k[1]}</span>`).join('')}</div></div>`:''}
 <div class="trow"><div class="tk">涉及门店</div><div class="tv">${x.storeCount} 家 · 集中在 ${esc(x.topRegion[0])} · 组别：${esc(x.groupDist)}</div></div></div>`);
@@ -567,6 +599,19 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
           });
           h.push('</table>');
         }
+        /* 06 法规红线（静态·国家明文规定） */
+        h.push(`<h2 class="sec"><span style="color:#F59E0B">06</span>　法规红线 · 这些不是公司规定，是国家明文规定</h2>
+<div class="subnote">《中华人民共和国食品安全法》及国家标准《餐饮服务通用卫生规范》（GB 31654-2021）· 培训部依据国家现行有效版本整理</div>
+<table><tr><th style="width:26%">法规条款</th><th class="l" style="width:40%">国家是怎么规定的</th><th class="l">违反的代价（白纸黑字）</th></tr>
+<tr><td><b>食安法 第34条</b></td><td class="l" style="font-size:12.5px">禁止生产经营腐败变质、霉变生虫、混有异物、感官性状异常的食品；<b>超过保质期的食品</b></td><td class="l" style="font-size:12.5px">第124条：没收违法所得；货值不足1万的罚 <b style="color:#C0392B">5万～10万</b>；货值1万以上罚货值 <b style="color:#C0392B">10～20倍</b></td></tr>
+<tr><td><b>食安法 第45条</b></td><td class="l" style="font-size:12.5px">接触直接入口食品的从业人员<b>每年健康检查、持有效健康证明</b>上岗；有碍食品安全疾病的不得上岗</td><td class="l" style="font-size:12.5px">第126条：责令改正、警告；拒不改正罚 <b style="color:#C0392B">5千～5万</b>，情节严重<b style="color:#C0392B">停产停业直至吊销许可证</b></td></tr>
+<tr><td><b>食安法 第54条</b></td><td class="l" style="font-size:12.5px">按要求贮存食品，<b>定期检查库存，及时清理变质或超过保质期的食品</b></td><td class="l" style="font-size:12.5px">同上第126条；造成事故的按第124条重罚并承担民事赔偿</td></tr>
+<tr><td><b>食安法 第135条</b></td><td class="l" style="font-size:12.5px">因食品安全犯罪被判处有期徒刑以上刑罚的，<b>终身不得从事食品生产经营管理工作</b></td><td class="l" style="font-size:12.5px"><b style="color:#C0392B">终身行业禁入</b>——这不是罚款能了的事</td></tr>
+<tr><td><b>GB 31654-2021</b></td><td class="l" style="font-size:12.5px">从业人员保持个人卫生，<b>穿戴清洁的工作衣、帽、口罩</b>；留样食品专用密闭容器<b>冷藏存放48小时以上</b>，每品种<b>不少于125g</b>并记录</td><td class="l" style="font-size:12.5px">属食品安全国家标准，监管部门日常检查必查项，不符合即责令整改并记录在案</td></tr>
+<tr><td><b>餐饮服务食品安全操作规范</b></td><td class="l" style="font-size:12.5px">食品贮存<b>离墙离地10cm以上</b>、分类分架、<b>先进先出</b>；冷藏熟制食品使用清洁密闭容器</td><td class="l" style="font-size:12.5px">日常监督检查量化分级降级，直接影响<b style="color:#C0392B">餐饮量化等级和平台公示</b></td></tr>
+<tr><td><b>食安法 第126条（培训义务）</b></td><td class="l" style="font-size:12.5px">未按规定对从业人员进行<b>食品安全培训和考核</b>，同样违法</td><td class="l" style="font-size:12.5px">警告→拒不改正罚 <b style="color:#C0392B">5千～5万</b>——所以这份课件不是走形式，是法定义务</td></tr>
+</table>
+<div style="margin-top:12px;background:#fdecea;border-radius:8px;padding:12px 16px;font-size:13px;color:#7c2d12"><b>讲师提示：</b>给加盟商讲这一页时，直接说透——"这些条款罚的不是公司，执照是你的、罚款单开给的是你的店。一次执法抽检不合格，外卖平台下架、美团评分腰斩、周边三公里口碑清零，恢复要半年。做好这些只需要每天花10分钟按清单自查。"</div>`);
         const w = openReport(`苍井寿司门店食品安全专项培训课件 ${currentStart}~${currentEnd}`, h.join('\n'), true);
         stat(w ? '✅ 培训课件已在新窗口打开！含教学卡'+(ai&&ai['教学卡']?ai['教学卡'].length:0)+'张 · 可直接打印或截图进 PPT' : '❌ 浏览器拦截了新窗口，请允许弹出后重试');
         return;
