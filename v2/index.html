@@ -497,6 +497,7 @@ a.fbtn{text-decoration:none;display:inline-block}
   <div class="modal-box">
     <div class="modal-header">
       <h3 class="modal-title" id="reportDetailTitle">报告详情</h3>
+      <button onclick="sharePngModal()" style="margin-right:10px;padding:6px 14px;border:none;color:#fff;background:#E8890C;border-radius:6px;cursor:pointer;font-size:13px" title="把整份报告详情（含照片）渲染成一张长图，复制后直接粘贴发送">🖼 生成长图</button>
       <button onclick="openShareOverlay()" style="margin-right:10px;padding:6px 14px;border:none;color:#fff;background:#2f6fed;border-radius:6px;cursor:pointer;font-size:13px">🔗 分享本视图</button>
       <button onclick="closeReportDetailModal()" style="margin-right:10px;padding:6px 14px;border:1px solid #186BEB;color:#186BEB;background:#fff;border-radius:6px;cursor:pointer;font-size:13px">← 返回上一页</button>
       <button class="modal-close" onclick="closeReportDetailModal()">&times;</button>
@@ -516,8 +517,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260908fix163"></script>
-<script src="app.js?v=20260909fix163"></script>
+<script src="aggregate.js?v=20260909fix164"></script>
+<script src="app.js?v=20260909fix164"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">

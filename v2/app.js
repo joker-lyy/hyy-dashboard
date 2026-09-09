@@ -4520,7 +4520,7 @@ function renderTypeProblems(type){
   try{
     if(new URLSearchParams(location.search).get('key') === '888'){
       const s = document.createElement('script');
-      s.src = 'export.js?v=fix163';
+      s.src = 'export.js?v=fix164';
       document.head.appendChild(s);
     }
   }catch(e){ console.warn('export load skipped', e); }
@@ -4555,13 +4555,27 @@ window.sharePng = async function (mode) {
       if (m && m.classList && m.classList.contains("active")) modal = m;
     });
     const isModal = mode === "modal" && modal;
-    const target = isModal ? modal : document.body;
+    let target = isModal ? modal : document.body;
+    let restoreBox = null;
+    /* fix164：长图模式——把弹窗内容临时展开为完整高度，整份内容（含折叠在滚动区外的照片）全部渲染进图片 */
+    if (isModal && window._pngLongMode) {
+      const box = modal.querySelector(".modal-box") || modal;
+      target = box;
+      const mh = box.style.maxHeight, ovf = box.style.overflow;
+      box.style.maxHeight = "none"; box.style.overflow = "visible";
+      restoreBox = () => { box.style.maxHeight = mh; box.style.overflow = ovf; };
+      /* 照片补挂 crossorigin，尽量让 html2canvas 能把 OSS 图画进画布 */
+      box.querySelectorAll("img").forEach(im => { try { im.crossOrigin = "anonymous"; } catch(e){} });
+    }
     const tabEl = document.querySelector("#mainTabs .tab.active");
     const title = isModal ? ((modal.querySelector(".modal-header h2, .modal-header h3, h2, h3") || {}).textContent || "巡检报告明细") : ((tabEl && tabEl.textContent.trim()) || "慧运营巡店看板");
-    const canvas = await html2canvas(target, {
-      useCORS: true, backgroundColor: "#f2f4f8", scale: 2, logging: false,
-      ignoreElements: el => ["shareOverlay", "pngShareTip", "shareRoBar"].includes(el.id)
-    });
+    let canvas;
+    try {
+      canvas = await html2canvas(target, {
+        useCORS: true, backgroundColor: "#f2f4f8", scale: 2, logging: false,
+        ignoreElements: el => ["shareOverlay", "pngShareTip", "shareRoBar"].includes(el.id)
+      });
+    } finally { if (restoreBox) restoreBox(); }
     const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
     let copied = false;
     try { await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); copied = true; } catch (e) {}
@@ -4588,4 +4602,10 @@ window.sharePng = async function (mode) {
     showTip(`<div style="font-size:15px;font-weight:700;color:#e64340;margin-bottom:6px">生成失败</div><div style="font-size:12px;color:#7a8399">${escHtml(String(e && e.message || e))}<br>可改用「🔗 分享本视图」按钮发链接。</div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px"><button onclick="document.getElementById('pngShareTip').remove()" style="background:#f0f2f7;color:#1A2A4A;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px">关闭</button></div>`, true);
   }
+};
+/* fix164：弹窗长图模式入口 —— 报告详情等弹窗整份内容渲染成一张长图（含滚动区外的照片） */
+window.sharePngModal = async function () {
+  window._pngLongMode = true;
+  try { await window.sharePng("modal"); }
+  finally { window._pngLongMode = false; }
 };
