@@ -1696,6 +1696,7 @@ function unq2ShowDetail(id){
     <div style="background:#fff;border-radius:12px;width:min(96vw,1200px);max-height:92vh;overflow:auto;padding:16px 18px" onclick="event.stopPropagation()">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-size:15px;font-weight:700;color:#1A2A4A">${html(id.split('|')[2]||'')} <span style="color:#c0392b;font-weight:600;margin-left:8px">共 ${ents.length} 条不合格记录</span></div>
+        <button onclick="sharePngModal()" style="border:none;background:#E8890C;color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;margin-right:8px" title="把整份弹窗内容渲染成一张长图，复制后直接粘贴发送">🖼 图片</button>
         <button onclick="openShareOverlay()" style="border:none;background:#2f6fed;color:#fff;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;margin-right:8px">🔗 分享本视图</button>
         <button onclick="document.getElementById('unq2DetailOverlay').remove()" style="border:none;background:#f0f2f7;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px">关闭 ✕</button>
       </div>
@@ -4548,22 +4549,26 @@ window.sharePng = async function (mode) {
   showTip('<div style="font-size:14px;color:#1A2A4A">⏳ 正在生成图片，请稍候…</div>');
   try {
     await window._loadHtml2canvas();
-    // 弹窗级：优先当前显示的报告详情/门店清单弹窗
+    // 弹窗级：优先当前显示的报告详情/门店清单弹窗，「查看更多」覆盖层也支持
     let modal = null;
     ["reportDetailModal", "regionModal"].forEach(id => {
       const m = document.getElementById(id);
       if (m && m.classList && m.classList.contains("active")) modal = m;
     });
+    if (!modal) { const u = document.getElementById("unq2DetailOverlay"); if (u) modal = u; }
     const isModal = mode === "modal" && modal;
     let target = isModal ? modal : document.body;
     let restoreBox = null;
-    /* fix164：长图模式——把弹窗内容临时展开为完整高度，整份内容（含折叠在滚动区外的照片）全部渲染进图片 */
+    /* fix165：长图模式（参照学习看板）——解除弹窗限高与滚动、遮罩改 static（html2canvas 对 fixed 祖先按视口裁剪），
+       整份内容（含滚动区外的照片）全部渲染进一张长图 */
     if (isModal && window._pngLongMode) {
-      const box = modal.querySelector(".modal-box") || modal;
+      const box = modal.querySelector(".modal-box") || modal.querySelector("div[style*='background: #fff'], div[style*='background:#fff']") || modal;
       target = box;
       const mh = box.style.maxHeight, ovf = box.style.overflow;
       box.style.maxHeight = "none"; box.style.overflow = "visible";
-      restoreBox = () => { box.style.maxHeight = mh; box.style.overflow = ovf; };
+      const oldPos = modal.style.position, oldPad = modal.style.padding, oldOv2 = modal.style.overflow;
+      modal.style.position = "static"; modal.style.padding = "0"; modal.style.overflow = "visible";
+      restoreBox = () => { box.style.maxHeight = mh; box.style.overflow = ovf; modal.style.position = oldPos; modal.style.padding = oldPad; modal.style.overflow = oldOv2; };
       /* 照片补挂 crossorigin，尽量让 html2canvas 能把 OSS 图画进画布 */
       box.querySelectorAll("img").forEach(im => { try { im.crossOrigin = "anonymous"; } catch(e){} });
     }
@@ -4573,6 +4578,9 @@ window.sharePng = async function (mode) {
     try {
       canvas = await html2canvas(target, {
         useCORS: true, backgroundColor: "#f2f4f8", scale: 2, logging: false,
+        width: target.scrollWidth || undefined, height: target.scrollHeight || undefined,
+        windowWidth: target.scrollWidth || undefined, windowHeight: target.scrollHeight || undefined,
+        scrollX: 0, scrollY: 0,
         ignoreElements: el => ["shareOverlay", "pngShareTip", "shareRoBar"].includes(el.id)
       });
     } finally { if (restoreBox) restoreBox(); }
