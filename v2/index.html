@@ -250,6 +250,7 @@ a.fbtn{text-decoration:none;display:inline-block}
       </div>
       <span id="statusPill" class="status-pill loading">数据加载中…</span>
       <button class="fbtn" id="shareViewBtn" title="生成当前板块的只读分享链接">🔗 分享本视图</button>
+      <button class="fbtn" id="sharePngBtn" onclick="sharePng()" title="把当前页面生成为图片，复制后直接粘贴发送">🖼 分享图片</button>
     </div>
   </div>
   <div class="tabs" id="mainTabs">
@@ -516,7 +517,7 @@ window.onerror = function(msg, url, line, col, err){
 };
 </script>
 <script src="aggregate.js?v=20260908fix163"></script>
-<script src="app.js?v=20260908fix163"></script>
+<script src="app.js?v=20260909fix163"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">

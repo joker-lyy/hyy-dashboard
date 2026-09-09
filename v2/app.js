@@ -4312,6 +4312,7 @@ async function applyShareView(){
   document.getElementById('mainTabs').style.display = 'none';
   const db = document.querySelector('.datebar'); if(db) db.style.display = 'none';
   const sb2 = $('shareViewBtn'); if(sb2) sb2.style.display = 'none';
+  const sp2 = document.getElementById('sharePngBtn'); if(sp2) sp2.style.display = 'none';
   if(!document.getElementById('shareRoBar')){
     document.body.insertAdjacentHTML('beforeend',
       '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 只读分享视图（' + (st.t==='unqualifiedDetail'?'巡检问题汇总及整改跟进':st.t) + (st.s&&st.e? ' · ' + st.s + ' ~ ' + st.e : '') + '）</div>');
@@ -4524,3 +4525,67 @@ function renderTypeProblems(type){
     }
   }catch(e){ console.warn('export load skipped', e); }
 })();
+
+/* ---------- 分享PNG图片：渲染当前页面/弹窗为图片，复制到剪贴板直接粘贴发送 ---------- */
+window._loadHtml2canvas = function () {
+  if (window.html2canvas) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+    s.onload = res; s.onerror = () => rej(new Error("html2canvas 加载失败"));
+    document.head.appendChild(s);
+  });
+};
+window.sharePng = async function (mode) {
+  const escHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const showTip = (html, sticky) => {
+    let ov = document.getElementById("pngShareTip");
+    if (!ov) { ov = document.createElement("div"); ov.id = "pngShareTip"; ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:24px"; document.body.appendChild(ov); }
+    ov.onclick = e => { if (e.target === ov && !sticky) ov.remove(); };
+    ov.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:640px;width:100%;padding:18px 20px;max-height:90vh;overflow:auto" onclick="event.stopPropagation()">${html}</div>`;
+    return ov;
+  };
+  showTip('<div style="font-size:14px;color:#1A2A4A">⏳ 正在生成图片，请稍候…</div>');
+  try {
+    await window._loadHtml2canvas();
+    // 弹窗级：优先当前显示的报告详情/门店清单弹窗
+    let modal = null;
+    ["reportDetailModal", "regionModal"].forEach(id => {
+      const m = document.getElementById(id);
+      if (m && m.classList && m.classList.contains("active")) modal = m;
+    });
+    const isModal = mode === "modal" && modal;
+    const target = isModal ? modal : document.body;
+    const tabEl = document.querySelector("#mainTabs .tab.active");
+    const title = isModal ? ((modal.querySelector(".modal-header h2, .modal-header h3, h2, h3") || {}).textContent || "巡检报告明细") : ((tabEl && tabEl.textContent.trim()) || "慧运营巡店看板");
+    const canvas = await html2canvas(target, {
+      useCORS: true, backgroundColor: "#f2f4f8", scale: 2, logging: false,
+      ignoreElements: el => ["shareOverlay", "pngShareTip", "shareRoBar"].includes(el.id)
+    });
+    const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+    let copied = false;
+    try { await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); copied = true; } catch (e) {}
+    const dataUrl = canvas.toDataURL("image/png");
+    const fname = title.replace(/[\\/:*?"<>|]/g, "").trim() + ".png";
+    if (copied) {
+      showTip(`<div style="font-size:15px;font-weight:700;color:#1A2A4A;margin-bottom:6px">✅ 图片已复制</div>
+        <div style="font-size:12px;color:#7a8399;margin-bottom:10px">直接到微信/企微聊天窗口 <b>Ctrl+V 粘贴</b>即可发送，无需保存文件。</div>
+        <img src="${dataUrl}" style="width:100%;border:1px solid #e3e6ee;border-radius:8px">
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+          <a download="${fname}" href="${dataUrl}" style="background:#f0f2f7;color:#1A2A4A;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px;text-decoration:none">下载文件</a>
+          <button onclick="document.getElementById('pngShareTip').remove()" style="background:#2f6fed;color:#fff;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px">完成</button>
+        </div>`, true);
+    } else {
+      showTip(`<div style="font-size:15px;font-weight:700;color:#1A2A4A;margin-bottom:6px">🖼 图片已生成</div>
+        <div style="font-size:12px;color:#7a8399;margin-bottom:10px">浏览器未授权剪贴板，可「下载文件」（文件名：${escHtml(fname)}）后直接发送，或在图片上右键复制。</div>
+        <img src="${dataUrl}" style="width:100%;border:1px solid #e3e6ee;border-radius:8px">
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+          <a download="${fname}" href="${dataUrl}" style="background:#2f6fed;color:#fff;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px;text-decoration:none">下载文件</a>
+          <button onclick="document.getElementById('pngShareTip').remove()" style="background:#f0f2f7;color:#1A2A4A;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px">关闭</button>
+        </div>`, true);
+    }
+  } catch (e) {
+    showTip(`<div style="font-size:15px;font-weight:700;color:#e64340;margin-bottom:6px">生成失败</div><div style="font-size:12px;color:#7a8399">${escHtml(String(e && e.message || e))}<br>可改用「🔗 分享本视图」按钮发链接。</div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button onclick="document.getElementById('pngShareTip').remove()" style="background:#f0f2f7;color:#1A2A4A;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px">关闭</button></div>`, true);
+  }
+};
