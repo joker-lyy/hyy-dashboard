@@ -4564,11 +4564,18 @@ window.sharePng = async function (mode) {
     if (isModal && window._pngLongMode) {
       const box = modal.querySelector(".modal-box") || modal.querySelector("div[style*='background: #fff'], div[style*='background:#fff']") || modal;
       target = box;
-      const mh = box.style.maxHeight, ovf = box.style.overflow;
-      box.style.maxHeight = "none"; box.style.overflow = "visible";
+      /* 关键：真正限高滚动的是 .modal-body（max-height:calc(92vh-70px)），必须连同外层盒子一起展开，
+         否则长图只截到视口高度就断了（fix166） */
+      const inner = box.querySelector(".modal-body");
+      const saved = [];
+      [box, inner].forEach(el => {
+        if (!el) return;
+        saved.push([el, el.style.maxHeight, el.style.overflow, el.style.height]);
+        el.style.maxHeight = "none"; el.style.overflow = "visible"; el.style.height = "auto";
+      });
       const oldPos = modal.style.position, oldPad = modal.style.padding, oldOv2 = modal.style.overflow;
       modal.style.position = "static"; modal.style.padding = "0"; modal.style.overflow = "visible";
-      restoreBox = () => { box.style.maxHeight = mh; box.style.overflow = ovf; modal.style.position = oldPos; modal.style.padding = oldPad; modal.style.overflow = oldOv2; };
+      restoreBox = () => { saved.forEach(([el, a, b, c]) => { el.style.maxHeight = a; el.style.overflow = b; el.style.height = c; }); modal.style.position = oldPos; modal.style.padding = oldPad; modal.style.overflow = oldOv2; };
       /* 照片补挂 crossorigin，尽量让 html2canvas 能把 OSS 图画进画布 */
       box.querySelectorAll("img").forEach(im => { try { im.crossOrigin = "anonymous"; } catch(e){} });
     }
