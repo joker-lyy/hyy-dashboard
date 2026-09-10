@@ -14,6 +14,12 @@ import time
 import traceback
 from typing import Any, Dict, List, Optional, Tuple
 
+
+def log(msg):
+    """兼容 fetch_data.py 等静态生成场景的日志输出。"""
+    print(f"[server] {msg}", flush=True)
+
+
 try:
     from flask import Flask, jsonify, request, send_from_directory
 except ImportError:
