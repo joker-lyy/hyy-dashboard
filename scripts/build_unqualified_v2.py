@@ -69,10 +69,18 @@ def parse_nl(nl):
 
 
 def norm_img_url(u):
-    """fix123：剥离 OSS 压缩参数。"""
+    """fix123/fix151：剥 OSS 签名参数（防 GitHub Push Protection），保留 x-oss-process 缩略参数
+    并确保首参数用 '?' 分隔。fix151 修复：旧版 split('?')[0] 对已被坏剥离的 URL
+    （xxx.jpg&x-oss-process=... 缺问号）无能为力，坏 URL 直接入库致全站图片 404。"""
     if not isinstance(u, str):
         return ""
-    return u.split("?")[0].strip()
+    import re as _re
+    u = u.strip()
+    for pat in (_re.compile(r'[?&]Expires=\d+'),
+                _re.compile(r'[?&]OSSAccessKeyId=[^&"\' ]+'),
+                _re.compile(r'[?&]Signature=[^&"\' ]+')):
+        u = pat.sub('', u)
+    return _re.compile(r'(?<!\?)&x-oss-process=').sub('?x-oss-process=', u)
 
 
 def item_photos(it):

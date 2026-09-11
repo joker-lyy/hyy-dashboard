@@ -82,11 +82,19 @@ def fetch_raw(tok, typ, rid, sid):
 
 
 def _strip_oss_sig(obj):
-    """fix92/fix149: 剥掉 OSS 图片 URL 签名参数——否则触发 GitHub Push Protection 拒推。"""
+    """fix92/fix149/fix151: 剥 OSS 图片 URL 签名参数（防 GitHub Push Protection 拒推），
+    并保留 URL 首参数的 '?'——fix151：旧正则连 '?' 一起删掉，产生 xxx.jpg&x-oss-process=... 坏 URL 致全站图片 404。"""
     import re as _re
-    pat = _re.compile(r'[?&](Expires=\d+|OSSAccessKeyId=[^&"\' ]+|Signature=[^&"\' ]+)')
+    pats = (
+        _re.compile(r'[?&]Expires=\d+'),
+        _re.compile(r'[?&]OSSAccessKeyId=[^&"\' ]+'),
+        _re.compile(r'[?&]Signature=[^&"\' ]+'),
+    )
+    orphan = _re.compile(r'(?<!\?)&x-oss-process=')
     if isinstance(obj, str):
-        return pat.sub("", obj)
+        for p in pats:
+            obj = p.sub("", obj)
+        return orphan.sub("?x-oss-process=", obj)
     if isinstance(obj, dict):
         return {k: _strip_oss_sig(v) for k, v in obj.items()}
     if isinstance(obj, list):

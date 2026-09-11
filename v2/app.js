@@ -1650,7 +1650,7 @@ function unq2ViewPhoto(i){
         </div>
         <button onclick="this.closest('#unq2PhotoOverlay').remove()" style="border:none;background:#f0f2f7;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px">关闭 ✕</button>
       </div>
-      <img src="${html(p.u)}" referrerpolicy="no-referrer" style="width:100%;max-height:76vh;object-fit:contain;border-radius:8px;background:#f5f6f8" onerror="this.parentNode.innerHTML='<div style=&quot;padding:40px;text-align:center;color:#999&quot;>照片加载失败</div>'+this.parentNode.innerHTML">
+      <img src="${html((p.u||'').split('?')[0])}" referrerpolicy="no-referrer" style="width:100%;max-height:76vh;object-fit:contain;border-radius:8px;background:#f5f6f8" onerror="this.parentNode.innerHTML='<div style=&quot;padding:40px;text-align:center;color:#999&quot;>照片加载失败</div>'+this.parentNode.innerHTML">
     </div>`;
 }
 function unq2ImgHtml(photos){
