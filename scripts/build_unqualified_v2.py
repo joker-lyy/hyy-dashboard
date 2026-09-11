@@ -29,6 +29,32 @@ OUT_PATH = os.path.join(BASE, "data", "unqualified_v2.json")
 
 TYPES = ("CG", "ZJ", "SP")
 
+RAW_SN_MAP = {}  # rid -> 门店名（从 raw 月度汇总反查，兜底历史明细文件缺 storeName）
+
+
+def load_raw_sn_map():
+    """部分历史明细文件（如 9/06 一次性脚本所抓的 21 份）顶层无 storeName、API raw 里也没有，
+    导致板块按门店分组时出现「-」卡片。raw 月度汇总里每份报告都带 sn，反查兜底。"""
+    m = {}
+    raw_dir = os.path.join(BASE, "data", "raw")
+    if not os.path.isdir(raw_dir):
+        return m
+    for fp in glob.glob(os.path.join(raw_dir, "*.json")):
+        if os.path.basename(fp) == "index.json":
+            continue
+        try:
+            j = json.load(open(fp, encoding="utf-8"))
+        except Exception:
+            continue
+        for g in (j.get("positions") or {}).values():
+            for t in ("cg", "zj", "sp"):
+                for r in g.get(t, []) or []:
+                    rid = str(r.get("rid") or "")
+                    sn = (r.get("sn") or "").strip()
+                    if rid and sn and rid not in m:
+                        m[rid] = sn
+    return m
+
 
 def parse_nl(nl):
     """组织路径 → (区域rg, 组别ps)。'总经办/加盟服务部/加盟营运组/赖先晓区域' → ('赖先晓区域','加盟营运组')"""
@@ -84,7 +110,7 @@ def extract_report(fp):
     rid = str(raw.get("reportId") or det.get("reportId") or "")
     if not rid:
         return None, []
-    sn = raw.get("storeName") or det.get("storeName") or ""
+    sn = raw.get("storeName") or det.get("storeName") or RAW_SN_MAP.get(rid, "")
     d = to_date(raw.get("reportDate") or det.get("reportDate"))
     rg, ps = parse_nl(raw.get("nameLink") or raw.get("creatorNameLink") or "")
     sc = str(raw.get("storeCode") or "")
@@ -106,6 +132,8 @@ def extract_report(fp):
 
 
 def main():
+    global RAW_SN_MAP
+    RAW_SN_MAP = load_raw_sn_map()
     files = sorted(glob.glob(os.path.join(DETAIL_DIR, "*.json")))
     reports = {}
     for fp in files:
