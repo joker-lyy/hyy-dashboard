@@ -4521,7 +4521,7 @@ function renderTypeProblems(type){
   try{
     if(new URLSearchParams(location.search).get('key') === '888'){
       const s = document.createElement('script');
-      s.src = 'export.js?v=fix168';
+      s.src = 'export.js?v=fix169';
       document.head.appendChild(s);
     }
   }catch(e){ console.warn('export load skipped', e); }

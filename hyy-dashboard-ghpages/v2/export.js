@@ -751,7 +751,10 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
       const uqMonths = prob.monthSplit ? prob.monthSplit() : [];
       const mStats = uqMonths.map(([mk, ents])=>{
         const st = analyzeProblems(ents, []);
-        return { mk, label:mLabel(mk), total:ents.length, c:st.level.C, m:st.level.M, loop:st.loopRate, cnt:new Map(st.items.map(i=>[i.t,i.count])) };
+        const ts = st.typeStats || [];
+        const cgT = ts.find(x=>x.src==='CG'), zjT = ts.find(x=>x.src==='ZJ');
+        return { mk, label:mLabel(mk), total:ents.length, c:st.level.C, m:st.level.M, loop:st.loopRate, cnt:new Map(st.items.map(i=>[i.t,i.count])),
+          cg: cgT?cgT.total:0, cgStores: cgT?cgT.storeCount:0, zj: zjT?zjT.total:0, zjStores: zjT?zjT.storeCount:0 };
       });
       const multiMonth = mStats.length>=2;
       const h = [];
@@ -840,7 +843,54 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
 </ul></div>`);
       }
 
-      h.push(`<h2 class="sec"><span style="color:#186BEB">04</span>　整改闭环审计 · 改了又犯的门店</h2>
+      /* 自检投入 × 常规QSC改善：投入产出比分析（ZJ 是服务于 CG 提升的辅助动作） */
+      if(prob.typeStats.some(t=>t.src==='ZJ') && prob.typeStats.some(t=>t.src==='CG')){
+        const roiLast = mStats[mStats.length-1], roiPv = mStats.length>1 ? mStats[mStats.length-2] : null;
+        /* 门店级对照：自检条目数（投入）vs 常规巡检不合格数（产出） */
+        const zjMap = new Map(), cgMap = new Map();
+        curEnts.forEach(x=>{
+          if(x.src==='ZJ') zjMap.set(x.sn,(zjMap.get(x.sn)||0)+1);
+          else if(x.src==='CG') cgMap.set(x.sn,(cgMap.get(x.sn)||0)+1);
+        });
+        const storeSet = new Set([...zjMap.keys(), ...cgMap.keys()]);
+        const roiRows = [...storeSet].map(sn=>{
+          const z = zjMap.get(sn)||0, c = cgMap.get(sn)||0;
+          let cls, tag;
+          if(z===0 && c>=3){ cls='dbad'; tag='自检缺位'; }
+          else if(z>=3 && c>=3){ cls='dbad'; tag='自检流于形式'; }
+          else if(z>=3 && c===0){ cls='dgood'; tag='投入见效'; }
+          else if(z>=3 && c<=1){ cls='dgood'; tag='投入见效'; }
+          else if(z>=1 && c>=2){ cls='dbad'; tag='需关注'; }
+          else { cls='dflat'; tag='正常'; }
+          return { sn, z, c, cls, tag };
+        }).sort((a,b)=>(b.c-a.c)||(b.z-a.z));
+        const tagSum = {};
+        roiRows.forEach(r=>tagSum[r.tag]=(tagSum[r.tag]||0)+1);
+        h.push(`<h2 class="sec"><span style="color:#186BEB">04</span>　自检投入 × 常规QSC改善（投入产出比）</h2>
+<div class="subnote">门店每日自检（ZJ）是服务于常规巡检（CG/QSC）提升的辅助动作——自检的投入必须换来常规巡检问题的下降，否则就是白做或做假。投入 = 自检不合格记录数（自检抓得越细说明查得越认真）· 产出 = 常规巡检不合格记录数（越少越好）</div>`);
+        if(roiLast && roiPv){
+          const zjD = roiLast.zj - roiPv.zj, cgD = roiLast.cg - roiPv.cg;
+          let verdict;
+          if(zjD>0 && cgD<0) verdict = `<span class="dgood">✅ 投入正回报：${esc(roiPv.label)}→${esc(roiLast.label)} 自检投入增加 ${zjD} 条，常规巡检不合格同步下降 ${-cgD} 条——自检动作正在转化为 QSC 改善</span>`;
+          else if(zjD>0 && cgD>0) verdict = `<span class="dbad">⚠️ 投入未转化：自检投入增加 ${zjD} 条，但常规巡检不合格不降反升 ${cgD} 条——自检可能流于形式（只记录不整改），需核查自检整改闭环</span>`;
+          else if(zjD<0 && cgD>0) verdict = `<span class="dbad">🚨 投入不足：自检投入减少 ${-zjD} 条，常规巡检不合格上升 ${cgD} 条——自检松了、QSC 立刻反弹</span>`;
+          else if(zjD<0 && cgD<0) verdict = `<span class="dflat">整体回落：自检与常规问题同步减少 ${-zjD}/${-cgD} 条，注意甄别是真正改善还是自检频次下降导致</span>`;
+          else verdict = '<span class="dflat">环比基本持平</span>';
+          h.push(`<div class="ai-block" style="margin-bottom:12px"><h3>💰 末月投入产出联动</h3><ul>
+<li>${verdict}</li>
+<li>投入（自检不合格记录）：${esc(roiPv.label)} <b>${roiPv.zj}</b> 条（${roiPv.zjStores} 店）→ ${esc(roiLast.label)} <b>${roiLast.zj}</b> 条（${roiLast.zjStores} 店），环比 ${zjD>0?`<span class="dbad">+${zjD}</span>`:(zjD<0?`<span class="dgood">${zjD}</span>`:'持平')}</li>
+<li>产出（常规巡检不合格记录）：${esc(roiPv.label)} <b>${roiPv.cg}</b> 条（${roiPv.cgStores} 店）→ ${esc(roiLast.label)} <b>${roiLast.cg}</b> 条（${roiLast.cgStores} 店），环比 ${cgD>0?`<span class="dbad">+${cgD}</span>`:(cgD<0?`<span class="dgood">${cgD}</span>`:'持平')}</li>
+</ul></div>`);
+        }
+        h.push(`<div class="subnote"><b style="color:#1A2A4A">门店级投入产出对照</b>（区间内自检 ≥3 条 vs 常规不合格交叉判定）· ${esc(tagSum['投入见效']||0)} 家投入见效 · <span class="dbad">${tagSum['自检流于形式']||0}</span> 家自检多但常规问题照样多 · <span class="dbad">${tagSum['自检缺位']||0}</span> 家自检缺位</div>
+<table><tr><th class="l">门店</th><th>自检记录（投入）</th><th>常规不合格（产出）</th><th>投入产出判定</th></tr>`);
+        roiRows.slice(0,20).forEach(r=>{
+          h.push(`<tr><td class="l"><b>${esc(r.sn)}</b></td><td>${r.z||'<span class="dnull">0</span>'}</td><td>${r.c?`<span class="risk-high">${r.c}</span>`:'0'}</td><td><span class="${r.cls}">${r.tag}</span></td></tr>`);
+        });
+        h.push('</table>');
+      }
+
+      h.push(`<h2 class="sec"><span style="color:#186BEB">05</span>　整改闭环审计 · 改了又犯的门店</h2>
 <div class="subnote">同一门店同一问题出现 ≥2 份报告 = 上一次整改未闭环。国际连锁品牌将此视作最严重信号：第二次出现按系统性问题升级处理</div>`);
       if(prob.repeats.length){
         h.push(`<table><tr><th class="l">门店</th><th>组别</th><th>区域</th><th class="l">重复问题</th><th>分级</th><th>次数</th><th class="l">具体情况</th></tr>`);
@@ -861,7 +911,7 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
         };
         if(monthSets.length>=2){
           /* 按月归属：每个自然月一张表，环比 = 该月 vs 上一自然月 */
-          h.push(`<h2 class="sec"><span style="color:#186BEB">05</span>　巡检数据表（按月归属 · 环比=后一月 vs 前一月）</h2>
+          h.push(`<h2 class="sec"><span style="color:#186BEB">06</span>　巡检数据表（按月归属 · 环比=后一月 vs 前一月）</h2>
 <div class="subnote">覆盖率 = 已巡检门店 ÷ 应巡检门店；门店合格率 = 达标门店 ÷ 已巡检门店（达标线：直营/新店 90 分，加盟营运 80 分）· 每个自然月单独一张表，「平均分环比」对比上一自然月</div>`);
           monthSets.forEach((ms, mi)=>{
             const pvM = mi>0 ? monthSets[mi-1] : null;
@@ -893,7 +943,7 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
           });
           h.push('</table>');
         } else {
-          h.push(`<h2 class="sec"><span style="color:#186BEB">05</span>　巡检数据表</h2>
+          h.push(`<h2 class="sec"><span style="color:#186BEB">06</span>　巡检数据表</h2>
 <div class="subnote">覆盖率 = 已巡检门店 ÷ 应巡检门店；门店合格率 = 达标门店 ÷ 已巡检门店（达标线：直营/新店 90 分，加盟营运 80 分）· 环比为上一等长周期</div>`);
           datasets.forEach(d=>{
             h.push(`<div style="font-size:14px;font-weight:700;margin:16px 0 4px">巡检项目：${esc(d.name)}</div>
@@ -909,13 +959,13 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
 
       if(ai){
         const blk = (k,tit)=> ai[k]&&ai[k].length ? `<div class="ai-block ${k==='经营层结论'?'boss':''}"><h3>${tit}</h3><ol>${ai[k].map(l=>`<li>${esc(l.replace(/^[·•\-0-9.、\s]+/,''))}</li>`).join('')}</ol></div>` : '';
-        h.push(`<h2 class="sec"><span style="color:#186BEB">06</span>　深度分析</h2>`);
+        h.push(`<h2 class="sec"><span style="color:#186BEB">07</span>　深度分析</h2>`);
         h.push(blk('系统性根因','🧩 系统性根因：为什么这些问题反复出现'));
         h.push(blk('风险敞口与分级','⚠️ 风险敞口与分级'));
       }
 
       if(ai && ai['决策建议'] && ai['决策建议'].length){
-        h.push(`<h2 class="sec"><span style="color:#186BEB">07</span>　决策建议（机制化 · 责任到人）</h2>
+        h.push(`<h2 class="sec"><span style="color:#186BEB">08</span>　决策建议（机制化 · 责任到人）</h2>
 <table><tr><th class="l" style="width:30%">决策</th><th class="l">负责机制 / 验证方式 / 不达标处置</th></tr>`);
         ai['决策建议'].forEach(l=>{
           const s = l.replace(/^[·•\-0-9.、\s]+/,'');
@@ -932,7 +982,7 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
       datasets.forEach(d=>d.fails.forEach(f=>allFails.push({...f, src:d.name})));
       allFails.sort((a,b)=>a.score-b.score);
       if(allFails.length){
-        h.push(`<h2 class="sec"><span style="color:#186BEB">${ai?'08':'06'}</span>　未达标门店清单（整改优先级）</h2>
+        h.push(`<h2 class="sec"><span style="color:#186BEB">${ai?'09':'07'}</span>　未达标门店清单（整改优先级）</h2>
 <table><tr><th class="l">门店</th><th>组别</th><th>区域</th><th>平均分</th><th>达标线</th><th>差距</th><th>不合格项</th></tr>`);
         allFails.slice(0,15).forEach(f=>{ h.push(`<tr><td class="l"><b>${esc(f.name)}</b></td><td>${esc(f.pos)}</td><td>${esc(f.region||'-')}</td><td>${f.score}</td><td>${f.th}分</td><td><span class="dbad">${(f.score-f.th).toFixed(1)}</span></td><td>${f.unq}</td></tr>`); });
         h.push('</table>');
