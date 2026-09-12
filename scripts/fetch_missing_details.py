@@ -16,6 +16,14 @@ import sys
 import time
 from datetime import datetime
 
+# 定时任务控制台是 GBK 编码，print 里若出现 ✔ 等非 GBK 字符会直接 UnicodeEncodeError 崩溃；
+# 统一把 stdout 切到 utf-8 + replace，宁可显示替代符也不崩。
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
 import hhy_api  # noqa: E402
 
