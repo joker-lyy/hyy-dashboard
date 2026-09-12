@@ -609,8 +609,12 @@ ${bodyHtml}
       /* 组名模糊匹配：数据侧可能是「培训组」或「培训组（直营组）」，去掉括号后缀比对 */
       const gBase = s=> String(s||'').replace(/（[^）]*）/g,'').replace(/\([^)]*\)/g,'').trim();
       const gf = x=> !expGroup || x.ps===expGroup || gBase(x.ps)===gBase(expGroup);
-      const curEnts = unqEntriesForRange(uq, currentStart, currentEnd).filter(gf);
-      const prevEnts = pr ? unqEntriesForRange(uq, pr.s, pr.e).filter(gf) : [];
+      /* ZJ 自检条目在数据源里组别常为空：用巡检数据块的 门店名→组别 映射回填 */
+      const snGroup = new Map();
+      TYPES.forEach(t=>{ const b=blockOf(t); if(b) (b.positions||[]).forEach(p=>(p.stores||[]).forEach(s=>{ if(s.storeName && !snGroup.has(s.storeName)) snGroup.set(s.storeName, p.position||p.name||''); })); });
+      const remap = ents=> ents.map(x=> x.ps ? x : Object.assign({}, x, { ps: snGroup.get(x.sn) || x.ps || '' }));
+      const curEnts = remap(unqEntriesForRange(uq, currentStart, currentEnd)).filter(gf);
+      const prevEnts = pr ? remap(unqEntriesForRange(uq, pr.s, pr.e)).filter(gf) : [];
       const prob = analyzeProblems(curEnts, prevEnts);
       if(!prob.items.length){ stat('❌ 该区间没有问题数据，换个区间试试'); return; }
 
