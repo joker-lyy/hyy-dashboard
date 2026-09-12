@@ -31,12 +31,13 @@
     const d = tabData(); if(!d) return null;
     return filterGroup(t==='regularInspection' ? d : (d[t] || null));
   }
-  /* 分组别筛选：只保留所选组的 positions/stores */
+  /* 分组别筛选：只保留所选组的 positions/stores（组名去掉括号后缀模糊匹配） */
+  function gBase(s){ return String(s||'').replace(/（[^）]*）/g,'').replace(/\([^)]*\)/g,'').trim(); }
   function filterGroup(b){
     if(!b || !expGroup) return b;
     return {
-      positions: (b.positions||[]).filter(p=>(p.position||p.name||'')===expGroup),
-      stores: (b.stores||[]).filter(s=>(s.position||'')===expGroup)
+      positions: (b.positions||[]).filter(p=>{ const n=p.position||p.name||''; return n===expGroup || gBase(n)===gBase(expGroup); }),
+      stores: (b.stores||[]).filter(s=>{ const n=s.position||''; return n===expGroup || gBase(n)===gBase(expGroup); })
     };
   }
   function curType(){
@@ -605,7 +606,9 @@ ${bodyHtml}
 
       stat('⏳ 1/3 提取「巡检问题汇总及整改跟进」数据…');
       const uq = await loadUnqData();
-      const gf = x=> !expGroup || x.ps===expGroup;
+      /* 组名模糊匹配：数据侧可能是「培训组」或「培训组（直营组）」，去掉括号后缀比对 */
+      const gBase = s=> String(s||'').replace(/（[^）]*）/g,'').replace(/\([^)]*\)/g,'').trim();
+      const gf = x=> !expGroup || x.ps===expGroup || gBase(x.ps)===gBase(expGroup);
       const curEnts = unqEntriesForRange(uq, currentStart, currentEnd).filter(gf);
       const prevEnts = pr ? unqEntriesForRange(uq, pr.s, pr.e).filter(gf) : [];
       const prob = analyzeProblems(curEnts, prevEnts);
