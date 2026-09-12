@@ -29,7 +29,15 @@
   }
   function blockOf(t){
     const d = tabData(); if(!d) return null;
-    return t==='regularInspection' ? d : (d[t] || null);
+    return filterGroup(t==='regularInspection' ? d : (d[t] || null));
+  }
+  /* 分组别筛选：只保留所选组的 positions/stores */
+  function filterGroup(b){
+    if(!b || !expGroup) return b;
+    return {
+      positions: (b.positions||[]).filter(p=>(p.position||p.name||'')===expGroup),
+      stores: (b.stores||[]).filter(s=>(s.position||'')===expGroup)
+    };
   }
   function curType(){
     return TYPES.includes(activeMainTab) ? activeMainTab : 'regularInspection';
@@ -85,6 +93,8 @@
       <div class="chipbar" id="expModeBar"></div>
       <label>输出范围（可多选，✓ 为已勾选）</label>
       <div class="chipbar" id="expTypeBar"></div>
+      <label>分组别筛选（报告只统计所选组）</label>
+      <div class="chipbar" id="expGroupBar"></div>
       <div class="sub" id="expScope"></div>
       <div class="sec">
         <label>智谱 AI API Key（首次填写后存本机浏览器）</label>
@@ -100,6 +110,7 @@
 
   let expTypes = defaultTypes();
   let expMode = 'boss'; // boss=老板版(经营决策) train=培训版(课件)
+  let expGroup = '';    // ''=全部分组；否则只统计该组别
   function chip(id, opts, cur, cb){
     const bar = ov.querySelector(id);
     bar.innerHTML = opts.map(o=>`<span class="chip${o.k===cur?' on':''}" data-k="${o.k}">${o.l}</span>`).join('');
@@ -127,13 +138,21 @@
   }
   function scopeText(){
     const n = expTypes.size;
-    return `已选 ${n} 项：${[...expTypes].map(k=>k==='unq'?'问题汇总及整改跟进':TAB_NAMES[k]).join('、')}　|　日期区间：${currentStart||'-'} ~ ${currentEnd||'-'}　|　环比：上一等长周期`;
+    return `已选 ${n} 项：${[...expTypes].map(k=>k==='unq'?'问题汇总及整改跟进':TAB_NAMES[k]).join('、')}　|　分组：${expGroup||'全部'}　|　日期区间：${currentStart||'-'} ~ ${currentEnd||'-'}　|　环比：${(currentStart&&currentEnd&&monthSpan(currentStart,currentEnd).length>1)?'按自然月逐月对比（后一月 vs 前一月）':'上一等长周期'}`;
   }
   function renderScope(){ ov.querySelector('#expScope').textContent = scopeText(); }
-  renderMode(); renderChips(); renderScope();
+  /* 分组别选项：从当前数据的组别（positions）里取 */
+  function renderGroup(){
+    const set = new Set();
+    TYPES.forEach(t=>{ const b=blockOf(t); if(b) (b.positions||[]).forEach(p=>set.add(p.position||p.name||'')); });
+    set.delete('');
+    const opts = [{k:'', l:'全部分组'}, ...[...set].sort().map(k=>({k, l:k}))];
+    chip('#expGroupBar', opts, expGroup, v=>{ expGroup=v; renderGroup(); renderScope(); });
+  }
+  renderMode(); renderChips(); renderGroup(); renderScope();
   setInterval(renderScope, 2000);
 
-  fab.onclick = ()=>{ ov.classList.add('active'); ov.querySelector('#expKey').value = localStorage.getItem('zhipu_api_key')||''; };
+  fab.onclick = ()=>{ ov.classList.add('active'); ov.querySelector('#expKey').value = localStorage.getItem('zhipu_api_key')||''; renderGroup(); };
   ov.onclick = e=>{ if(e.target===ov) ov.classList.remove('active'); };
 
   const stat = msg=>{ ov.querySelector('#expStat').textContent = msg; };
@@ -143,6 +162,19 @@
     const d = new Date(iso+'T00:00:00');
     d.setDate(d.getDate()+n);
     return d.toISOString().slice(0,10);
+  }
+  /* 区间按自然月切分（所有数据必须按月归属，环比=后一月 vs 前一月） */
+  function monthSpan(s, e){
+    if(!s || !e) return [];
+    const out = [];
+    let cur = s.slice(0,7);
+    while(cur <= e.slice(0,7)){
+      const ms = cur+'-01', me = cur === e.slice(0,7) ? e : new Date(Date.UTC(+cur.slice(0,4), +cur.slice(5,7), 0)).toISOString().slice(0,10);
+      if(me >= s) out.push({ s: ms < s ? s : ms, e: me, mk: cur, label: `${Number(cur.slice(5,7))}月` });
+      const y = +cur.slice(0,4), m = +cur.slice(5,7);
+      cur = (m===12 ? (y+1)+'-01' : y+'-'+String(m+1).padStart(2,'0'));
+    }
+    return out;
   }
   function prevRange(){
     const s = currentStart, e = currentEnd;
@@ -196,7 +228,7 @@
     if(!pr || typeof aggregateRange !== 'function') return null;
     const prev = await aggregateRange(pr.s, pr.e);
     return { range: pr, byType: TYPES.map(t=>{
-      const b = t==='regularInspection' ? prev : prev[t];
+      const b = filterGroup(t==='regularInspection' ? prev : prev[t]);
       return b ? { type:t, groups:groupMetrics(b) } : null;
     })};
   }
@@ -303,6 +335,7 @@
       return { t:g.t, level:lv, count:g.count, storeCount:g.stores.size,
         topRegion:[...g.regions.entries()].sort((a,b)=>b[1]-a[1])[0]||['-',0],
         groupDist:[...g.groups.entries()].sort((a,b)=>b[1]-a[1]).map(x=>x[0]+'×'+x[1]).slice(0,4).join('、'),
+        srcDist:[...g.srcs.entries()].sort((a,b)=>b[1]-a[1]).map(x=>x[0]+'×'+x[1]),
         descs:g.descs, kw: extractKw(allDesc), topDescs, prevCount: pmap.get(g.t)!=null ? pmap.get(g.t) : null };
     }).sort((a,b)=>(a.level===b.level? b.count-a.count : (a.level>b.level?1:-1)));
     items.forEach(x=>x.delta = x.prevCount!=null ? x.count-x.prevCount : null);
@@ -341,7 +374,27 @@
     let notClosed = 0;
     repMap.forEach(times=>{ if(times>=2) notClosed += times-1; });
     const loopRate = cur.length ? Math.round((1 - notClosed/cur.length)*1000)/10 : 100;
-    return { items, repeats, worstStores, total:cur.length, level:lv, loopRate, notClosed };
+
+    /* 分报告类型统计（CG常规巡检 / ZJ门店自检 / SP视频巡检 / AI慧检） */
+    const SRC_NAME = { CG:'常规巡检', ZJ:'门店自检', SP:'视频巡检', AI:'AI 慧检' };
+    const tMap = {};
+    cur.forEach(x=>{
+      const s = x.src||'-';
+      if(!tMap[s]) tMap[s] = { src:s, name:SRC_NAME[s]||s, total:0, c:0, stores:new Set(), titles:{} };
+      const g = tMap[s];
+      g.total++; g.stores.add(x.sn||'-');
+      if(classify(x.t||'')==='C') g.c++;
+      const k = (x.t||'-').trim();
+      g.titles[k] = (g.titles[k]||0)+1;
+    });
+    const typeStats = Object.values(tMap).map(g=>({
+      src:g.src, name:g.name, total:g.total, c:g.c, storeCount:g.stores.size,
+      topTitle: Object.entries(g.titles).sort((a,b)=>b[1]-a[1])[0]||['-',0]
+    })).sort((a,b)=>b.total-a.total);
+
+    /* 按月拆分（月度环比用） */
+    const monthSplit = ()=>{ const m=new Map(); cur.forEach(x=>{ const k=(x.d||'').slice(0,7)||'未知'; if(!m.has(k)) m.set(k,[]); m.get(k).push(x); }); return [...m.entries()].sort((a,b)=>a[0]<b[0]?-1:1); };
+    return { items, repeats, worstStores, total:cur.length, level:lv, loopRate, notClosed, typeStats, monthSplit };
   }
 
   /* ---------- Excel ---------- */
@@ -552,19 +605,33 @@ ${bodyHtml}
 
       stat('⏳ 1/3 提取「巡检问题汇总及整改跟进」数据…');
       const uq = await loadUnqData();
-      const curEnts = unqEntriesForRange(uq, currentStart, currentEnd);
-      const prevEnts = pr ? unqEntriesForRange(uq, pr.s, pr.e) : [];
+      const gf = x=> !expGroup || x.ps===expGroup;
+      const curEnts = unqEntriesForRange(uq, currentStart, currentEnd).filter(gf);
+      const prevEnts = pr ? unqEntriesForRange(uq, pr.s, pr.e).filter(gf) : [];
       const prob = analyzeProblems(curEnts, prevEnts);
       if(!prob.items.length){ stat('❌ 该区间没有问题数据，换个区间试试'); return; }
 
       const selTypes = TYPES.filter(t=>expTypes.has(t));
       const needScores = !isTrain && selTypes.length>0;
-      let datasets = [], prev = null, pvGroup = ()=>null;
+      let datasets = [], prev = null, pvGroup = ()=>null, monthSets = [];
+      const msSpan = monthSpan(currentStart, currentEnd);
       if(needScores){
-        stat('⏳ 2/3 加载组别指标与环比…');
+        stat('⏳ 2/3 加载组别指标与逐月环比…');
         datasets = selTypes.map(collect).filter(Boolean);
         try{ prev = await loadPrev(); }catch(e){}
         pvGroup = (type, gname)=>{ if(!prev) return null; const t = prev.byType.find(x=>x&&x.type===type); if(!t) return null; return t.groups.find(g=>g.name===gname)||null; };
+        /* 逐月巡检指标（所有数据按自然月归属，环比=后一月 vs 前一月） */
+        if(msSpan.length>1){
+          for(const m of msSpan){
+            try{
+              const agg = await aggregateRange(m.s, m.e);
+              monthSets.push({ label:m.label, mk:m.mk, s:m.s, e:m.e, byType: selTypes.map(t=>{
+                const b = filterGroup(t==='regularInspection' ? agg : agg[t]);
+                return b ? { type:t, groups:groupMetrics(b), fails:failedStores(b,10) } : null;
+              })});
+            }catch(e){}
+          }
+        }
       } else { stat('⏳ 2/3 跳过组别指标（本视角不需要）…'); }
 
       /* ===== 培训版（课件） ===== */
@@ -679,10 +746,21 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
       if(ai && (!ai['经营层结论'] || !ai['经营层结论'].length)) ai = null;
 
       const rangeTxt = `${currentStart} ~ ${currentEnd}`;
+      /* 逐月统计（02 问题清单按月列 + 03 月度环比 共用） */
+      const mLabel = k=>{ const p=k.split('-'); return p.length===2 ? `${Number(p[1])}月` : k; };
+      const uqMonths = prob.monthSplit ? prob.monthSplit() : [];
+      const mStats = uqMonths.map(([mk, ents])=>{
+        const st = analyzeProblems(ents, []);
+        const ts = st.typeStats || [];
+        const cgT = ts.find(x=>x.src==='CG'), zjT = ts.find(x=>x.src==='ZJ');
+        return { mk, label:mLabel(mk), total:ents.length, c:st.level.C, m:st.level.M, loop:st.loopRate, cnt:new Map(st.items.map(i=>[i.t,i.count])),
+          cg: cgT?cgT.total:0, cgStores: cgT?cgT.storeCount:0, zj: zjT?zjT.total:0, zjStores: zjT?zjT.storeCount:0 };
+      });
+      const multiMonth = mStats.length>=2;
       const h = [];
       h.push(`<div class="cover boss"><div class="brand">CANGJING SUSHI · 苍井寿司</div>
 <h1>品牌巡检审计报告</h1>
-<div class="meta">经营决策版　|　统计区间 ${esc(rangeTxt)}${prev?'　·　环比上一周期 '+esc(prev.range.s+' ~ '+prev.range.e):''}<br>方法对标：国际连锁餐饮审计体系（问题分级 / 整改闭环 / 复检触发）· 培训部出品</div></div>`);
+<div class="meta">经营决策版　|　统计区间 ${esc(rangeTxt)}${expGroup?'　·　分组：'+esc(expGroup):'　·　全部分组'}${multiMonth?`　·　${mStats.map(x=>x.label).join(' / ')} 按月归属 · 环比=后一月 vs 前一月`:(prev?'　·　环比上一周期 '+esc(prev.range.s+' ~ '+prev.range.e):'')}<br>方法对标：国际连锁餐饮审计体系（问题分级 / 整改闭环 / 复检触发）· 培训部出品</div></div>`);
 
       const critPct = prob.total ? Math.round(prob.level.C/prob.total*1000)/10 : 0;
       h.push(`<h2 class="sec"><span style="color:#186BEB">01</span>　经营层结论仪表盘</h2>
@@ -696,22 +774,123 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
         h.push(`<div class="ai-block boss"><h3>📌 经营层结论（结论先行）</h3><ol>${ai['经营层结论'].map(l=>`<li>${esc(l.replace(/^[·•\-0-9.、\s]+/,''))}</li>`).join('')}</ol></div>`);
       }
 
+      if(multiMonth){
+        /* 跨月：次数按月归属展示，环比 = 末月 vs 前一月 */
+        h.push(`<h2 class="sec"><span style="color:#186BEB">02</span>　问题分级清单（按月归属）</h2>
+<div class="subnote">Critical = 直接食安风险（温度/过期/交叉污染/虫鼠害/异物），72小时整改窗口 · Moderate = 流程执行缺陷，30天窗口 · Minor = 纳入例行辅导；次数列为各自然月发生数，环比 = ${esc(mStats[mStats.length-1].label)} vs ${esc(mStats[mStats.length-2].label)}</div>
+<table><tr><th style="width:10%">分级</th><th class="l" style="width:26%">问题项</th><th>合计</th>${mStats.map(m=>`<th>${esc(m.label)}</th>`).join('')}<th>门店数</th><th>最集中区域</th><th>报告类型</th><th>环比</th></tr>`);
+        prob.items.slice(0,15).forEach(x=>{
+          const lv = LV[x.level];
+          const kwTxt = x.kw && x.kw.length ? `<div style="font-size:11.5px;color:#888;margin-top:2px">情形拆解：${x.kw.slice(0,6).map(k=>`${esc(k[0])}×${k[1]}`).join(' · ')}</div>` : '';
+          const srcTxt = (x.srcDist||[]).map(s=>`<span style="display:inline-block;background:#eef4ff;color:#186BEB;border-radius:4px;padding:1px 6px;margin:1px 2px;font-size:11px;font-weight:600">${esc(s[0])}×${s[1]}</span>`).join('');
+          const lastV = mStats[mStats.length-1].cnt.get(x.t)||0, prevV = mStats[mStats.length-2].cnt.get(x.t)||0;
+          const md = lastV - prevV;
+          const deltaCell = md>0?`<span class="dbad">▲ +${md}</span>`:(md<0?`<span class="dgood">${md}</span>`:'<span class="dflat">持平</span>');
+          const mCells = mStats.map(m=>{ const v=m.cnt.get(x.t)||0; return v?`<b>${v}</b>`:'<span class="dnull">-</span>'; });
+          h.push(`<tr><td><span class="${lv.cls}">${x.level}</span></td><td class="l" title="${esc(x.descs[0]||'')}">${esc(x.t)}${kwTxt}</td><td><b>${x.count}</b></td>${mCells.map(c=>`<td>${c}</td>`).join('')}<td>${x.storeCount}</td><td>${esc(x.topRegion[0])}</td><td>${srcTxt||'-'}</td><td>${deltaCell}</td></tr>`);
+        });
+        h.push('</table>');
+      } else {
       h.push(`<h2 class="sec"><span style="color:#186BEB">02</span>　问题分级清单</h2>
 <div class="subnote">Critical = 直接食安风险（温度/过期/交叉污染/虫鼠害/异物），72小时整改窗口 · Moderate = 流程执行缺陷，30天窗口 · Minor = 纳入例行辅导；同问题第二次出现即升级为系统性问题</div>
-<table><tr><th style="width:12%">分级</th><th class="l" style="width:34%">问题项</th><th>次数</th><th>门店数</th><th>最集中区域</th><th>环比</th></tr>`);
+<table><tr><th style="width:12%">分级</th><th class="l" style="width:30%">问题项</th><th>次数</th><th>门店数</th><th>最集中区域</th><th>报告类型</th><th>环比</th></tr>`);
       prob.items.slice(0,15).forEach(x=>{
         const lv = LV[x.level];
         const kwTxt = x.kw && x.kw.length ? `<div style="font-size:11.5px;color:#888;margin-top:2px">情形拆解：${x.kw.slice(0,6).map(k=>`${esc(k[0])}×${k[1]}`).join(' · ')}</div>` : '';
-        h.push(`<tr><td><span class="${lv.cls}">${x.level}</span></td><td class="l" title="${esc(x.descs[0]||'')}">${esc(x.t)}${kwTxt}</td><td><b>${x.count}</b></td><td>${x.storeCount}</td><td>${esc(x.topRegion[0])}</td><td>${x.delta==null?'<span class="dnull">无上期</span>':(x.delta>0?`<span class="dbad">+${x.delta}</span>`:(x.delta<0?`<span class="dgood">${x.delta}</span>`:'<span class="dflat">持平</span>'))}</td></tr>`);
+        const srcTxt = (x.srcDist||[]).map(s=>`<span style="display:inline-block;background:#eef4ff;color:#186BEB;border-radius:4px;padding:1px 6px;margin:1px 2px;font-size:11px;font-weight:600">${esc(s[0])}×${s[1]}</span>`).join('');
+        h.push(`<tr><td><span class="${lv.cls}">${x.level}</span></td><td class="l" title="${esc(x.descs[0]||'')}">${esc(x.t)}${kwTxt}</td><td><b>${x.count}</b></td><td>${x.storeCount}</td><td>${esc(x.topRegion[0])}</td><td>${srcTxt||'-'}</td><td>${x.delta==null?'<span class="dnull">无上期</span>':(x.delta>0?`<span class="dbad">+${x.delta}</span>`:(x.delta<0?`<span class="dgood">${x.delta}</span>`:'<span class="dflat">持平</span>'))}</td></tr>`);
       });
       h.push('</table>');
+      }
+
+      /* 分报告类型统计（CG/ZJ/SP/AI 不混在一起） */
+      if(prob.typeStats && prob.typeStats.length){
+        const srcCls = { CG:'', ZJ:'risk-mid', SP:'', AI:'risk-low' };
+        h.push(`<div class="subnote" style="margin-top:14px"><b style="color:#1A2A4A">分报告类型统计</b>（常规巡检 / 门店自检 / 视频巡检 / AI 慧检 分别口径，不混算）</div>
+<table><tr><th style="width:16%">报告类型</th><th>不合格记录</th><th>Critical 关键食安</th><th>涉及门店</th><th class="l">该类型最高频问题</th></tr>`);
+        prob.typeStats.forEach(t=>{
+          h.push(`<tr><td><b>${esc(t.name)}</b><span style="color:#9aa3b5;font-size:11px">（${t.src}）</span></td><td><b>${t.total}</b></td><td>${t.c?`<span class="risk-high">${t.c}</span>`:'0'}</td><td>${t.storeCount}</td><td class="l">${esc(t.topTitle[0])}（${t.topTitle[1]} 次）</td></tr>`);
+        });
+        h.push('</table>');
+      }
       const withDesc = prob.items.filter(x=>x.descs.length).slice(0,6);
       if(withDesc.length){
         h.push(`<div class="subnote" style="margin-top:12px"><b style="color:#1A2A4A">现场证据摘录</b>（检查员原始记录）</div>
 <div class="ai-block"><ul>${withDesc.map(x=>`<li><b>${esc(x.t)}</b>（${x.count}次）：${esc(x.descs[0])}</li>`).join('')}</ul></div>`);
       }
 
-      h.push(`<h2 class="sec"><span style="color:#186BEB">03</span>　整改闭环审计 · 改了又犯的门店</h2>
+      /* 月度环比比较：区间跨多个自然月时逐月拆开对比（mStats 已在封面处算好） */
+      if(multiMonth){
+        const last = mStats[mStats.length-1], pv = mStats[mStats.length-2];
+        const monCard = m=>`<div class="card"><div class="k">${esc(m.label)}（${m.mk}）</div><div class="v">${m.total}</div><div class="d">Critical ${m.c} · Moderate ${m.m} · 闭环率 ${m.loop}%</div></div>`;
+        h.push(`<h2 class="sec"><span style="color:#186BEB">03</span>　月度环比比较（逐月拆开看趋势）</h2>
+<div class="subnote">同一区间跨多个自然月时，按月拆开对比：问题总量是涨是跌、Critical 变化、闭环率走向，一眼看出管理趋势</div>
+<div class="cards">${mStats.map(monCard).join('')}</div>
+<table><tr><th class="l" style="width:32%">问题项（本期 TOP15）</th><th>分级</th>${mStats.map(m=>`<th>${esc(m.label)}</th>`).join('')}<th>末月环比上月</th></tr>`);
+        prob.items.slice(0,15).forEach(x=>{
+          const cells = mStats.map(m=>{ const v=m.cnt.get(x.t)||0; return v?`<b>${v}</b>`:'<span class="dnull">-</span>'; });
+          const a = last.cnt.get(x.t)||0, b = pv.cnt.get(x.t)||0;
+          const d = a-b;
+          const deltaCell = d>0?`<span class="dbad">▲ +${d} 增</span>`:(d<0?`<span class="dgood">▼ ${d} 降</span>`:'<span class="dflat">持平</span>');
+          h.push(`<tr><td class="l">${esc(x.t)}</td><td><span class="${LV[x.level].cls}">${x.level}</span></td>${cells.map(c=>`<td>${c}</td>`).join('')}<td>${deltaCell}</td></tr>`);
+        });
+        h.push('</table>');
+        const totD = last.total - pv.total, cD = last.c - pv.c;
+        h.push(`<div class="ai-block" style="margin-top:10px"><h3>📈 月度趋势小结</h3><ul>
+<li>不合格记录：${esc(pv.label)} ${pv.total} 条 → ${esc(last.label)} <b>${last.total}</b> 条，${totD>0?`<span class="dbad">环比增加 ${totD} 条（${pv.total?Math.round(totD/pv.total*100):100}%）</span>`:(totD<0?`<span class="dgood">环比下降 ${-totD} 条（${Math.round(-totD/pv.total*100)}%）</span>`:'持平')}</li>
+<li>Critical 关键食安：${esc(pv.label)} ${pv.c} 条 → ${esc(last.label)} <b>${last.c}</b> 条，${cD>0?`<span class="dbad">增加 ${cD} 条，需收紧 72 小时整改窗口</span>`:(cD<0?`<span class="dgood">减少 ${-cD} 条</span>`:'持平')}</li>
+<li>整改闭环率：${esc(pv.label)} ${pv.loop}% → ${esc(last.label)} <b>${last.loop}%</b>，${last.loop>pv.loop?'<span class="dgood">改善</span>':(last.loop<pv.loop?'<span class="dbad">恶化，重复问题抬头</span>':'持平')}</li>
+</ul></div>`);
+      }
+
+      /* 自检投入 × 常规QSC改善：投入产出比分析（ZJ 是服务于 CG 提升的辅助动作） */
+      if(prob.typeStats.some(t=>t.src==='ZJ') && prob.typeStats.some(t=>t.src==='CG')){
+        const roiLast = mStats[mStats.length-1], roiPv = mStats.length>1 ? mStats[mStats.length-2] : null;
+        /* 门店级对照：自检条目数（投入）vs 常规巡检不合格数（产出） */
+        const zjMap = new Map(), cgMap = new Map();
+        curEnts.forEach(x=>{
+          if(x.src==='ZJ') zjMap.set(x.sn,(zjMap.get(x.sn)||0)+1);
+          else if(x.src==='CG') cgMap.set(x.sn,(cgMap.get(x.sn)||0)+1);
+        });
+        const storeSet = new Set([...zjMap.keys(), ...cgMap.keys()]);
+        const roiRows = [...storeSet].map(sn=>{
+          const z = zjMap.get(sn)||0, c = cgMap.get(sn)||0;
+          let cls, tag;
+          if(z===0 && c>=3){ cls='dbad'; tag='自检缺位'; }
+          else if(z>=3 && c>=3){ cls='dbad'; tag='自检流于形式'; }
+          else if(z>=3 && c===0){ cls='dgood'; tag='投入见效'; }
+          else if(z>=3 && c<=1){ cls='dgood'; tag='投入见效'; }
+          else if(z>=1 && c>=2){ cls='dbad'; tag='需关注'; }
+          else { cls='dflat'; tag='正常'; }
+          return { sn, z, c, cls, tag };
+        }).sort((a,b)=>(b.c-a.c)||(b.z-a.z));
+        const tagSum = {};
+        roiRows.forEach(r=>tagSum[r.tag]=(tagSum[r.tag]||0)+1);
+        h.push(`<h2 class="sec"><span style="color:#186BEB">04</span>　自检投入 × 常规QSC改善（投入产出比）</h2>
+<div class="subnote">门店每日自检（ZJ）是服务于常规巡检（CG/QSC）提升的辅助动作——自检的投入必须换来常规巡检问题的下降，否则就是白做或做假。投入 = 自检不合格记录数（自检抓得越细说明查得越认真）· 产出 = 常规巡检不合格记录数（越少越好）</div>`);
+        if(roiLast && roiPv){
+          const zjD = roiLast.zj - roiPv.zj, cgD = roiLast.cg - roiPv.cg;
+          let verdict;
+          if(zjD>0 && cgD<0) verdict = `<span class="dgood">✅ 投入正回报：${esc(roiPv.label)}→${esc(roiLast.label)} 自检投入增加 ${zjD} 条，常规巡检不合格同步下降 ${-cgD} 条——自检动作正在转化为 QSC 改善</span>`;
+          else if(zjD>0 && cgD>0) verdict = `<span class="dbad">⚠️ 投入未转化：自检投入增加 ${zjD} 条，但常规巡检不合格不降反升 ${cgD} 条——自检可能流于形式（只记录不整改），需核查自检整改闭环</span>`;
+          else if(zjD<0 && cgD>0) verdict = `<span class="dbad">🚨 投入不足：自检投入减少 ${-zjD} 条，常规巡检不合格上升 ${cgD} 条——自检松了、QSC 立刻反弹</span>`;
+          else if(zjD<0 && cgD<0) verdict = `<span class="dflat">整体回落：自检与常规问题同步减少 ${-zjD}/${-cgD} 条，注意甄别是真正改善还是自检频次下降导致</span>`;
+          else verdict = '<span class="dflat">环比基本持平</span>';
+          h.push(`<div class="ai-block" style="margin-bottom:12px"><h3>💰 末月投入产出联动</h3><ul>
+<li>${verdict}</li>
+<li>投入（自检不合格记录）：${esc(roiPv.label)} <b>${roiPv.zj}</b> 条（${roiPv.zjStores} 店）→ ${esc(roiLast.label)} <b>${roiLast.zj}</b> 条（${roiLast.zjStores} 店），环比 ${zjD>0?`<span class="dbad">+${zjD}</span>`:(zjD<0?`<span class="dgood">${zjD}</span>`:'持平')}</li>
+<li>产出（常规巡检不合格记录）：${esc(roiPv.label)} <b>${roiPv.cg}</b> 条（${roiPv.cgStores} 店）→ ${esc(roiLast.label)} <b>${roiLast.cg}</b> 条（${roiLast.cgStores} 店），环比 ${cgD>0?`<span class="dbad">+${cgD}</span>`:(cgD<0?`<span class="dgood">${cgD}</span>`:'持平')}</li>
+</ul></div>`);
+        }
+        h.push(`<div class="subnote"><b style="color:#1A2A4A">门店级投入产出对照</b>（区间内自检 ≥3 条 vs 常规不合格交叉判定）· ${esc(tagSum['投入见效']||0)} 家投入见效 · <span class="dbad">${tagSum['自检流于形式']||0}</span> 家自检多但常规问题照样多 · <span class="dbad">${tagSum['自检缺位']||0}</span> 家自检缺位</div>
+<table><tr><th class="l">门店</th><th>自检记录（投入）</th><th>常规不合格（产出）</th><th>投入产出判定</th></tr>`);
+        roiRows.slice(0,20).forEach(r=>{
+          h.push(`<tr><td class="l"><b>${esc(r.sn)}</b></td><td>${r.z||'<span class="dnull">0</span>'}</td><td>${r.c?`<span class="risk-high">${r.c}</span>`:'0'}</td><td><span class="${r.cls}">${r.tag}</span></td></tr>`);
+        });
+        h.push('</table>');
+      }
+
+      h.push(`<h2 class="sec"><span style="color:#186BEB">05</span>　整改闭环审计 · 改了又犯的门店</h2>
 <div class="subnote">同一门店同一问题出现 ≥2 份报告 = 上一次整改未闭环。国际连锁品牌将此视作最严重信号：第二次出现按系统性问题升级处理</div>`);
       if(prob.repeats.length){
         h.push(`<table><tr><th class="l">门店</th><th>组别</th><th>区域</th><th class="l">重复问题</th><th>分级</th><th>次数</th><th class="l">具体情况</th></tr>`);
@@ -726,28 +905,67 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
       }
 
       if(needScores && datasets.length){
-        h.push(`<h2 class="sec"><span style="color:#186BEB">04</span>　巡检数据表</h2>
-<div class="subnote">覆盖率 = 已巡检门店 ÷ 应巡检门店；门店合格率 = 达标门店 ÷ 已巡检门店（达标线：直营/新店 90 分，加盟营运 80 分）· 环比为上一等长周期</div>`);
-        datasets.forEach(d=>{
-          h.push(`<div style="font-size:14px;font-weight:700;margin:16px 0 4px">巡检项目：${esc(d.name)}</div>
-<table><tr><th class="l">组别</th><th>门店</th><th>巡检覆盖率</th><th>门店合格率</th><th>平均分</th><th>平均分环比</th></tr>`);
-          d.groups.forEach(g=>{
-            const pv = pvGroup(d.type, g.name);
-            h.push(`<tr><td class="l">${esc(g.name)}</td><td>${g.storeCount}</td><td>${g.coverage}%（${g.covered}/${g.storeCount}）</td><td>${g.passRate}%（${g.passStores}/${g.scoredCount}）</td><td>${g.avgScore}</td><td>${pv?deltaBadge(g.avgScore,pv.avgScore):'<span class="dnull">无上期</span>'}</td></tr>`);
+        const tblRow = (g, pv, pvLabel)=>{
+          const delta = pv ? deltaBadge(g.avgScore, pv.avgScore) : (pvLabel===null ? '<span class="dnull">无上月</span>' : '<span class="dnull">上月无数据</span>');
+          return `<tr><td class="l">${esc(g.name)}</td><td>${g.storeCount}</td><td>${g.coverage}%（${g.covered}/${g.storeCount}）</td><td>${g.passRate}%（${g.passStores}/${g.scoredCount}）</td><td>${g.avgScore}</td><td>${delta}</td></tr>`;
+        };
+        if(monthSets.length>=2){
+          /* 按月归属：每个自然月一张表，环比 = 该月 vs 上一自然月 */
+          h.push(`<h2 class="sec"><span style="color:#186BEB">06</span>　巡检数据表（按月归属 · 环比=后一月 vs 前一月）</h2>
+<div class="subnote">覆盖率 = 已巡检门店 ÷ 应巡检门店；门店合格率 = 达标门店 ÷ 已巡检门店（达标线：直营/新店 90 分，加盟营运 80 分）· 每个自然月单独一张表，「平均分环比」对比上一自然月</div>`);
+          monthSets.forEach((ms, mi)=>{
+            const pvM = mi>0 ? monthSets[mi-1] : null;
+            datasets.forEach(d=>{
+              const cur = ms.byType.find(x=>x&&x.type===d.type);
+              if(!cur) return;
+              h.push(`<div style="font-size:14px;font-weight:700;margin:16px 0 4px">${esc(d.name)} · ${esc(ms.label)}（${ms.s} ~ ${ms.e}）</div>
+<table><tr><th class="l">组别</th><th>门店</th><th>巡检覆盖率</th><th>门店合格率</th><th>平均分</th><th>平均分环比（vs ${esc(pvM?pvM.label:'上一月')}）</th></tr>`);
+              cur.groups.forEach(g=>{
+                const pv = pvM ? (pvM.byType.find(x=>x&&x.type===d.type)||{groups:[]}).groups.find(y=>y.name===g.name) : undefined;
+                h.push(tblRow(g, pv||null, pvM?true:null));
+              });
+              h.push('</table>');
+            });
+          });
+          /* 末月 vs 前月 平均分汇总 */
+          const lastM = monthSets[monthSets.length-1], pvLast = monthSets[monthSets.length-2];
+          h.push(`<div class="subnote" style="margin-top:12px"><b style="color:#1A2A4A">月度平均分对比</b>（${esc(pvLast.label)} → ${esc(lastM.label)}）</div>
+<table><tr><th class="l">巡检项目</th><th class="l">组别</th>${monthSets.map(m=>`<th>${esc(m.label)}平均分</th>`).join('')}<th>环比变化</th></tr>`);
+          datasets.forEach(d=>{
+            const gLists = monthSets.map(m=>(m.byType.find(x=>x&&x.type===d.type)||{groups:[]}).groups);
+            const names = new Set(); gLists.forEach(gl=>gl.forEach(g=>names.add(g.name)));
+            [...names].forEach(nm=>{
+              const vals = gLists.map(gl=>{ const g=gl.find(y=>y.name===nm); return g?g.avgScore:null; });
+              const a = vals[vals.length-1], b = vals[vals.length-2];
+              const dd = (a!=null&&b!=null) ? deltaBadge(a,b) : '<span class="dnull">-</span>';
+              h.push(`<tr><td class="l">${esc(d.name)}</td><td class="l">${esc(nm)}</td>${vals.map(v=>`<td>${v!=null?v:'-'}</td>`).join('')}<td>${dd}</td></tr>`);
+            });
           });
           h.push('</table>');
-        });
+        } else {
+          h.push(`<h2 class="sec"><span style="color:#186BEB">06</span>　巡检数据表</h2>
+<div class="subnote">覆盖率 = 已巡检门店 ÷ 应巡检门店；门店合格率 = 达标门店 ÷ 已巡检门店（达标线：直营/新店 90 分，加盟营运 80 分）· 环比为上一等长周期</div>`);
+          datasets.forEach(d=>{
+            h.push(`<div style="font-size:14px;font-weight:700;margin:16px 0 4px">巡检项目：${esc(d.name)}</div>
+<table><tr><th class="l">组别</th><th>门店</th><th>巡检覆盖率</th><th>门店合格率</th><th>平均分</th><th>平均分环比</th></tr>`);
+            d.groups.forEach(g=>{
+              const pv = pvGroup(d.type, g.name);
+              h.push(`<tr><td class="l">${esc(g.name)}</td><td>${g.storeCount}</td><td>${g.coverage}%（${g.covered}/${g.storeCount}）</td><td>${g.passRate}%（${g.passStores}/${g.scoredCount}）</td><td>${g.avgScore}</td><td>${pv?deltaBadge(g.avgScore,pv.avgScore):'<span class="dnull">无上期</span>'}</td></tr>`);
+            });
+            h.push('</table>');
+          });
+        }
       }
 
       if(ai){
         const blk = (k,tit)=> ai[k]&&ai[k].length ? `<div class="ai-block ${k==='经营层结论'?'boss':''}"><h3>${tit}</h3><ol>${ai[k].map(l=>`<li>${esc(l.replace(/^[·•\-0-9.、\s]+/,''))}</li>`).join('')}</ol></div>` : '';
-        h.push(`<h2 class="sec"><span style="color:#186BEB">05</span>　深度分析</h2>`);
+        h.push(`<h2 class="sec"><span style="color:#186BEB">07</span>　深度分析</h2>`);
         h.push(blk('系统性根因','🧩 系统性根因：为什么这些问题反复出现'));
         h.push(blk('风险敞口与分级','⚠️ 风险敞口与分级'));
       }
 
       if(ai && ai['决策建议'] && ai['决策建议'].length){
-        h.push(`<h2 class="sec"><span style="color:#186BEB">06</span>　决策建议（机制化 · 责任到人）</h2>
+        h.push(`<h2 class="sec"><span style="color:#186BEB">08</span>　决策建议（机制化 · 责任到人）</h2>
 <table><tr><th class="l" style="width:30%">决策</th><th class="l">负责机制 / 验证方式 / 不达标处置</th></tr>`);
         ai['决策建议'].forEach(l=>{
           const s = l.replace(/^[·•\-0-9.、\s]+/,'');
@@ -764,7 +982,7 @@ ${x.kw && x.kw.length?`<div class="trow"><div class="tk">情形拆解</div><div 
       datasets.forEach(d=>d.fails.forEach(f=>allFails.push({...f, src:d.name})));
       allFails.sort((a,b)=>a.score-b.score);
       if(allFails.length){
-        h.push(`<h2 class="sec"><span style="color:#186BEB">${ai?'07':'05'}</span>　未达标门店清单（整改优先级）</h2>
+        h.push(`<h2 class="sec"><span style="color:#186BEB">${ai?'09':'07'}</span>　未达标门店清单（整改优先级）</h2>
 <table><tr><th class="l">门店</th><th>组别</th><th>区域</th><th>平均分</th><th>达标线</th><th>差距</th><th>不合格项</th></tr>`);
         allFails.slice(0,15).forEach(f=>{ h.push(`<tr><td class="l"><b>${esc(f.name)}</b></td><td>${esc(f.pos)}</td><td>${esc(f.region||'-')}</td><td>${f.score}</td><td>${f.th}分</td><td><span class="dbad">${(f.score-f.th).toFixed(1)}</span></td><td>${f.unq}</td></tr>`); });
         h.push('</table>');
