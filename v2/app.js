@@ -498,9 +498,17 @@ function renderReportRawCG(raw){
   const totalAll = summary.max;
   const totalActual = summary.actual;
   const pass = raw.isPassString;
+  // fix176：报告总分以平台官方分（raw.score，已是百分制显示值，实测 7/23 报告=61 与 App/榜单一致）为准，
+  // 与榜单完全同口径；totalActual（逐项按 score 加总）仅作明细口径，两者有差异时加注说明。
+  const officialRaw = _numScore(raw.score);
+  const officialActual = officialRaw != null ? officialRaw : null;
+  const shownActual = officialActual != null ? officialActual : totalActual;
   if(totalAll || pass || raw.templateName){
     out += `<div class="rd-basic" style="margin-bottom:10px">`;
-    out += `<div class="rd-row"><span>报告总分</span><b>（满分 ${_fmtScore(totalAll)} / 实际得分 ${_fmtScore(totalActual)}）</b></div>`;
+    out += `<div class="rd-row"><span>报告总分</span><b>（满分 ${_fmtScore(totalAll)} / 实际得分 ${_fmtScore(shownActual)}）</b></div>`;
+    if(officialActual != null && totalActual != null && Math.abs(officialActual - totalActual) > 0.5){
+      out += `<div class="rd-note" style="color:#999">注：按检查项逐项加总为 ${_fmtScore(totalActual)} 分，与平台总分不同——老批次报告平台未记录部分合格项得分，以平台总分为准。</div>`;
+    }
     if(pass) out += `<div class="rd-row"><span>巡检判定</span><b>${html(String(pass))}</b></div>`;
     if(raw.templateName) out += `<div class="rd-row"><span>巡检模板</span><b>${html(String(raw.templateName))}</b></div>`;
     out += `</div>`;
@@ -634,12 +642,15 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
   // fix115：列表没带日期时，从明细 raw 里补（AI 接口真实字段是 reportTime；其它类型试 reportDate/date）
   const detDate = det && det.raw ? (det.raw.reportTime || det.raw.reportDate || det.raw.date || '') : '';
   body += `<div class="rd-row"><span>报告日期</span><b>${html(rd || String(detDate).slice(0, 10) || '-')}</b></div>`;
-  // CG 报告顶部也必须使用 QSC 权重计算结果，不能继续显示列表里的旧 score。
-  // 直营组部分批次列表分数与报告明细分数可能不同，明细权重是唯一可信口径。
+  // fix176：CG 报告顶部与榜单/App 同口径——优先用平台官方总分（raw.score，已是百分制，
+  // 实测不随检查项 ×100 放大），官方分缺失时才退回逐项重算值；
+  // 不再无条件用重算值顶掉列表分（避免榜单 61 vs 详情 87 两套口径打架）。
   let headerScore = sc;
   if(det && det.raw && _looksLikeCgRaw(det.raw)){
     const cgSummary = _cgScoreSummary(det.raw);
-    if(cgSummary.actual != null) headerScore = cgSummary.actual;
+    const offRaw = _numScore(det.raw.score);
+    if(offRaw != null) headerScore = offRaw;
+    else if(cgSummary.actual != null) headerScore = cgSummary.actual;
   } else if(det && det.raw && Array.isArray(det.raw.categoryList) && det.raw.transTo100pts === true){
     // 门店自检报告头部的 score 已经是百分制；只修正文档明细中的 100 倍项目分值。
     const selfScore = _numScore(det.raw.score);
