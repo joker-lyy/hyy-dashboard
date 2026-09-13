@@ -1735,6 +1735,8 @@ function unq2RenderTable(){
   const dimLabel = (UNQ2_DIMS.find(x=>x.k===unq2State.dim)||{}).l || '';
   if (!ents.length){
     el.innerHTML = `<div class="empty">该区间内「${html(label)}」暂无不合格数据</div>`;
+    // fix173：空数据时同步清空 KPI 条，避免残留上一次渲染的「不合格条目 N」与「暂无数据」同屏
+    $('unq2Kpi').innerHTML = '';
     return;
   }
   const groups = unq2BuildGroups(ents, unq2State.dim);
