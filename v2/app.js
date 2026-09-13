@@ -231,7 +231,10 @@ function _renderReportItemTable(name, arr, opts){
     const nm = _pick(it, ['title','name','itemName','checkName','contentName','checkItem','checkItemName','itemTitle','pointName','subject','item','checkPointName','pointContent']);
     const cat = _pick(it, ['category','categoryName','itemCategory','type','bigCategory','bigCategoryName','smallCategory','smallCategoryName','sortName','checkPointCategory','checkTypeName']);
     const rawSc = _pick(it, ['score','itemScore','scoreValue','pointScore','realScore','actualScore','point','itemPoint','deductScore']);
-    const actualSc = _numScore(_pick(it, ['realScore','actualScore','score','itemScore']));
+    // fix174：老批次 CG 报告的 realScore 字段存在漏填（合格项 realScore=0 而 score=满分），
+    // 实测全量组合中 score 字段 100% 正确（合格=满分、不合格=0/部分分），
+    // 因此「实际得分」统一改为 score 优先、realScore 兜底，避免合格项被显示成 0 分。
+    const actualSc = _numScore(_pick(it, ['score','realScore','actualScore','itemScore']));
     const maxSc = _numScore(_pick(it, ['passedScore','maxScore','fullScore','score','itemScore']));
     const divisor = Number(opts.scoreDivisor) > 0 ? Number(opts.scoreDivisor) : 1;
     // 自检明细接口把项目分值放大 100 倍（1000=10分、2000=20分），
@@ -478,7 +481,8 @@ function _cgScoreSummary(raw){
   for(const c of cats){
     for(const it of (c.itemList || [])){
       const itemMax = _numScore(it.passedScore != null ? it.passedScore : it.score);
-      const itemActual = _numScore(it.realScore != null ? it.realScore : it.score);
+      // fix174：score 优先（老批次 realScore 漏填为 0），与逐项展示口径一致
+      const itemActual = _numScore(it.score != null ? it.score : it.realScore);
       if(itemMax != null) max += itemMax / divisor;
       if(itemActual != null) actual += itemActual / divisor;
     }
@@ -522,7 +526,8 @@ function renderReportRawCG(raw){
     let catMax = 0, catActual = 0;
     for(const it of items){
       const max = _numScore(it.passedScore != null ? it.passedScore : it.score);
-      const actual = _numScore(it.realScore != null ? it.realScore : it.score);
+      // fix174：score 优先（老批次 realScore 漏填为 0）
+      const actual = _numScore(it.score != null ? it.score : it.realScore);
       if(max != null) catMax += max / divisor;
       if(actual != null) catActual += actual / divisor;
     }
