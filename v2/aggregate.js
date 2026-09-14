@@ -255,6 +255,9 @@ async function loadRawMonth(month) {
     const ct = (resp.headers.get('content-type') || '').toLowerCase();
     if (!ct.includes('json')) return null;
     rawMonthCache[month] = await resp.json();
+    // fix177：应用特殊报告人工修正分（同创店 7/23 报告 61→87，定义见 app.js REPORT_SCORE_OVERRIDES），
+    // 使区间聚合（门店均分/latestScore/b.reports 报告行）与详情页口径一致。
+    if (typeof _applyReportScoreOverrides === 'function') _applyReportScoreOverrides(rawMonthCache[month]);
     return rawMonthCache[month];
   } catch (e) {
     return null;

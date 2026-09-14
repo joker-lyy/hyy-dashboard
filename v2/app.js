@@ -4,6 +4,33 @@ const DATA_BASE = "../data";
 // reportDetails.json 全量版 236MB 超 GitHub 100MB 单文件限制，切成 3 片存放，加载时按字节拼接还原
 const REPORT_DETAILS_PARTS = 4;
 
+// fix177：特殊报告人工修正分（全站统一口径：详情页 + aggregate.js 榜单现算 + 报告行）。
+// 背景：广州海珠同创店 2026-07-23 CG 报告（rid 10000000423779）因当时模板设置失误，
+// 7 个合格项未记录得分，平台总分仅 61 分；按检查项逐项真实加总为 87 分。
+// 2026-09-14 与门店确认属设置错误特例，人工修正显示分。key=报告 rid（字符串），value=修正后百分制分。
+const REPORT_SCORE_OVERRIDES = {
+  '10000000423779': 87, // 广州海珠同创店 2026-07-23 CG 常规巡检（61→87）
+};
+function _scoreOverride(rid){
+  if(rid == null) return null;
+  const v = REPORT_SCORE_OVERRIDES[String(rid)];
+  return (v == null) ? null : v;
+}
+// 供 aggregate.js loadRawMonth 调用：月文件 positions[*].cg 行 {rid, s, ...} 应用修正分，
+// 使自定义区间聚合（门店均分/latestScore/报告行）与详情页口径一致。
+function _applyReportScoreOverrides(payload){
+  if(!payload || typeof payload !== 'object') return payload;
+  const positions = payload.positions || {};
+  for(const pk of Object.keys(positions)){
+    const cg = (positions[pk] && positions[pk].cg) || [];
+    for(const rep of cg){
+      const ov = _scoreOverride(rep && rep.rid);
+      if(ov != null && rep.s !== ov) rep.s = ov;
+    }
+  }
+  return payload;
+}
+
 let appData = null;
 // fix53：报告明细（免登录查看），键为 planType:reportId，值来自 data/reportDetails.json
 let reportDetails = {};
@@ -502,11 +529,15 @@ function renderReportRawCG(raw){
   // 与榜单完全同口径；totalActual（逐项按 score 加总）仅作明细口径，两者有差异时加注说明。
   const officialRaw = _numScore(raw.score);
   const officialActual = officialRaw != null ? officialRaw : null;
-  const shownActual = officialActual != null ? officialActual : totalActual;
+  // fix177：特殊报告人工修正分优先（设置错误特例，全站统一口径）
+  const scoreOv = _scoreOverride(raw.reportId);
+  const shownActual = scoreOv != null ? scoreOv : (officialActual != null ? officialActual : totalActual);
   if(totalAll || pass || raw.templateName){
     out += `<div class="rd-basic" style="margin-bottom:10px">`;
     out += `<div class="rd-row"><span>报告总分</span><b>（满分 ${_fmtScore(totalAll)} / 实际得分 ${_fmtScore(shownActual)}）</b></div>`;
-    if(officialActual != null && totalActual != null && Math.abs(officialActual - totalActual) > 0.5){
+    if(scoreOv != null){
+      out += `<div class="rd-note" style="color:#999">注：平台原始总分为 ${_fmtScore(officialActual)} 分（当时模板设置失误，部分合格项未记录得分），经确认按检查项逐项加总修正显示为 ${_fmtScore(scoreOv)} 分。</div>`;
+    } else if(officialActual != null && totalActual != null && Math.abs(officialActual - totalActual) > 0.5){
       out += `<div class="rd-note" style="color:#999">注：按检查项逐项加总为 ${_fmtScore(totalActual)} 分，与平台总分不同——老批次报告平台未记录部分合格项得分，以平台总分为准。</div>`;
     }
     if(pass) out += `<div class="rd-row"><span>巡检判定</span><b>${html(String(pass))}</b></div>`;
@@ -646,7 +677,11 @@ function showReportDetail(ridEnc, sidEnc, pt, snEnc, rgEnc, rdEnc, sc, ip){
   // 实测不随检查项 ×100 放大），官方分缺失时才退回逐项重算值；
   // 不再无条件用重算值顶掉列表分（避免榜单 61 vs 详情 87 两套口径打架）。
   let headerScore = sc;
-  if(det && det.raw && _looksLikeCgRaw(det.raw)){
+  // fix177：特殊报告人工修正分优先（设置错误特例，与详情报告总分/列表口径统一）
+  const scoreOvHdr = _scoreOverride(rid);
+  if(scoreOvHdr != null){
+    headerScore = scoreOvHdr;
+  } else if(det && det.raw && _looksLikeCgRaw(det.raw)){
     const cgSummary = _cgScoreSummary(det.raw);
     const offRaw = _numScore(det.raw.score);
     if(offRaw != null) headerScore = offRaw;
