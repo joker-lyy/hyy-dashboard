@@ -303,7 +303,7 @@ function _renderReportItemTable(name, arr, opts){
     if(photos.length){
       const absPhotos = photos.slice(0,6).map(p => _absImgUrl(p)).filter(Boolean);
       photosHtml = '<div class="rd-photos">' + absPhotos.map(u =>
-        `<a href="${html(u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img src="${html(u)}" loading="lazy" onerror="this.parentNode.style.display=\\'none\\'" alt="现场照片"/></a>`
+        `<a href="${html(String(u).split('?')[0])}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img src="${html(u)}" loading="lazy" onerror="this.parentNode.style.display=\\'none\\'" alt="现场照片"/></a>`
       ).join('') + (photos.length > 6 ? `<span class="rd-photo-more">+${photos.length-6}</span>` : '') + '</div>';
     }
     // 不合格项问题点说明（标红）
@@ -609,7 +609,7 @@ function renderRectifications(rects){
     if(photos.length){
       const abs = photos.slice(0,4).map(p => _absImgUrl(p)).filter(Boolean);
       photosHtml = '<div class="rd-photos rd-photos-sm">' + abs.map(u =>
-        `<a href="${html(u)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img src="${html(u)}" loading="lazy" onerror="this.parentNode.style.display=\\'none\\'" alt="整改照片"/></a>`
+        `<a href="${html(String(u).split('?')[0])}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img src="${html(u)}" loading="lazy" onerror="this.parentNode.style.display=\\'none\\'" alt="整改照片"/></a>`
       ).join('') + '</div>';
     }
     rows += `<tr>
@@ -1605,12 +1605,14 @@ function itemPhotoTitle(cid){
 
 // fix49：图片灯箱
 function openUnqLightbox(imgEl){
-  if(!imgEl || !imgEl.src || imgEl.classList.contains('no-photo')) return;
+  if(!imgEl || !imgEl.src || imgEl.classList.contains('no-photo') || imgEl.classList.contains('loading')) return;
   const lb = $('unqLightbox');
   const lbImg = $('unqLightboxImg');
   const lbCap = $('unqLightboxCaption');
   if(!lb || !lbImg) return;
-  lbImg.src = imgEl.src;
+  // fix180：列表缩略图带 OSS h_100,w_100 压缩参数，直接放大 100px 图必然模糊；
+  // 灯箱剥掉查询参数看 OSS 原图（免签名可读）。
+  lbImg.src = imgEl.src.split('?')[0];
   lbCap.textContent = imgEl.dataset.photoTitle || '';
   lb.classList.add('show');
 }
@@ -1701,7 +1703,7 @@ function unq2ViewPhoto(i){
         </div>
         <button onclick="this.closest('#unq2PhotoOverlay').remove()" style="border:none;background:#f0f2f7;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px">关闭 ✕</button>
       </div>
-      <img src="${html(p.u)}" referrerpolicy="no-referrer" style="width:100%;max-height:76vh;object-fit:contain;border-radius:8px;background:#f5f6f8" onerror="this.parentNode.innerHTML='<div style=&quot;padding:40px;text-align:center;color:#999&quot;>照片加载失败</div>'+this.parentNode.innerHTML">
+      <img src="${html(String(p.u||'').split('?')[0])}" referrerpolicy="no-referrer" style="width:100%;max-height:76vh;object-fit:contain;border-radius:8px;background:#f5f6f8" onerror="this.parentNode.innerHTML='<div style=&quot;padding:40px;text-align:center;color:#999&quot;>照片加载失败</div>'+this.parentNode.innerHTML">
     </div>`;
 }
 function unq2ImgHtml(photos){
@@ -2522,7 +2524,7 @@ async function showUnqItemDetail(contentId, encTitle, encCategory, unqCount){
     const stores = (unqData.itemStoreMap || {})[contentId] || [];
     const storeRows = (stores||[]).map(s=>`<tr><td>${html(s.store)}</td><td>${html(s.region||'')}</td><td>${s.count}</td></tr>`).join('');
     const photos = itemPhotoUrls(contentId).map(u=>({url:u}));
-    const photoRows = photos.map(p=>`<img src="${html(p.url)}" referrerpolicy="no-referrer" style="width:100%;max-width:140px;height:120px;object-fit:cover;border-radius:6px;cursor:pointer" onclick="window.open('${html(p.url)}','_blank')">`).join('');
+    const photoRows = photos.map(p=>`<img src="${html(p.url)}" referrerpolicy="no-referrer" style="width:100%;max-width:140px;height:120px;object-fit:cover;border-radius:6px;cursor:pointer" onclick="window.open('${html(String(p.url||'').split('?')[0])}','_blank')">`).join('');
     modal.querySelector('.modal-body').innerHTML = `
       <h4>涉及门店</h4>
       <table class="rank"><thead><tr><th>门店</th><th>区域</th><th>次数</th></tr></thead><tbody>${storeRows || '<tr><td colspan="3" class="empty">无</td></tr>'}</tbody></table>

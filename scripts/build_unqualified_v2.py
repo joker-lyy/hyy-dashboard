@@ -136,6 +136,22 @@ def extract_report(fp):
                 "img": item_photos(it),
                 "corrected": bool(it.get("isCorrected")),
             })
+    # fix179：部分明细（尤其 ZJ 打烊/开店检查新模板）notcategoryList 为空，
+    # 不合格项只存在 categoryList.itemList（isQualified=False）。兜底提取，避免整份报告漏条目。
+    if not items:
+        for cat in raw.get("categoryList") or []:
+            cname = cat.get("categoryName") or ""
+            for it in cat.get("itemList") or []:
+                q = it.get("isQualified")
+                if q is not False and str(q).strip().lower() != "false":
+                    continue  # 只取明确不合格；未点评(None)不算
+                items.append({
+                    "cat": cname or (it.get("categoryName") or ""),
+                    "t": it.get("title") or "",
+                    "desc": it.get("disQualifiedDesc") or "",
+                    "img": item_photos(it),
+                    "corrected": bool(it.get("isCorrected")),
+                })
     return meta, items
 
 

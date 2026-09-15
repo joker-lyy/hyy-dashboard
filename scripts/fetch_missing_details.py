@@ -4,8 +4,12 @@
 补拉 data/details/ 缺失的巡检报告明细（CG/ZJ/SP）。
 
 用法:
-    python fetch_missing_details.py            # 只补当前月(raw/YYYY-MM.json)里有不合格项(ur>0)且无明细的报告
-    python fetch_missing_details.py --all      # 所有 raw 月份里有不合格项但缺明细的报告
+    python fetch_missing_details.py            # 只补当前月(raw/YYYY-MM.json)里「有不合格项(ur>0)或失败(pass=False)」且无明细的报告
+    python fetch_missing_details.py --all      # 所有 raw 月份里满足上述条件但缺明细的报告
+
+fix178（2026-09-15）：ZJ/SP 报告列表的 ur 恒为 0（不合格项数只在明细里有），
+只认 ur>0 会让失败自检(pass=False)的明细永远滞后一天才由 batch_all 补齐，
+表现为「巡检问题汇总」门店自检条目晚 1-2 天出现。扩成 ur>0 或 pass=False 都算目标。
 
 明细文件格式与既有 data/details/<TYP>_<rid>.json 完全一致：
 {generatedAt, detail:{planType, reportId, signId, storeName, endpoint, fetchedAt, raw, reportDate}}
@@ -50,7 +54,9 @@ def collect_targets(all_months=False):
             for t in ("cg", "zj", "sp"):
                 for r in g.get(t, []) or []:
                     ur = r.get("ur") or 0
-                    if ur <= 0:
+                    # fix178：失败自检(pass=False)也要补，ZJ/SP 的 ur 恒为 0 不能作为唯一依据
+                    failed = (r.get("pass") is False) or (str(r.get("pass")).strip().lower() == "false")
+                    if ur <= 0 and not failed:
                         continue
                     typ = TYPE_MAP[t]
                     rid = str(r.get("rid") or "")
