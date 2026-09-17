@@ -30,15 +30,20 @@ OUT_PATH = os.path.join(BASE, "data", "unqualified_v2.json")
 TYPES = ("CG", "ZJ", "SP")
 
 RAW_SN_MAP = {}  # rid -> 门店名（从 raw 月度汇总反查，兜底历史明细文件缺 storeName）
+RAW_NL_MAP = {}  # rid -> 组织路径（raw 月度汇总 nl 字段，fix182 区域兜底）
 
 
-def load_raw_sn_map():
-    """部分历史明细文件（如 9/06 一次性脚本所抓的 21 份）顶层无 storeName、API raw 里也没有，
-    导致板块按门店分组时出现「-」卡片。raw 月度汇总里每份报告都带 sn，反查兜底。"""
-    m = {}
+def load_raw_maps():
+    """扫 raw 月度汇总建两张反查表：
+    ① rid->sn：部分历史明细文件（如 9/06 一次性脚本所抓的 21 份）顶层无 storeName，
+       导致板块按门店分组时出现「-」卡片，反查兜底。
+    ② rid->nl：明细 raw.nameLink 对 ZJ（门店自检）恒为 '总部'，无区域信息（fix182），
+       用月度汇总的 nl（检查人组织路径，如 '总经办/加盟服务部/新店运营组/陈晓君区域'）兜底。"""
+    RAW_SN_MAP.clear()
+    RAW_NL_MAP.clear()
     raw_dir = os.path.join(BASE, "data", "raw")
     if not os.path.isdir(raw_dir):
-        return m
+        return
     for fp in glob.glob(os.path.join(raw_dir, "*.json")):
         if os.path.basename(fp) == "index.json":
             continue
@@ -50,16 +55,22 @@ def load_raw_sn_map():
             for t in ("cg", "zj", "sp"):
                 for r in g.get(t, []) or []:
                     rid = str(r.get("rid") or "")
+                    if not rid:
+                        continue
                     sn = (r.get("sn") or "").strip()
-                    if rid and sn and rid not in m:
-                        m[rid] = sn
-    return m
+                    if sn and rid not in RAW_SN_MAP:
+                        RAW_SN_MAP[rid] = sn
+                    nl = (r.get("nl") or "").strip()
+                    if nl and rid not in RAW_NL_MAP:
+                        RAW_NL_MAP[rid] = nl
 
 
 def parse_nl(nl):
     """组织路径 → (区域rg, 组别ps)。'总经办/加盟服务部/加盟营运组/赖先晓区域' → ('赖先晓区域','加盟营运组')"""
     if not nl or not isinstance(nl, str):
         return "", ""
+    # fix182：多检查人路径会用「、」拼接（'.../超级加盟商、.../谢艺坤区域'），先取首段再解析
+    nl = nl.split("、")[0]
     parts = [p for p in nl.split("/") if p]
     if not parts:
         return "", ""
@@ -120,7 +131,20 @@ def extract_report(fp):
         return None, []
     sn = raw.get("storeName") or det.get("storeName") or RAW_SN_MAP.get(rid, "")
     d = to_date(raw.get("reportDate") or det.get("reportDate"))
-    rg, ps = parse_nl(raw.get("nameLink") or raw.get("creatorNameLink") or "")
+    # fix182：ZJ（门店自检）明细 raw.nameLink 恒为 '总部'（报告归属部门，无区域信息），
+    # 曾致整改追踪表区域列 325 行全显示「总部」。三层取值：
+    #   nameLink(≥2段) → creatorNameLink → raw月度汇总 nl 反查。
+    # CG 两字段一致不受影响；SP 的 nameLink 为 3 段（…/加盟营运组）保持原判。
+    nl1 = raw.get("nameLink") or ""
+    rg, ps = parse_nl(nl1)
+    if len([p for p in nl1.split("/") if p]) < 2:
+        rg2, ps2 = parse_nl(raw.get("creatorNameLink") or "")
+        if rg2:
+            rg, ps = rg2, ps2
+    if (not rg or rg == "总部") and rid in RAW_NL_MAP:
+        rg2, ps2 = parse_nl(RAW_NL_MAP[rid])
+        if rg2 and rg2 != "总部":
+            rg, ps = rg2, ps2
     sc = str(raw.get("storeCode") or "")
     meta = {"typ": typ, "rid": rid, "sn": sn, "sc": sc, "d": d, "rg": rg, "ps": ps}
     items = []
@@ -156,8 +180,7 @@ def extract_report(fp):
 
 
 def main():
-    global RAW_SN_MAP
-    RAW_SN_MAP = load_raw_sn_map()
+    load_raw_maps()
     files = sorted(glob.glob(os.path.join(DETAIL_DIR, "*.json")))
     reports = {}
     for fp in files:

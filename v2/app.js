@@ -2293,6 +2293,7 @@ let unqCmpRg = '__all__';        // 区域筛选
 let unqRfType = '__all__';       // __all__ / CG / ZJ / SP / AI
 let unqRfPs = '__all__';         // 组别筛选
 let unqRfRg = '__all__';         // 区域筛选
+let unqRfDone = '__all__';       // 整改状态筛选（fix182）：__all__ / done(已完成) / undone(未完成)
 
 function renderUnqSupervision(){
   const active = document.querySelector('#unqSubTabs .subtab.active')?.dataset.sub;
@@ -2382,6 +2383,16 @@ function renderUnqRectify(){
   }).join('');
   chipsEl.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ unqRfType=b.dataset.k; renderUnqRectify(); });
   if (unqRfType !== '__all__') rows = rows.filter(x=>x.typ===unqRfType);
+  // 整改状态筛选（fix182）：全部 / 已完成（整改率100%） / 未完成
+  const nDone = rows.filter(x=>x.done>=x.total).length;
+  const doneEl = $('unqRfDoneChips');
+  doneEl.innerHTML = [{k:'__all__',l:'全部'},{k:'done',l:'已完成'},{k:'undone',l:'未完成'}].map(t=>{
+    const n = t.k==='__all__' ? rows.length : (t.k==='done' ? nDone : rows.length-nDone);
+    return `<button class="chip ${unqRfDone===t.k?'active':''}" data-k="${t.k}">${t.l} <b style="color:#c0392b">${n}</b></button>`;
+  }).join('');
+  doneEl.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ unqRfDone=b.dataset.k; renderUnqRectify(); });
+  if (unqRfDone==='done') rows = rows.filter(x=>x.done>=x.total);
+  else if (unqRfDone==='undone') rows = rows.filter(x=>x.done<x.total);
   // 组别 / 区域下拉筛选（选项随类型与日期区间联动）
   const psList = [...new Set(rows.map(x=>x.ps).filter(Boolean))].sort();
   const rgList = [...new Set(rows.map(x=>x.rg).filter(Boolean))].sort();
