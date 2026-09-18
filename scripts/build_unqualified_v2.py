@@ -21,11 +21,19 @@ import glob
 import json
 import os
 import re
+import sys
 from datetime import datetime, timedelta
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 仓库根
 DETAIL_DIR = os.path.join(BASE, "data", "details")
 OUT_PATH = os.path.join(BASE, "data", "unqualified_v2.json")
+
+# fix187：无单判定需要整改单实时接口，登录态注入方式与 2b2（refresh_rectify_details）一致
+PIPE = os.path.join(os.path.dirname(BASE), "慧运营看板自动更新")
+sys.path.insert(0, PIPE)
+import auto_update_daily  # noqa: F401,E402  模块层注入 HY_* 凭证
+import requests  # noqa: E402
+import hhy_api  # noqa: E402
 
 TYPES = ("CG", "ZJ", "SP")
 
@@ -116,6 +124,52 @@ def to_date(s):
     return str(s)[:10]
 
 
+ORDER_API = "https://hyygrayapi.ruipos.com/web/ri/item/list"
+
+
+def fetch_order_rids(days=95):
+    """fix187：整改单实时接口全量翻页 → 有整改单的 reportId 集合。
+    背景（正佳 9/1 实锤）：明细 isCorrected=0 ≠ 存在整改单——慧运营不为部分
+    不合格项生成整改单，此类项在看板显示「待整改」永远无法闭环，且后台根本查不到。
+    失败返回 (set(), False)：调用方必须跳过无单判定，绝不因本功能挂掉整条重建。"""
+    try:
+        tok = hhy_api.login()
+        if isinstance(tok, dict):
+            tok = tok.get("token") or (tok.get("data") or {}).get("token")
+        S = requests.Session()
+        S.headers.update({
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "Origin": "https://hyygray.ruipos.com",
+            "Referer": "https://hyygray.ruipos.com/rectificationList",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+            "accept-language": "zh-CN,zh;q=0.9",
+            "ent": "cjss",
+            "timeZone": "Asia/Shanghai",
+            "token": tok,
+        })
+        start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        end = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        rids, page = set(), 1
+        while True:
+            j = S.post(ORDER_API + "?version=1", json={
+                "pageNumber": page, "pageSize": 200, "sortField": "createTime",
+                "sortOrder": "desc", "startDate": start, "endDate": end}, timeout=30).json()
+            lst = j.get("data") or []
+            for it in lst:
+                rid = str(it.get("reportId") or "")
+                if rid:
+                    rids.add(rid)
+            if j.get("isLastPage") or not lst or page > 100:
+                break
+            page += 1
+        print(f"[fix187] 整改单接口拉取成功：{page} 页，{len(rids)} 份报告有整改单")
+        return rids, True
+    except Exception as e:
+        print(f"[fix187][WARN] 整改单接口拉取失败，本轮跳过无单判定: {e}")
+        return set(), False
+
+
 def extract_report(fp):
     """读取一份明细文件 → (report_meta, unq_items) ；无不合格项时 items 为空。"""
     try:
@@ -191,6 +245,25 @@ def main():
             continue
         reports[(meta["typ"], meta["rid"])] = (meta, items)
 
+    # ---- fix187：整改单存在性核验 ----
+    # 报告日 ≤ 今天-2（出单最长约 1 天，留 2 天窗口）且整改单接口无此报告的 rid
+    # → 该报告内 st=0 的项改标 st=3（无整改单）。st=1/st=2 不动（待审核预期不出单）。
+    order_rids, order_ok = fetch_order_rids()
+    n_st3 = 0
+    if order_ok:
+        cutoff = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
+        for (_t, _rid), (meta, items) in reports.items():
+            if not items or not meta["d"] or meta["d"] > cutoff:
+                continue
+            if meta["rid"] in order_rids:
+                continue
+            for it in items:
+                if it.get("st") == 0:
+                    it["st"] = 3
+                    n_st3 += 1
+        n_rep3 = sum(1 for _m, its in reports.values() if any(x.get("st") == 3 for x in its))
+        print(f"[fix187] 无整改单项标 st=3：{n_st3} 条，涉及 {n_rep3} 份报告")
+
     # ---- 继承旧文件的 AI 条目（AI 无本地明细管线，保持原样） ----
     old = {}
     if os.path.exists(OUT_PATH):
@@ -225,10 +298,14 @@ def main():
     for (t, _rid), (meta, items) in sorted(reports.items(), key=lambda kv: (kv[1][0]["d"], kv[0][0])):
         if not items:
             continue
+        n3 = sum(1 for it in items if it.get("st") == 3)  # fix187：无整改单项不计入应整改/待整改
+        total_n = len(items) - n3
+        if total_n <= 0:
+            continue  # 整份报告无整改单（如正佳 9/1），整改追踪不显示该行
         rectify.append({
             "typ": t, "rid": meta["rid"], "sn": meta["sn"],
             "rg": meta["rg"], "ps": meta["ps"], "d": meta["d"],
-            "total": len(items),
+            "total": total_n,
             "done": sum(1 for it in items if it["corrected"]),
             "open": sum(1 for it in items if it.get("st") == 0),  # fix186：待整改数
             "rev": sum(1 for it in items if it.get("st") == 2),   # fix186：待审核数（门店已提交待督导审核，与待整改同计未完成）
@@ -307,7 +384,7 @@ def main():
         sep_cg = sum(1 for e in ents if e["d"] >= "2026-09-01") if typ == "CG" else None
         extra = f"  9月条目={sep_cg}" if sep_cg is not None else ""
         print(f"  {typ}: {len(ents)} 条  {min(ds) if ds else '-'} ~ {max(ds) if ds else '-'}{extra}")
-    print(f"  rectify: {len(rectify)} 行（其中 9 月 {sum(1 for r in rectify if r['d']>='2026-09-01')} 行）")
+    print(f"  rectify: {len(rectify)} 行（其中 9 月 {sum(1 for r in rectify if r['d']>='2026-09-01')} 行；无整改单剔除 {n_st3 if order_ok else 0} 条/{'已' if order_ok else '未'}判定）")
     print(f"  cgCompare: {len(cg_compare)} 行（本次巡检在 9 月的 {sum(1 for r in cg_compare if r['cd']>='2026-09-01')} 行）")
 
 

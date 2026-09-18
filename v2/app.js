@@ -1726,6 +1726,7 @@ let UNQ2_GROUP_ENTS = {}; // 卡片id -> 该卡片全部原始条目（查看更
 // fix186：条目级整改状态徽章（isCorrected：0未整改/1已整改/2待审核=门店已提交待督导审核）
 function unq2StBadge(st){
   if (st===2) return ' <span style="display:inline-block;background:#fff4e0;color:#B26A00;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">待审核</span>';
+  if (st===3) return ' <span style="display:inline-block;background:#eceff1;color:#607d8b;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">无整改单</span>';
   if (st===1) return ' <span style="display:inline-block;background:#e8f5ee;color:#1e8e3e;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">已整改</span>';
   if (st===0) return ' <span style="display:inline-block;background:#fdecea;color:#C0392B;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">待整改</span>';
   return '';
