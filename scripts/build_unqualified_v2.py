@@ -245,6 +245,26 @@ def main():
             continue
         reports[(meta["typ"], meta["rid"])] = (meta, items)
 
+    # ---- fix190：报告归属统一按门店组织 ----
+    # 背景（9/18 用户实测）：SP 视频巡检由总部督导执行，fix182 三层取到的是督导组织
+    # （rg=加盟营运组 ps=加盟服务部），致同一家店的行散落到督导组——黄圃（直营组·培训组）
+    # 的视频巡检未完成项，在整改追踪筛「培训组/直营组」都看不到，与门店清单（按门店
+    # 组织分组）对不上，用户质疑两边数据矛盾。
+    # 规则：以库内 CG/ZJ 行（店长提交=门店组织）的众数为该店归属，覆盖 SP 行 rg/ps；
+    # 库内无该店 CG/ZJ 行的（极少）保持原值。entries/rectify/cgCompare 均继承 meta，自动生效。
+    from collections import Counter as _Counter
+    sn_org_cnt = {}
+    for (_t, _rid), (meta, _items) in reports.items():
+        if meta["typ"] in ("CG", "ZJ") and meta["sn"] and meta["rg"]:
+            sn_org_cnt.setdefault(meta["sn"], _Counter())[(meta["rg"], meta["ps"])] += 1
+    sn_org = {sn: c.most_common(1)[0][0] for sn, c in sn_org_cnt.items()}
+    n_fix190 = 0
+    for (_t, _rid), (meta, _items) in reports.items():
+        if meta["typ"] == "SP" and meta["sn"] in sn_org and (meta["rg"], meta["ps"]) != sn_org[meta["sn"]]:
+            meta["rg"], meta["ps"] = sn_org[meta["sn"]]
+            n_fix190 += 1
+    print(f"[fix190] 门店归属统一：{len(sn_org)} 家店有 CG/ZJ 基准，SP 行改判 {n_fix190} 份")
+
     # ---- fix187：整改单存在性核验 ----
     # 报告日 ≤ 今天-2（出单最长约 1 天，留 2 天窗口）且整改单接口无此报告的 rid
     # → 该报告内 st=0 的项改标 st=3（无整改单）。st=1/st=2 不动（待审核预期不出单）。
