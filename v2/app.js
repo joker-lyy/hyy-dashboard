@@ -2941,7 +2941,7 @@ function renderRegularInspection(d){
             <td class="${scoreClass(s.score)}">${s.score}</td>
             <td>${s.reportCount || 0}</td>
             <td>${(s.reports && s.reports.length > 1)
-              ? `<span class="link-btn" onclick="showStoreInspReports('CG','${encodeURIComponent(s.storeName||'')}','${encodeURIComponent(s.position||'')}')">查看报告(${s.reports.length})</span>`
+              ? `<span class="link-btn" onclick="showStoreInspReports('CG','${encodeURIComponent(s.storeName||'')}','${encodeURIComponent(s.position||'')}')">查看报告(${s.reports.filter(r=>!r.mk).length})</span>`
               : reportLink(s, '查看报告', 'CG')}</td>
           </tr>
         `;
@@ -3047,7 +3047,7 @@ function renderVideoInspection(d){
             <td>${html(s.position)}</td>
             <td class="${scoreClass(s.score)}">${s.score}</td>
             <td>${(s.reports && s.reports.length > 1)
-              ? `<span class="link-btn" onclick="showStoreInspReports('SP','${encodeURIComponent(s.storeName||'')}','${encodeURIComponent(s.position||'')}')">查看报告(${s.reports.length})</span>`
+              ? `<span class="link-btn" onclick="showStoreInspReports('SP','${encodeURIComponent(s.storeName||'')}','${encodeURIComponent(s.position||'')}')">查看报告(${s.reports.filter(r=>!r.mk).length})</span>`
               : reportLink(s, '查看报告', 'SP')}</td>
           </tr>
         `;
@@ -4031,16 +4031,21 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
   }
   reports.sort((a,b)=> (b.d||'').localeCompare(a.d||''));
 
+  // fix195：记录当前弹窗参数与报告行（勾选「自检」重算后按原参数重开弹窗）
+  window.__lastInspReportsArgs = { kind, storeNameEnc, positionEnc };
+  window.__curInspReports = reports;
+  const markedCnt = reports.filter(r=>r.mk).length;
+
   regionModalSnapshot();$('regionModalTitle').textContent = `${html(storeName)} · ${typeLabel}报告明细`;
   $('regionModalSub').innerHTML =
-    `组别：${html(position)}　报告数：<b>${reports.length}</b>　<span style="color:#888">（当前查询区间）</span>`;
+    `组别：${html(position)}　报告数：<b>${reports.length - markedCnt}</b>${markedCnt ? `<span style="color:#b8860b">（另有自检 ${markedCnt} 份，不计入统计）</span>` : ''}　<span style="color:#888">（当前查询区间）</span>`;
 
   $('regionModalTable').innerHTML = `
     <thead><tr>
-      <th>日期</th><th>巡检类型</th><th>结果</th><th>分数</th><th>报告</th>
+      <th>日期</th><th>巡检类型</th><th>结果</th><th>分数</th><th>报告</th><th>自检</th>
     </tr></thead>
     <tbody>
-      ${reports.map(r=>{
+      ${reports.map((r,idx)=>{
         const pass = (r.pass === true || Number(r.pass) === 1);
         const passStyle = r.pass == null ? 'color:#999' : (pass ? 'color:#1a7f37;font-weight:600' : 'color:#c0392b;font-weight:600');
         const passTxt = r.pass == null ? '-' : (pass ? '合格' : '不合格');
@@ -4051,21 +4056,114 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
           : r.rid
           ? reportLink({ reportId: r.rid, signId: r.sid, storeName: storeName, region: '', reportDate: r.d, score: r.s, isPass: r.pass }, '查看详情', planType)
           : '<span style="color:#999">无报告编号</span>';
+        // fix195：「自检」列——key=888 可勾选（勾选即从 QSC 计分统计剔除并全页重算）；
+        // 其他状态只读展示（被标记的报告仍显示，但不计入分数/报告数等统计口径）
+        let mkCell;
+        if(window.__IS_KEY888__ && r.mkKey){
+          mkCell = `<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:#555;white-space:nowrap"><input type="checkbox" ${r.mk?'checked':''} onchange="__toggleScMarkByRow(this,${idx})">自检</label>`;
+        }else{
+          mkCell = r.mk ? '<span style="color:#1a7f37;font-weight:600">✅ 自检</span>' : '<span style="color:#ccc">-</span>';
+        }
         return `
-          <tr>
+          <tr${r.mk ? ' style="background:rgba(255,193,7,.10)"' : ''}>
             <td>${html(r.d || '-')}</td>
             <td>${html(r.tn || typeLabel)}</td>
             <td style="${passStyle}">${passTxt}</td>
-            <td class="${scoreCls}">${(r.s != null && r.s > 0) ? r.s : '-'}</td>
+            <td class="${scoreCls}">${(r.s != null && r.s > 0) ? r.s : '-'}${r.mk ? '<span style="color:#b8860b;font-size:11px;margin-left:4px">不计分</span>' : ''}</td>
             <td>${cell}</td>
+            <td>${mkCell}</td>
           </tr>
         `;
       }).join('')}
-      ${reports.length===0?'<tr><td colspan="5" class="empty">该门店在当前区间内暂无报告明细</td></tr>':''}
+      ${reports.length===0?'<tr><td colspan="6" class="empty">该门店在当前区间内暂无报告明细</td></tr>':''}
     </tbody>
   `;
   $('regionModal').classList.add('active');
 }
+
+/* ============================================================================
+   fix195：常规巡检（QSC）「自检」标记 —— 交互与持久化
+   ----------------------------------------------------------------------------
+   · 标记真源 = data/selfCheckMarks.json（随仓库上线，全端生效）
+   · key=888 页面勾选：内存即时生效 + 重算全页；localStorage 暂存，刷新不丢；
+     右下角浮条「复制标记数据」发给维护侧合入上线后，其他访客刷新即可见
+   · 非 888 状态：只读展示勾选结果（✅ 自检），统计口径同样剔除（数据同源）
+   ============================================================================ */
+window.__IS_KEY888__ = (function(){ try{ return new URLSearchParams(location.search).get('key') === '888'; }catch(e){ return false; } })();
+window.__SELF_CHECK_MARKS__ = {};
+window.__SC_MARKS_LS__ = 'hyyScMarksLocal_v1';
+
+function loadSelfCheckMarks(){
+  let localMarks = null;
+  if(window.__IS_KEY888__){
+    try{ localMarks = JSON.parse(localStorage.getItem(window.__SC_MARKS_LS__) || 'null'); }catch(e){ localMarks = null; }
+  }
+  return fetch(`${DATA_BASE}/selfCheckMarks.json?v=${Date.now()}`, {cache:'no-store'})
+    .then(r=> r.ok ? r.json() : {})
+    .then(json=>{
+      const server = (json && json.marks) || {};
+      // key=888：本浏览器未上线的勾选暂存优先（勾选 = 用户最新意图），否则以线上文件为准
+      window.__SELF_CHECK_MARKS__ = Object.assign({}, server, localMarks || {});
+      if(window.__IS_KEY888__) setTimeout(()=>{ try{ __updateScSyncBar(); }catch(e){} }, 0);
+    })
+    .catch(()=>{ window.__SELF_CHECK_MARKS__ = localMarks || {}; });
+}
+
+window.__toggleScMarkByRow = async function(cbEl, idx){
+  const rep = (window.__curInspReports || [])[idx];
+  if(!rep || !rep.mkKey){ cbEl.checked = !cbEl.checked; return; }
+  if(cbEl.checked){
+    window.__SELF_CHECK_MARKS__[rep.mkKey] = { by:'key888', at:new Date().toISOString().slice(0,19).replace('T',' '), rid:rep.rid||'', sn:decodeURIComponent(window.__lastInspReportsArgs ? window.__lastInspReportsArgs.storeNameEnc : '')||'', d:rep.d||'', s:rep.s!=null?rep.s:'' };
+  }else{
+    delete window.__SELF_CHECK_MARKS__[rep.mkKey];
+  }
+  try{ localStorage.setItem(window.__SC_MARKS_LS__, JSON.stringify(window.__SELF_CHECK_MARKS__)); }catch(e){}
+  __updateScSyncBar();
+  // 全页重算（门店排名/区域汇总/组别汇总/总览共用一套聚合），再按原参数重开弹窗
+  if(currentStart && currentEnd && typeof tryAggregateRange === 'function'){
+    try{ await tryAggregateRange(currentStart, currentEnd); }catch(e){}
+    try{
+      const a = window.__lastInspReportsArgs;
+      if(a && $('regionModal') && $('regionModal').classList.contains('active')) showStoreInspReports(a.kind, a.storeNameEnc, a.positionEnc);
+    }catch(e){}
+  }
+};
+
+function __updateScSyncBar(){
+  let bar = document.getElementById('scSyncBar');
+  if(!window.__IS_KEY888__){ if(bar) bar.remove(); return; }
+  const n = Object.keys(window.__SELF_CHECK_MARKS__ || {}).length;
+  if(!bar){
+    bar = document.createElement('div'); bar.id = 'scSyncBar';
+    bar.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99997;background:#1A2A4A;color:#fff;padding:10px 14px;border-radius:10px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.28);display:flex;gap:10px;align-items:center;max-width:70vw';
+    bar.innerHTML = '<span id="scSyncTxt"></span>'
+      + '<button onclick="__copyScMarks()" style="cursor:pointer;border:0;border-radius:6px;padding:5px 10px;background:#4A90E2;color:#fff;font-size:12px;white-space:nowrap">复制标记数据</button>'
+      + '<button onclick="__discardScLocal()" title="放弃本浏览器未上线的勾选，恢复线上状态" style="cursor:pointer;border:0;border-radius:6px;padding:5px 10px;background:rgba(255,255,255,.16);color:#fff;font-size:12px;white-space:nowrap">清掉本地改动</button>';
+    document.body.appendChild(bar);
+  }
+  bar.style.display = n ? 'flex' : 'none';
+  const t = document.getElementById('scSyncTxt');
+  if(t) t.textContent = `🟡 自检标记共 ${n} 份（勾选已即时生效）— 点「复制标记数据」发给AI同步上线，其他访客才可见`;
+}
+
+window.__copyScMarks = function(){
+  const payload = JSON.stringify({ version:1, updatedAt:new Date().toISOString().slice(0,19).replace('T',' '), note:'常规巡检(QSC)自检标记：被标记报告不计入QSC计分统计', marks: window.__SELF_CHECK_MARKS__ || {} });
+  const done = ()=>{ try{ setStatus('自检标记已复制，发给AI即可同步上线', 'ok'); }catch(e){} };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(payload).then(done).catch(()=>{ window.__fallbackCopy(payload); done(); });
+  }else{ window.__fallbackCopy(payload); done(); }
+};
+window.__fallbackCopy = function(text){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand('copy'); }catch(e){}
+  ta.remove();
+};
+window.__discardScLocal = function(){
+  try{ localStorage.removeItem(window.__SC_MARKS_LS__); }catch(e){}
+  location.reload();
+};
 
 function showRankRegionStores(region, position, typeName){
   region = decodeURIComponent(region || '');
@@ -4239,17 +4337,21 @@ window.addEventListener('resize', ()=>{
 // 右上角的「全部数据」按钮切换回 data.json 预生成快照；「上月/选择日期」走 raw。
 initDates();
 loadUnq2().catch(()=>{});   // fix191：预载整改明细（unqualified_v2.json），门店清单整改列按报告类型拆分用
+const __scMarksReady = loadSelfCheckMarks().catch(()=>{});   // fix195：预载自检标记（selfCheckMarks.json），聚合前就位避免首屏分数闪变
 (async function boot(){
   $('loading').style.display = 'block';
   if(typeof aggregateRange === 'function'){
     const dataReady = await preloadAllRawMonths();
     if(dataReady){
+      await __scMarksReady;   // fix195：标记先于聚合就位
       await tryAggregateRange(currentStart, currentEnd);
     } else {
+      await __scMarksReady;
       await loadData(false);
       showStaticBanner(currentStart, currentEnd, toBeijing(appData.generatedAt));
     }
   } else {
+    await __scMarksReady;
     await loadData(false);
   }
   // fix53：无论走聚合路径还是 loadData，明细均已改为弹窗按需读取单报告小文件（fix89）

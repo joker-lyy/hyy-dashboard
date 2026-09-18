@@ -43,6 +43,25 @@ async function loadAiReportsIndex() {
   return __aiReportsIdxCache;
 }
 
+/* ============================================================================
+   fix195：常规巡检（QSC）「自检」标记 —— 门店日常自检行为的报告不计入 QSC 计分统计
+   ----------------------------------------------------------------------------
+   · 标记真源 = data/selfCheckMarks.json（key=888 页面勾选后由维护侧合入上线）
+   · 标记键：有报告编号用 `rid:<reportId>`；无编号回退 `k:<门店>|<日期>|<分数>`
+   · 只影响常规巡检 QSC（CG）计分口径：分数 / 报告数 / 合格数 / 检查项数 / 最新代表报告；
+     报告明细弹窗仍完整展示（带「自检」标记）；ZJ/SP/AI 板块不受影响
+   ============================================================================ */
+function scMarkKey(rep, sn) {
+  if (rep && rep.rid) return 'rid:' + rep.rid;
+  return 'k:' + (sn || (rep && rep.sn) || '') + '|' + ((rep && rep.d) || '') + '|' + ((rep && rep.s != null) ? rep.s : '');
+}
+function isSelfCheckMarked(rep, sn) {
+  try {
+    const m = (typeof window !== 'undefined' && window.__SELF_CHECK_MARKS__) || {};
+    return !!m[scMarkKey(rep, sn)];
+  } catch (e) { return false; }
+}
+
 // 与 scripts/hhy_config.py 的 POSITION_LABELS 保持一致
 const RAW_POSITION_LABELS = {
   '培训组': '培训组（直营组）',
@@ -360,6 +379,9 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
         const sname = (rep.sn || '').trim();
         if (!sname || rawIsTestStore(sname)) continue;
         if (!rawInOrgNl(rep.nl, orgName)) continue; // fix108
+        // fix195：被标记「自检」的报告 = 门店日常自检行为，不计入 QSC 计分统计
+        // （分数/报告数/合格数/检查项数/最新代表报告全部剔除），明细弹窗仍展示并带「自检」标记
+        const scMarked = isSelfCheckMarked(rep, sname);
         const key = posLabel + '||' + sname;
         const b = storeBuckets[key] || (storeBuckets[key] = {
           position: posLabel, storeName: sname, storeCode: rep.sc, orgPath: rep.nl,
@@ -367,12 +389,14 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
           reportCount: 0, tplCounts: {}, reportId: '', signId: '',
           isPass: null, storeStatus: '', reports: [], passCount: 0,
         });
-        b.reportCount++;
-        if (rep.tid) b.tplCounts[rep.tid] = (b.tplCounts[rep.tid] || 0) + 1;
         const sc = rawSafeFloat(rep.s, null);
-        if (sc != null) { b.scoreSum += sc; b.scoreCount++; if (sc >= 90) b.passCount++; }
-        b.reports.push({ rid: rep.rid || '', sid: rep.sid || '', d: rep.d || '', s: sc, pass: rep.pass, tn: rep.tn || '' });
-        if (rep.d >= b.latestDate) {
+        if (!scMarked) {
+          b.reportCount++;
+          if (rep.tid) b.tplCounts[rep.tid] = (b.tplCounts[rep.tid] || 0) + 1;
+          if (sc != null) { b.scoreSum += sc; b.scoreCount++; if (sc >= 90) b.passCount++; }
+        }
+        b.reports.push({ rid: rep.rid || '', sid: rep.sid || '', d: rep.d || '', s: sc, pass: rep.pass, tn: rep.tn || '', mk: scMarked ? 1 : 0, mkKey: scMarkKey(rep, sname) });
+        if (!scMarked && rep.d >= b.latestDate) {
           b.latestDate = rep.d;
           b.latestScore = sc;
           b.reportId = rep.rid; b.signId = rep.sid;
