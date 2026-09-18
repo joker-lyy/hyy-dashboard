@@ -3650,8 +3650,52 @@ function showRegionStores(region, position){
     `未巡检：<b style="color:#c0392b">${uninspected}</b> 家`;
   // fix109：与自检门店清单统一格式（10 列，平均分降序）
   const list = stores.slice().sort((a, b)=> (Number(b.score) || 0) - (Number(a.score) || 0));
-  $('regionModalTable').innerHTML = renderUniformStoreRows(list, 'CG');
+  // fix191：整改列按报告类型拆分；unq2 数据迟到时先渲染、就绪后重绘
+  const paint191 = ()=>{ $('regionModalTable').innerHTML = renderUniformStoreRows(list, 'CG'); };
+  paint191();
+  scheduleRectRepaint(paint191);
   $('regionModal').classList.add('active');
+}
+
+// fix191：整改列按报告类型拆分——
+//   data.json 门店清单的 rectified/needRectify 来自「门店整改汇总」接口（storeRectificationSummary，
+//   门店维度全类型混合），导致 常规QSC/视频巡检/自检 三个清单的整改列完全一样（例：黄圃唯一未整改
+//   是 9/17 视频巡检，却让该店自检清单也显示未完成）。unqualified_v2.json 的 rectify 行是逐报告
+//   明细（typ：CG=常规QSC / ZJ=门店自检 / SP=视频巡检，total=不合格项数，done=已整改），
+//   按 typ+门店 汇总即为各类型自己的整改单。
+//   返回 null = unq2 未就绪或缺日期区间（调用方回退旧口径，数据到达后经 scheduleRectRepaint 重绘）。
+let __rectByTypeCache = { key: '', map: null };
+function __rectByTypeMap(){
+  const rows = (unq2State.data && Array.isArray(unq2State.data.rectify)) ? unq2State.data.rectify : null;
+  const s = (currentStart || '').slice(0, 10), e = (currentEnd || '').slice(0, 10);
+  if(!rows || (!s && !e)) return null;
+  const key = s + '~' + e;
+  if(__rectByTypeCache.key === key) return __rectByTypeCache.map;
+  const map = {};
+  for(const r of rows){
+    const d = (r.d || '').slice(0, 10);
+    if(s && d && d < s) continue;
+    if(e && d && d > e) continue;
+    const sn = (r.sn || '').trim(); if(!sn) continue;
+    const typ = r.typ || 'CG';
+    const b = map[typ] || (map[typ] = {});
+    const o = b[sn] || (b[sn] = { total: 0, done: 0 });
+    o.total += Number(r.total) || 0;
+    o.done += Number(r.done) || 0;
+  }
+  __rectByTypeCache = { key, map };
+  return map;
+}
+// fix191：unq2 首次加载未完成时清单先按旧口径渲染，数据到达后若弹窗仍开着则重绘
+function scheduleRectRepaint(paint){
+  try{
+    if(unq2State.data) return;
+    if(!unq2State.promise){ loadUnq2().catch(()=>{}); return; }
+    unq2State.promise.then(()=>{
+      const m = $('regionModal');
+      if(m && m.classList.contains('active')) paint();
+    }).catch(()=>{});
+  }catch(err){}
 }
 
 // fix109：统一门店清单格式——门店/应完成份数/已完成/完成率/合格份数/合格率/平均分/应整改单数/已整改/整改率，平均分降序
@@ -3694,6 +3738,13 @@ function renderUniformStoreRows(list, kind){
       }
       rec = rawSafeInt(s.rectified);
       need = (s.rectifyTotal != null) ? rawSafeInt(s.rectifyTotal) : (rawSafeInt(s.needRectify) + rec);
+      // fix191：按报告类型拆分整改单（CG=常规QSC / SP=视频巡检），不再显示全类型混合数
+      const bm191 = __rectByTypeMap();
+      if(bm191 && (kind === 'CG' || kind === 'SP')){
+        const o = (bm191[kind] || {})[(s.storeName || '').trim()];
+        rec = o ? o.done : 0;
+        need = o ? o.total : 0;
+      }
       rectRate = need > 0 ? Math.round(rec / need * 1000) / 10 : null;
     }
     return `
@@ -3739,7 +3790,10 @@ function showVideoRegionStores(region, position){
 
   // fix109：与自检门店清单统一格式（10 列，平均分降序）
   const list = stores.slice().sort((a,b)=> (Number(b.score) || 0) - (Number(a.score) || 0));
-  $('regionModalTable').innerHTML = renderUniformStoreRows(list, 'SP');
+  // fix191：整改列按报告类型拆分；unq2 数据迟到时先渲染、就绪后重绘
+  const paint191 = ()=>{ $('regionModalTable').innerHTML = renderUniformStoreRows(list, 'SP'); };
+  paint191();
+  scheduleRectRepaint(paint191);
   $('regionModal').classList.add('active');
 }
 
@@ -3778,7 +3832,7 @@ function showSelfRegionStores(region, position){
   $('regionModalSub').innerHTML =
     `组别：${html(pname)}　区域门店总数：${total}　参与自检任务：${enrolled}`;
 
-  $('regionModalTable').innerHTML = `
+  const paint191 = ()=>{ $('regionModalTable').innerHTML = `
     <thead><tr>
       <th>门店</th><th>应完成份数</th><th>已完成</th><th>完成率</th>
       <th>合格份数</th><th>合格率</th><th>平均分</th>
@@ -3792,9 +3846,15 @@ function showSelfRegionStores(region, position){
         const cmp = s.completed || 0;
         const completionRate = (exp > 0) ? Math.round((cmp / exp) * 1000) / 10 : 0;
         // 整改率：按每店自己的 yzg/dzg（来自 rectification 按 sn 聚合）
-        const rec = s.rectified || 0;
-        const need = s.needRectify || 0;
-        const rectTotal = rec + need;
+        let rec = s.rectified || 0;
+        let rectTotal = rec + (s.needRectify || 0);
+        // fix191：按报告类型(ZJ=门店自检)拆分整改单——原为全类型混合数，与视频/常规清单重复
+        const bm191 = __rectByTypeMap();
+        if(bm191){
+          const o = (bm191.ZJ || {})[(s.storeName || '').trim()];
+          rec = o ? o.done : 0;
+          rectTotal = o ? o.total : 0;
+        }
         const rectifyRate = rectTotal > 0 ? Math.round((rec / rectTotal) * 1000) / 10 : 0;
         return `
           <tr>
@@ -3813,7 +3873,9 @@ function showSelfRegionStores(region, position){
       }).join('')}
       ${list.length===0?'<tr><td colspan="10" class="empty">该区域暂无参与自检任务的门店</td></tr>':''}
     </tbody>
-  `;
+  `; };
+  paint191();
+  scheduleRectRepaint(paint191);
   $('regionModal').classList.add('active');
 }
 
@@ -4127,6 +4189,7 @@ window.addEventListener('resize', ()=>{
 // Initial load：默认按「本月 1 号 ~ 今天」走 raw 实时聚合，门店数用 data.json baseline（7/46/341）
 // 右上角的「全部数据」按钮切换回 data.json 预生成快照；「上月/选择日期」走 raw。
 initDates();
+loadUnq2().catch(()=>{});   // fix191：预载整改明细（unqualified_v2.json），门店清单整改列按报告类型拆分用
 (async function boot(){
   $('loading').style.display = 'block';
   if(typeof aggregateRange === 'function'){
