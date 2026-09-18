@@ -158,6 +158,7 @@ def extract_report(fp):
                 "t": it.get("title") or "",
                 "desc": it.get("disQualifiedDesc") or "",
                 "img": item_photos(it),
+                "st": it.get("isCorrected"),  # fix186：整改状态随条目透出（0未整改/1已整改/2待审核）
                 "corrected": it.get("isCorrected") == 1,  # fix185：isCorrected 三态 0未整改/1已整改/2待审核，仅1算已整改
             })
     # fix179：部分明细（尤其 ZJ 打烊/开店检查新模板）notcategoryList 为空，
@@ -174,6 +175,7 @@ def extract_report(fp):
                     "t": it.get("title") or "",
                     "desc": it.get("disQualifiedDesc") or "",
                     "img": item_photos(it),
+                    "st": it.get("isCorrected"),  # fix186：整改状态随条目透出（0未整改/1已整改/2待审核）
                     "corrected": it.get("isCorrected") == 1,  # fix185：isCorrected 三态 0未整改/1已整改/2待审核，仅1算已整改
                 })
     return meta, items
@@ -211,6 +213,7 @@ def main():
                     "rid": meta["rid"], "sn": meta["sn"], "sc": meta["sc"],
                     "d": meta["d"], "cat": it["cat"], "t": it["t"],
                     "desc": it["desc"], "img": it["img"],
+                    "st": it.get("st"),  # fix186：整改状态随条目透出（0未整改/1已整改/2待审核）
                     "rg": meta["rg"], "ps": meta["ps"],
                 })
         ents.sort(key=lambda x: (x["d"], x["rid"]))
@@ -227,6 +230,8 @@ def main():
             "rg": meta["rg"], "ps": meta["ps"], "d": meta["d"],
             "total": len(items),
             "done": sum(1 for it in items if it["corrected"]),
+            "open": sum(1 for it in items if it.get("st") == 0),  # fix186：待整改数
+            "rev": sum(1 for it in items if it.get("st") == 2),   # fix186：待审核数（门店已提交待督导审核，与待整改同计未完成）
         })
 
     # ---- cgCompare：同店相邻两次常规巡检对比 ----

@@ -1723,6 +1723,13 @@ function unq2ImgHtml(photos){
 }
 
 let UNQ2_GROUP_ENTS = {}; // 卡片id -> 该卡片全部原始条目（查看更多弹窗用）
+// fix186：条目级整改状态徽章（isCorrected：0未整改/1已整改/2待审核=门店已提交待督导审核）
+function unq2StBadge(st){
+  if (st===2) return ' <span style="display:inline-block;background:#fff4e0;color:#B26A00;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">待审核</span>';
+  if (st===1) return ' <span style="display:inline-block;background:#e8f5ee;color:#1e8e3e;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">已整改</span>';
+  if (st===0) return ' <span style="display:inline-block;background:#fdecea;color:#C0392B;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">待整改</span>';
+  return '';
+}
 function unq2ShowDetail(id){
   const ents = UNQ2_GROUP_ENTS[id] || [];
   if(!ents.length) return;
@@ -1741,7 +1748,7 @@ function unq2ShowDetail(id){
       <td style="padding:8px 10px;white-space:nowrap;color:#5a6377">${html(x.rg||'-')}</td>
       <td style="padding:8px 10px;white-space:nowrap;color:#5a6377">${html((x.d||'').slice(0,10))}</td>
       <td style="padding:8px 10px;white-space:nowrap"><span class="unq-item-cat">${html(typeLabel)}</span></td>
-      <td style="padding:8px 10px;min-width:180px;color:#333">${html(x.t||'-')}<br><span class="unq-item-cat">${html(x.cat||'')}</span></td>
+      <td style="padding:8px 10px;min-width:180px;color:#333">${html(x.t||'-')}${unq2StBadge(x.st)}<br><span class="unq-item-cat">${html(x.cat||'')}</span></td>
       <td style="padding:8px 10px;min-width:200px;color:#5a6377;font-size:12px">${html(x.desc||'-')}</td>
       <td style="padding:8px 10px">${(x.img&&x.img.length)?unq2ImgHtml(x.img.map(p=>Object.assign({},p,{sn:p.sn||x.sn,rg:p.rg||x.rg}))):'<span style="color:#999;font-size:12px">无照片</span>'}</td>
     </tr>`;
@@ -2421,6 +2428,14 @@ function renderUnqRectify(){
     const color = r>=0.8 ? '#1e8e3e' : (r>=0.5 ? '#b8860b' : '#c0392b');
     return `<span style="color:${color};font-weight:700">${(r*100).toFixed(0)}%</span>（${x.done}/${x.total}）`;
   };
+  // fix186：整改状态明细徽章——待整改(isCorrected=0)/待审核(=2，门店已提交待督导审核)，两者都计入「未完成」统计
+  const stBadges = x=>{
+    const open = x.open||0, rev = x.rev||0;
+    let s = '';
+    if (open>0) s += ` <span style="display:inline-block;background:#fdecea;color:#C0392B;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600;margin-left:4px">待整改 ${open}</span>`;
+    if (rev>0) s += ` <span style="display:inline-block;background:#fff4e0;color:#B26A00;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600;margin-left:4px">待审核 ${rev}</span>`;
+    return s;
+  };
   $('unqRfTable').innerHTML = `
     <thead><tr>
       <th>门店</th><th>所属区域</th><th>组别</th><th>报告生成日期</th><th>报告类型</th><th>应整改项</th><th>已整改数</th><th>整改率</th>
@@ -2435,9 +2450,9 @@ function renderUnqRectify(){
           <td><span class="unq-item-cat">${html((UNQ_RF_TYPES.find(t=>t.k===x.typ)||{}).l||x.typ)}</span></td>
           <td>${x.total}</td>
           <td>${x.done}</td>
-          <td>${rateRow(x)}</td>
+          <td>${rateRow(x)}${stBadges(x)}</td>
         </tr>`).join('')}
-      ${rows.length===0?'<tr><td colspan="8" class="empty">当前区间/类型下暂无待整改报告</td></tr>':`<tr style="background:#f6f7fb;font-weight:700"><td colspan="5">合计（${html(tl)} · ${rows.length} 份报告）</td><td>${total}</td><td>${done}</td><td>${total?`<span style="color:${done/total>=0.8?'#1e8e3e':(done/total>=0.5?'#b8860b':'#c0392b')}">${(done/total*100).toFixed(1)}%</span>`:'-'}</td></tr>`}
+      ${rows.length===0?'<tr><td colspan="8" class="empty">当前区间/类型下暂无待整改报告</td></tr>':`<tr style="background:#f6f7fb;font-weight:700"><td colspan="5">合计（${html(tl)} · ${rows.length} 份报告）</td><td>${total}</td><td>${done}</td><td>${total?`<span style="color:${done/total>=0.8?'#1e8e3e':(done/total>=0.5?'#b8860b':'#c0392b')}">${(done/total*100).toFixed(1)}%</span>`:'-'}${stBadges({open:rows.reduce((t,x)=>t+(x.open||0),0),rev:rows.reduce((t,x)=>t+(x.rev||0),0)})}</td></tr>`}
     </tbody>
   `;
 }
