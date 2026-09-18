@@ -62,7 +62,9 @@ def count_corrected(raw):
                 if q is False or str(q).strip().lower() == "false":
                     items.append(it)
     total = len(items)
-    done = sum(1 for it in items if it.get("isCorrected"))
+    # fix185：isCorrected 三态（0未整改/1已整改/2待审核=门店已提交照片待督导审核），
+    # 仅 1 算已整改。旧 bool() 把 2 当 True，698 条待审核被虚报为已整改（利和 9/11 实锤）。
+    done = sum(1 for it in items if it.get("isCorrected") == 1)
     return total, done
 
 

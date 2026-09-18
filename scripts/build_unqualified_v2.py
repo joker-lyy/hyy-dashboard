@@ -158,7 +158,7 @@ def extract_report(fp):
                 "t": it.get("title") or "",
                 "desc": it.get("disQualifiedDesc") or "",
                 "img": item_photos(it),
-                "corrected": bool(it.get("isCorrected")),
+                "corrected": it.get("isCorrected") == 1,  # fix185：isCorrected 三态 0未整改/1已整改/2待审核，仅1算已整改
             })
     # fix179：部分明细（尤其 ZJ 打烊/开店检查新模板）notcategoryList 为空，
     # 不合格项只存在 categoryList.itemList（isQualified=False）。兜底提取，避免整份报告漏条目。
@@ -174,7 +174,7 @@ def extract_report(fp):
                     "t": it.get("title") or "",
                     "desc": it.get("disQualifiedDesc") or "",
                     "img": item_photos(it),
-                    "corrected": bool(it.get("isCorrected")),
+                    "corrected": it.get("isCorrected") == 1,  # fix185：isCorrected 三态 0未整改/1已整改/2待审核，仅1算已整改
                 })
     return meta, items
 
