@@ -414,6 +414,10 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
       const unqItems = rawSafeInt(sup.sum);
       const normalItems = Math.max(0, inspectedItems - unqItems);
 
+      // fix192：严格归属——unq2 就绪后 QSC 板块只认 CG 数据（该店无记录=0，不回退混合口径，
+      //   否则自检/视频的整改单会漏进来）；unq2 未就绪（bucket=null）时回退混合口径
+      const rtCgBucket = rectTypBucket('CG');
+      const rtCg = rtCgBucket ? (rtCgBucket[b.storeName] || { total: 0, done: 0, open: 0, rev: 0 }) : null;
       const rec = {
         position: posLabel,
         region,
@@ -429,11 +433,14 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
         //   不会因为已整改完成而归零；与慧运营「层级检核-整改单-门店整改汇总」一致。
         //   口径统一：needRectify = 未完成（dzg + dsh）；rectifyTotal = 累计（yzg + dzg + dsh）
         //   app.js 里 rectTotal = needRectify + rectified = 累计，故 needRectify 保持"未完成"语义。
-        needRectify: rect ? (rawSafeInt(rect.dzg) + rawSafeInt(rect.dsh)) : 0,
-        rectified: rect ? rawSafeInt(rect.yzg) : 0,
+        //   fix192：unq2 按类型可用时 —— rectified=done、needRectify=total-done、
+        //   rectifyTotal=total、pendingAudit=rev（整改项维度，与门店清单弹窗 fix191 同口径）；
+        //   expired(逾期) 接口无类型维度，维持混合口径原值。
+        needRectify: rtCg ? Math.max(0, rtCg.total - rtCg.done) : (rect ? (rawSafeInt(rect.dzg) + rawSafeInt(rect.dsh)) : 0),
+        rectified: rtCg ? rtCg.done : (rect ? rawSafeInt(rect.yzg) : 0),
         expired: rect ? rawSafeInt(rect.yqzs) : 0,
-        pendingAudit: rect ? rawSafeInt(rect.dsh) : 0,
-        rectifyTotal: rect ? (rawSafeInt(rect.yzg) + rawSafeInt(rect.dzg) + rawSafeInt(rect.dsh)) : 0,
+        pendingAudit: rtCg ? rtCg.rev : (rect ? rawSafeInt(rect.dsh) : 0),
+        rectifyTotal: rtCg ? rtCg.total : (rect ? (rawSafeInt(rect.yzg) + rawSafeInt(rect.dzg) + rawSafeInt(rect.dsh)) : 0),
         reportId: b.reportId,
         signId: b.signId,
         isPass: sup.pass != null ? sup.pass : b.isPass,
@@ -750,7 +757,20 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
       let yzgSum = 0, pendSum = 0;
       for (const s of r.stores) {
         const sn = rectifyBySn[s.storeName || ''];
-        if (sn && (sn.yzg + sn.dzg + sn.dsh) > 0) {
+        // fix192：严格归属——unq2 就绪后自检板块只认 ZJ 数据（该店无记录=0，不回退混合口径）；
+        //   unq2 未就绪（bucket=null）时回退混合口径
+        const rtZjBucket = rectTypBucket('ZJ');
+        const rtZj = rtZjBucket ? (rtZjBucket[s.storeName || ''] || { total: 0, done: 0, open: 0, rev: 0 }) : null;
+        if (rtZj) {
+          // fix192：自检板块只算 ZJ（门店自检报告）的整改项——unq2 逐报告明细，
+          //   与门店清单弹窗 fix191 同口径（rectified=done / needRectify=total-done）
+          s.rectified = rtZj.done;
+          s.needRectify = Math.max(0, rtZj.total - rtZj.done);
+          s.rectifyTotal = rtZj.total;
+          s.pendingAudit = rtZj.rev;
+          yzgSum += rtZj.done;
+          pendSum += Math.max(0, rtZj.total - rtZj.done);
+        } else if (sn && (sn.yzg + sn.dzg + sn.dsh) > 0) {
           s.rectified = sn.yzg;
           s.needRectify = sn.dzg + sn.dsh;
           s.rectifyTotal = sn.yzg + sn.dzg + sn.dsh;
@@ -979,6 +999,10 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
       // fix109i：得分 = 区间内全部报告的平均分（5 份就是 5 份平均），不再用最新一份代表
       let score = (b.scoreCount > 0) ? Math.round((b.scoreSum / b.scoreCount) * 100) / 100
                 : (rawSafeFloat(b.latestScore, 0) || 0);
+      // fix192：严格归属——unq2 就绪后视频板块只认 SP 数据（该店无记录=0，不回退混合口径）；
+      //   unq2 未就绪（bucket=null）时回退混合口径
+      const rtSpBucket = rectTypBucket('SP');
+      const rtSp = rtSpBucket ? (rtSpBucket[b.storeName] || { total: 0, done: 0, open: 0, rev: 0 }) : null;
       const rec = {
         position: posLabel,
         region: rawMatchRegion(b.orgPath, regionNames),
@@ -991,10 +1015,12 @@ function aggregateVideo(months, start, end, baselineStoreMap) {
         reportCount: b.reportCount,
         unqualifiedItems: 0,
         // fix62：口径统一 —— needRectify = 未完成(dzg+dsh)；rectifyTotal = 累计(yzg+dzg+dsh)
-        needRectify: rect ? (rawSafeInt(rect.dzg) + rawSafeInt(rect.dsh)) : 0,
-        rectified: rect ? rawSafeInt(rect.yzg) : 0,
+        // fix192：unq2 按类型可用时走 SP 逐报告明细（done / total-done / total / rev）
+        needRectify: rtSp ? Math.max(0, rtSp.total - rtSp.done) : (rect ? (rawSafeInt(rect.dzg) + rawSafeInt(rect.dsh)) : 0),
+        rectified: rtSp ? rtSp.done : (rect ? rawSafeInt(rect.yzg) : 0),
         expired: rect ? rawSafeInt(rect.yqzs) : 0,
-        rectifyTotal: rect ? (rawSafeInt(rect.yzg) + rawSafeInt(rect.dzg) + rawSafeInt(rect.dsh)) : 0,
+        pendingAudit: rtSp ? rtSp.rev : (rect ? rawSafeInt(rect.dsh) : 0),
+        rectifyTotal: rtSp ? rtSp.total : (rect ? (rawSafeInt(rect.yzg) + rawSafeInt(rect.dzg) + rawSafeInt(rect.dsh)) : 0),
         reportId: b.reportId, signId: '',
         passCount: b.passCount,
         isPass: b.isPass, planType: 'VIDEO', reportDate: b.latestDate,
@@ -1247,6 +1273,46 @@ async function aggregateAi(aiBaseline, rawStoreMap, baselineStoreMap, rawBaselin
   };
 }
 
+// fix192：整改数据按报告类型归属（用户要求「整改按报告类型拆分，归到各自板块」）——
+//   此前 aggregateRegular/aggregateSelf/aggregateVideo 三处整改数都来自 raw 月文件的
+//   positions.*.rectification（后端 storeRectificationSummary「门店整改汇总」接口），
+//   该接口是门店维度全类型混合，导致每个板块都显示同一份混合数（例：黄圃唯一未整改
+//   是 9/17 视频巡检，自检/QSC 板块也跟着显示未完成）。
+//   改用 unqualified_v2.json 的 rectify 逐报告明细（typ：CG=常规QSC / ZJ=门店自检 /
+//   SP=视频巡检；total=应整改项，done=已整改，open=待整改项，rev=待审核项），
+//   由 app.js 在 unq2 数据到达后挂到 window.__UNQ2_RECT_ROWS，aggregateRange 开头
+//   按当前区间构建 __RECT_TYP；各聚合函数优先按自己的 typ 取数，unq2 未就绪回退混合口径。
+let __RECT_TYP = null;
+function buildRectTypMap(start, end){
+  __RECT_TYP = null;
+  let rows = null;
+  try { rows = (typeof window !== 'undefined' && window.__UNQ2_RECT_ROWS) || null; } catch(_){ rows = null; }
+  if (!rows || !Array.isArray(rows) || !rows.length) return;
+  const s = (start||'').slice(0,10), e = (end||'').slice(0,10);
+  const map = {};
+  for (const r of rows){
+    const d = (r.d||'').slice(0,10);
+    if (s && d && d < s) continue;
+    if (e && d && d > e) continue;
+    const sn = (r.sn||'').trim(); if(!sn) continue;
+    const typ = r.typ || 'CG';
+    const b = map[typ] || (map[typ] = {});
+    const o = b[sn] || (b[sn] = { total:0, done:0, open:0, rev:0 });
+    o.total += Number(r.total)||0;
+    o.done  += Number(r.done)||0;
+    o.open  += Number(r.open)||0;
+    o.rev   += Number(r.rev)||0;
+  }
+  __RECT_TYP = map;
+}
+// 取某报告类型的「门店→整改数」桶（unq2 未就绪返回 null → 调用方回退混合口径）。
+// fix192 严格归属：桶存在时，门店无记录 = 该类型区间内无整改数据 = 如实显示 0，
+// 绝不回退混合口径（否则 ZJ 的整改单会漏进 QSC 板块，正是本次要消灭的错位）。
+function rectTypBucket(typ){
+  if (!__RECT_TYP || !__RECT_TYP[typ]) return null;
+  return __RECT_TYP[typ];
+}
+
 async function aggregateRange(start, end) {
   const index = await loadRawIndex();
   const all = monthsInRange(start, end);
@@ -1259,6 +1325,9 @@ async function aggregateRange(start, end) {
 
   // fix10：拿一份 data.json 里的门店基线，传给聚合函数
   const baselineStoreMap = await loadBaselineStoreCounts();
+
+  // fix192：每次聚合先按当前区间重建「按报告类型」的整改映射（unq2 未就绪时为 null → 全部回退混合口径）
+  buildRectTypMap(start, end);
 
   const regular = aggregateRegular(loaded, start, end, baselineStoreMap);
   const self = aggregateSelf(loaded, start, end, baselineStoreMap, index.generatedAt);

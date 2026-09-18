@@ -466,6 +466,8 @@ a.fbtn{text-decoration:none;display:inline-block}
 
   <div class="module-panel" id="unqRectify">
     <h2 class="pt">整改情况追踪</h2>
+    <!-- fix192：按报告类型汇总区（全量看板——明细保持全量，汇总卡按 CG/ZJ/SP/AI 各归各板块） -->
+    <div id="unqRfSummary" style="display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 4px"></div>
     <div class="filterbar" style="flex-wrap:wrap;gap:8px">
       <div class="chipbar" id="unqRfTypeChips"></div>
       <div class="chipbar" id="unqRfDoneChips"></div>
@@ -519,8 +521,8 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260918fix191"></script>
-<script src="app.js?v=20260918fix191"></script>
+<script src="aggregate.js?v=20260918fix192"></script>
+<script src="app.js?v=20260918fix192"></script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">

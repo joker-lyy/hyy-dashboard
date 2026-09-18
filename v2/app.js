@@ -1645,9 +1645,26 @@ function loadUnq2(){
   if (unq2State.promise) return unq2State.promise;
   unq2State.promise = fetch(`${DATA_BASE}/unqualified_v2.json?v=${Date.now()}`)
     .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(json=>{ unq2State.data = json; unq2State.loaded = true; })
+    .then(json=>{ unq2State.data = json; unq2State.loaded = true; onUnq2Ready(json); })
     .catch(e=>{ unq2State.promise = null; throw e; });
   return unq2State.promise;
+}
+
+// fix192：unq2 到达后两件事——
+//   ① 把全量 rectify 逐报告明细挂到 window.__UNQ2_RECT_ROWS，aggregate.js 的
+//      aggregateRange 会按当前区间构建「按报告类型」的整改映射（CG/ZJ/SP 各归各板块）；
+//   ② 若主视图已按旧口径（混合）渲染过，重跑一次聚合+渲染让整改数按类型生效；
+//      首次渲染尚未发生时不重跑（之后的 aggregateRange 自然会带上类型数据）。
+function onUnq2Ready(json){
+  try{
+    window.__UNQ2_RECT_ROWS = (json && Array.isArray(json.rectify)) ? json.rectify : [];
+    // 用户正停在「整改追踪」tab 时，立即重绘汇总区+明细（否则要等下次切 tab）
+    const sup = $('unqRectify');
+    if (sup && sup.classList.contains('active')) renderUnqSupervision();
+    if (appData && currentStart && typeof tryAggregateRange === 'function'){
+      tryAggregateRange(currentStart, currentEnd).catch(()=>{});
+    }
+  }catch(err){}
 }
 
 function unq2RangeEntries(){
@@ -2384,6 +2401,38 @@ function renderUnqRectify(){
   const s = (currentStart||'').slice(0,10), e = (currentEnd||'').slice(0,10);
   if (s) rows = rows.filter(x=>x.d >= s);
   if (e) rows = rows.filter(x=>x.d <= e);
+  // fix192：按报告类型汇总区（用户要求：整改追踪是全量看板，但要有汇总的地方）——
+  //   只随右上角日期区间变化，不受下方类型/状态/组别/搜索筛选影响；明细表保持全量。
+  //   口径与明细行一致：整改率 = done/total（应整改项），未完成 = total-done，待审核单列。
+  const sumEl = $('unqRfSummary');
+  if (sumEl){
+    const order = ['CG','ZJ','SP','AI'];
+    const names = {CG:'常规巡检（QSC）',ZJ:'门店自检',SP:'视频巡检',AI:'AI慧检'};
+    const buckets = {};
+    for (const x of rows){
+      const t = x.typ || 'CG';
+      const b = buckets[t] || (buckets[t] = {n:0,total:0,done:0,open:0,rev:0});
+      b.n++; b.total += Number(x.total)||0; b.done += Number(x.done)||0;
+      b.open += Number(x.open)||0; b.rev += Number(x.rev)||0;
+    }
+    const rateColor = r => r>=0.8 ? '#1e8e3e' : (r>=0.5 ? '#b8860b' : '#c0392b');
+    const cardHtml = (label, b) => {
+      const r = b.total ? b.done/b.total : null;
+      const undone = Math.max(0, b.total - b.done);
+      return `<div class="card" style="flex:1;min-width:180px;border:1px solid #eef1f6;border-radius:10px;padding:12px 14px">
+        <div class="card-h">${html(label)}<span style="color:#98a2b3;font-weight:400;font-size:11px"> · ${b.n} 份报告</span></div>
+        <div class="card-v" style="${r!=null?`color:${rateColor(r)}`:'color:#98a2b3'}">${r!=null ? (r*100).toFixed(1)+'%' : '—'}</div>
+        <div class="card-sub">应整改 ${b.total} · 已整改 ${b.done} · 未完成 ${undone}${b.rev?` · 待审核 ${b.rev}`:''}</div>
+      </div>`;
+    };
+    let cards = '';
+    const allB = {n:0,total:0,done:0,open:0,rev:0};
+    for (const t of order){ const b = buckets[t]; if(!b) continue; allB.n+=b.n; allB.total+=b.total; allB.done+=b.done; allB.open+=b.open; allB.rev+=b.rev; }
+    if (allB.n) cards += cardHtml('全部类型', allB);
+    for (const t of order){ if (buckets[t]) cards += cardHtml(names[t], buckets[t]); }
+    for (const t of Object.keys(buckets)){ if (!order.includes(t)) cards += cardHtml(t, buckets[t]); }
+    sumEl.innerHTML = cards || '<span style="color:#98a2b3;font-size:12px">当前区间暂无整改数据</span>';
+  }
   const chipsEl = $('unqRfTypeChips');
   chipsEl.innerHTML = UNQ_RF_TYPES.map(t=>{
     const n = t.k==='__all__' ? rows.length : rows.filter(x=>x.typ===t.k).length;
