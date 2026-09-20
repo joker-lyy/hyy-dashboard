@@ -2395,10 +2395,44 @@ const UNQ_RF_TYPES = [
   {k:'AI', l:'AI慧检'},
 ];
 
+// fix196：solo 分享页（整改追踪）「本月数据/上月数据」时段计算——
+//   仅 window.__soloRect 模式下由 renderUnqRectify 读取覆盖日期过滤，
+//   不写全局 currentStart/currentEnd，原看板完全不受影响。
+function soloMonthRange(){
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();   // 0-based
+  const pad = n => String(n).padStart(2,'0');
+  if (window.__soloMonth === 'last'){
+    const py = m === 0 ? y - 1 : y, pm = m === 0 ? 11 : m - 1;
+    const lastDay = new Date(py, pm + 1, 0).getDate();
+    return [`${py}-${pad(pm+1)}-01`, `${py}-${pad(pm+1)}-${pad(lastDay)}`];
+  }
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  return [`${y}-${pad(m+1)}-01`, `${y}-${pad(m+1)}-${pad(lastDay)}`];
+}
+
 function renderUnqRectify(){
   const d = unq2State.data;
   let rows = (d && d.rectify) || [];
-  const s = (currentStart||'').slice(0,10), e = (currentEnd||'').slice(0,10);
+  const s0 = (currentStart||'').slice(0,10), e0 = (currentEnd||'').slice(0,10);
+  let s = s0, e = e0;
+  // fix196：solo 分享页——时段按钮（本月/上月）覆盖右上角全局日期区间
+  if (window.__soloRect){
+    const [ms, me] = soloMonthRange();
+    s = ms; e = me;
+    const mb = $('unqRfSoloMonthBar');
+    if (mb){
+      mb.style.display = 'flex';
+      const items = [{k:'this', l:'本月数据'}, {k:'last', l:'上月数据'}];
+      const cur = window.__soloMonth || 'this';
+      mb.innerHTML = '<span style="font-size:12px;color:#7a8399;align-self:center">时段</span>' + items.map(m=>
+        `<button class="chip ${cur===m.k?'active':''}" data-k="${m.k}">${m.l}</button>`).join('');
+      mb.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{ window.__soloMonth = b.dataset.k; renderUnqRectify(); });
+    }
+  } else {
+    const mb = $('unqRfSoloMonthBar');
+    if (mb){ mb.style.display = 'none'; mb.innerHTML = ''; }
+  }
   if (s) rows = rows.filter(x=>x.d >= s);
   if (e) rows = rows.filter(x=>x.d <= e);
   // fix192：按报告类型汇总区（用户要求：整改追踪是全量看板，但要有汇总的地方）——
@@ -2453,14 +2487,33 @@ function renderUnqRectify(){
   // 组别 / 区域下拉筛选（选项随类型与日期区间联动）
   const psList = [...new Set(rows.map(x=>x.ps).filter(Boolean))].sort();
   const rgList = [...new Set(rows.map(x=>x.rg).filter(Boolean))].sort();
-  if (!psList.includes(unqRfPs)) unqRfPs = '__all__';
+  // fix196：solo 分享页组别锁死「培训组」——不参与 psList 重置，下拉禁用只读
+  if (window.__soloRect){
+    unqRfPs = '培训组';
+  } else if (!psList.includes(unqRfPs)) unqRfPs = '__all__';
   if (!rgList.includes(unqRfRg)) unqRfRg = '__all__';
   const psSel = $('unqRfPsSel'), rgSel = $('unqRfRgSel');
   const optHtml = (list, label)=>`<option value="__all__">全部${label}（${list.length}）</option>` + list.map(v=>`<option value="${html(v)}">${html(v)}</option>`).join('');
-  psSel.innerHTML = optHtml(psList, '组别');
+  if (window.__soloRect){
+    // 锁死态：固定单选项 + 禁用，样式降透明+灰底提示不可改
+    psSel.innerHTML = `<option value="培训组">组别：培训组（已锁定）</option>`;
+    psSel.value = '培训组';
+    psSel.disabled = true;
+    psSel.style.background = '#f3f5fa';
+    psSel.style.opacity = '.85';
+    psSel.title = '分享视图已锁定组别：培训组';
+    psSel.onchange = null;
+  } else {
+    psSel.innerHTML = optHtml(psList, '组别');
+    psSel.value = unqRfPs;
+    psSel.disabled = false;
+    psSel.style.background = '';
+    psSel.style.opacity = '';
+    psSel.title = '';
+    psSel.onchange = ()=>{ unqRfPs = psSel.value; renderUnqRectify(); };
+  }
   rgSel.innerHTML = optHtml(rgList, '区域');
-  psSel.value = unqRfPs; rgSel.value = unqRfRg;
-  psSel.onchange = ()=>{ unqRfPs = psSel.value; renderUnqRectify(); };
+  rgSel.value = unqRfRg;
   rgSel.onchange = ()=>{ unqRfRg = rgSel.value; renderUnqRectify(); };
   if (unqRfPs !== '__all__') rows = rows.filter(x=>x.ps===unqRfPs);
   if (unqRfRg !== '__all__') rows = rows.filter(x=>x.rg===unqRfRg);
@@ -4561,6 +4614,50 @@ async function applyShareView(){
       document.body.insertAdjacentHTML('beforeend',
         '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 只读分享 · 报告详情</div>');
     }
+    return;
+  }
+  // fix196：整改追踪「可交互分享页」——组别锁死培训组、其他筛选可点、
+  //   新增本月/上月时段按钮（仅此页生效，不还原 st.s/st.e 全局区间、不加只读锁）
+  if (st.solo === 'rect'){
+    window.__soloRect = true;
+    window.__soloMonth = (st.mo === 'last') ? 'last' : 'this';
+    // CSS 隐藏：顶部页签/日期栏/全局区间横幅(range-banner 是 boot 异步创建，用类选择器兜底)/快照提示条/板块子页签
+    if (!document.getElementById('shareRectSoloStyle')){
+      const sst = document.createElement('style');
+      sst.id = 'shareRectSoloStyle';
+      sst.textContent = 'body.share-rect-solo>header .datebar,body.share-rect-solo #mainTabs,body.share-rect-solo .range-banner,body.share-rect-solo #unqSnapshotBar,body.share-rect-solo #unqSubTabs{display:none!important}';
+      document.head.appendChild(sst);
+    }
+    document.body.classList.add('share-rect-solo');
+    try{
+      const tb = document.querySelector('#mainTabs .tab[data-t="unqualifiedDetail"]');
+      if (tb) tb.click();
+      setTimeout(()=>{
+        const sb = document.querySelector('.subtab[data-sub="unqRectify"]');
+        if (sb) sb.click();
+        // unq2 晚到时 onUnq2Ready 会因 unqRectify 已 active 而自动重绘
+      }, 400);
+    }catch(e){ console.warn('rect solo share apply failed', e); }
+    // 隐藏日期栏 / 分享按钮（datebar 可能在 header 内，直接找）
+    const db3 = document.querySelector('.datebar'); if(db3) db3.style.display = 'none';
+    const sbv3 = $('shareViewBtn'); if(sbv3) sbv3.style.display = 'none';
+    const spv3 = document.getElementById('sharePngBtn'); if(spv3) spv3.style.display = 'none';
+    if(!document.getElementById('shareRoBar')){
+      document.body.insertAdjacentHTML('beforeend',
+        '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 整改追踪 · 培训组（分享视图 · 每日随看板自动更新）</div>');
+    }
+    // solo 页数据自刷新：每 10 分钟静默重拉 unqualified_v2.json，generatedAt 变了才重绘
+    setInterval(async ()=>{
+      try{
+        const r = await fetch(`${DATA_BASE}/unqualified_v2.json?v=${Date.now()}`);
+        if (!r.ok) return;
+        const j = await r.json();
+        if (j && j.generatedAt && (!unq2State.data || unq2State.data.generatedAt !== j.generatedAt)){
+          unq2State.data = j; unq2State.loaded = true;
+          onUnq2Ready(j);
+        }
+      }catch(e){}
+    }, 10*60*1000);
     return;
   }
   try{
