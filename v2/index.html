@@ -251,6 +251,8 @@ a.fbtn{text-decoration:none;display:inline-block}
       <span id="statusPill" class="status-pill loading">数据加载中…</span>
       <button class="fbtn" id="shareViewBtn" title="生成当前板块的只读分享链接">🔗 分享本视图</button>
       <button class="fbtn" id="sharePngBtn" onclick="sharePng()" title="把当前页面生成为图片，复制后直接粘贴发送">🖼 分享图片</button>
+      <!-- fix201：手动更新（本机触发服务 8778，自动更新时段 ±30 分钟禁点） -->
+      <button class="fbtn" id="updateBtn" onclick="hyyManualUpdate()" title="本机全量抓数并更新看板（约 20-35 分钟）">🔄 更新【巡店看板】数据</button>
     </div>
   </div>
   <div class="tabs" id="mainTabs">
@@ -523,8 +525,83 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="aggregate.js?v=20260920fix197"></script>
-<script src="app.js?v=20260920fix197"></script>
+<script src="aggregate.js?v=20260922fix201"></script>
+<script src="app.js?v=20260922fix201"></script>
+
+<!-- fix201：手动更新按钮逻辑（本机触发服务 127.0.0.1:8778）
+     自动更新时段（每天 00:30/10:30/13:30/16:30/19:30）前后 30 分钟内禁止手动更新 -->
+<script>
+const HYY_UPD_SVC = "http://127.0.0.1:8778";
+const HYY_AUTO_SLOTS = [[0,30],[10,30],[13,30],[16,30],[19,30]];
+let hyyUpdBusy = false, hyyUpdTimer = null;
+function hyyUpdBtn(txt, dis) { const b = document.getElementById("updateBtn"); if (b) { b.textContent = txt; b.disabled = !!dis; b.style.opacity = dis ? ".6" : "1"; } }
+function hyyUpdWindowLeft() {
+  const n = new Date(), m = n.getHours() * 60 + n.getMinutes();
+  for (const s of HYY_AUTO_SLOTS) {
+    const t = s[0] * 60 + s[1];
+    let d = m - t;
+    if (d > 720) d -= 1440; else if (d < -720) d += 1440;
+    if (Math.abs(d) <= 30) return d; // 负数=距开始几分钟，正数=已开始几分钟
+  }
+  return null;
+}
+function hyyUpdGuardTick() {
+  const b = document.getElementById("updateBtn");
+  if (!b || hyyUpdBusy) return;
+  const d = hyyUpdWindowLeft();
+  if (d !== null) {
+    b.textContent = d <= 0 ? "🔒 自动更新进行中，暂禁手动" : "🔒 距自动更新 " + d + " 分钟，暂禁手动";
+    b.disabled = true; b.style.opacity = ".6";
+  } else if (b.disabled) {
+    b.textContent = "🔄 更新【巡店看板】数据"; b.disabled = false; b.style.opacity = "1";
+  }
+}
+setInterval(hyyUpdGuardTick, 30000);
+function hyyUpdFail(msg) { clearTimeout(hyyUpdTimer); hyyUpdBusy = false; hyyUpdGuardTick(); alert(msg); }
+function hyyPollStatus() {
+  clearTimeout(hyyUpdTimer);
+  fetch(HYY_UPD_SVC + "/status").then(r => r.json()).then(j => {
+    if (j.running) {
+      hyyUpdBtn("⏳ 更新中 " + (j.startedAt || ""), true);
+      hyyUpdTimer = setTimeout(hyyPollStatus, 10000);
+    } else if (j.lastOk === true) {
+      hyyUpdBtn("✅ 已更新", false);
+      hyyUpdBusy = false;
+      setTimeout(() => {
+        const u = new URL(location.href); u.searchParams.set("_ts", Date.now().toString());
+        location.replace(u.toString());
+      }, 1200);
+    } else if (j.lastOk === false) {
+      hyyUpdFail("更新失败：" + (j.lastMsg || "详见本机 manual_run.log"));
+    } else {
+      hyyUpdBusy = false; hyyUpdBtn("🔄 更新【巡店看板】数据", false);
+    }
+  }).catch(() => hyyUpdFail("连不上本机更新服务（127.0.0.1:8778）。\n双击一次「一键启动全部工具」把它挂起来，再点更新。"));
+}
+function hyyManualUpdate() {
+  const d = hyyUpdWindowLeft();
+  if (d !== null) {
+    const tip = d <= 0 ? "自动更新正在进行/收尾" : "距自动更新开始约 " + d + " 分钟";
+    alert("⏸ 现在处于自动更新时段前后 30 分钟内（" + tip + "），手动更新暂不可用。\n自动更新时段：每天 00:30、10:30、13:30、16:30、19:30");
+    return;
+  }
+  hyyUpdBusy = true;
+  hyyUpdBtn("⏳ 检查服务...", true);
+  fetch(HYY_UPD_SVC + "/ping").then(r => r.json()).then(j => {
+    if (!j.ok) return hyyUpdFail("本机更新服务异常，请双击「一键启动全部工具」后重试");
+    if (j.running) { hyyPollStatus(); return; }
+    fetch(HYY_UPD_SVC + "/run", { method: "POST" }).then(r => r.json()).then(r2 => {
+      if (!r2.ok) return hyyUpdFail(r2.msg || "启动更新失败");
+      hyyUpdBtn("⏳ 抓数中 约25分钟", true);
+      hyyPollStatus();
+    }).catch(e => hyyUpdFail("启动更新失败：" + e));
+  }).catch(() => hyyUpdFail("连不上本机更新服务（127.0.0.1:8778）。\n双击一次「一键启动全部工具」把它挂起来，再点更新。"));
+}
+window.addEventListener("load", () => {
+  hyyUpdGuardTick();
+  fetch(HYY_UPD_SVC + "/ping").then(r => r.json()).then(j => { if (j.ok && j.running) hyyUpdBtn("⏳ 更新中 " + (j.startedAt || ""), true); }).catch(() => {});
+});
+</script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
 <div class="unq-lightbox" id="unqLightbox" onclick="closeUnqLightbox(event)">
