@@ -4095,7 +4095,7 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
 
   $('regionModalTable').innerHTML = `
     <thead><tr>
-      <th>日期</th><th>巡检类型</th><th>结果</th><th>分数</th><th>报告</th><th>自检</th>
+      <th>日期</th><th>巡检类型</th><th>结果</th><th>分数</th><th>报告</th><th>自检报告</th>
     </tr></thead>
     <tbody>
       ${reports.map((r,idx)=>{
@@ -4104,22 +4104,26 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
         const passTxt = r.pass == null ? '-' : (pass ? '合格' : '不合格');
         const scoreCls = (r.s != null && r.s > 0) ? scoreClass(r.s) : '';
         // fix109l：无分数的报告不给点详情，避免报错
-        const cell = (r.s == null || !(r.s > 0))
+        const link = (r.s == null || !(r.s > 0))
           ? '<span style="color:#bbb">未点评</span>'
           : r.rid
           ? reportLink({ reportId: r.rid, signId: r.sid, storeName: storeName, region: '', reportDate: r.d, score: r.s, isPass: r.pass }, '查看详情', planType)
           : '<span style="color:#999">无报告编号</span>';
-        // fix195：「自检」列——key=888 可勾选（勾选即从 QSC 计分统计剔除并全页重算）；
-        // 其他状态只读展示（被标记的报告仍显示，但不计入分数/报告数等统计口径）
-        // fix203：模板自动判定（QSC常规巡检·直营自检表）的报告勾选框禁用——
-        //   剔除口径由平台模板决定，手动勾选/取消都不改变统计，避免勾选态与统计口径不一致
-        let mkCell;
-        if(r.mkAuto){
-          mkCell = `<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#1a7f37;white-space:nowrap" title="「QSC常规巡检（直营自检表）」模板自动判定为自检，不计入统计"><input type="checkbox" checked disabled>自检</label>`;
-        }else if(window.__IS_KEY888__ && r.mkKey){
-          mkCell = `<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:#555;white-space:nowrap"><input type="checkbox" ${r.mk?'checked':''} onchange="__toggleScMarkByRow(this,${idx})">自检</label>`;
+        // fix195：「自检」标记 —— key=888 可勾选（勾选即从 QSC 计分统计剔除并全页重算）；
+        //   被标记的报告仍显示，但不计入分数/报告数等统计口径
+        // fix203：模板自动判定（QSC常规巡检·直营自检表）与手动勾选同效
+        // fix204：「自检报告」列——被标记（手动+自动，渲染完全一致：绿色「✅ 自检」+ 查看详情）
+        //   的报告归入该列、「报告」列留 -；普通报告留在「报告」列。888 对未标记报告就地勾选，
+        //   勾选后全页重算重开弹窗，链接自动挪入本列
+        let repCell, scCell;
+        if(r.mk){
+          repCell = '<span style="color:#ccc">-</span>';
+          scCell = '<span style="color:#1a7f37;font-weight:600">✅ 自检</span> ' + link;
         }else{
-          mkCell = r.mk ? '<span style="color:#1a7f37;font-weight:600">✅ 自检</span>' : '<span style="color:#ccc">-</span>';
+          repCell = link;
+          scCell = (window.__IS_KEY888__ && r.mkKey)
+            ? `<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:#555;white-space:nowrap"><input type="checkbox" onchange="__toggleScMarkByRow(this,${idx})">自检</label>`
+            : '<span style="color:#ccc">-</span>';
         }
         return `
           <tr${r.mk ? ' style="background:rgba(255,193,7,.10)"' : ''}>
@@ -4127,8 +4131,8 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
             <td>${html(r.tn || typeLabel)}</td>
             <td style="${passStyle}">${passTxt}</td>
             <td class="${scoreCls}">${(r.s != null && r.s > 0) ? r.s : '-'}${r.mk ? '<span style="color:#b8860b;font-size:11px;margin-left:4px">不计分</span>' : ''}</td>
-            <td>${cell}</td>
-            <td>${mkCell}</td>
+            <td>${repCell}</td>
+            <td>${scCell}</td>
           </tr>
         `;
       }).join('')}
