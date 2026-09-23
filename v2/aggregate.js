@@ -55,8 +55,20 @@ function scMarkKey(rep, sn) {
   if (rep && rep.rid) return 'rid:' + rep.rid;
   return 'k:' + (sn || (rep && rep.sn) || '') + '|' + ((rep && rep.d) || '') + '|' + ((rep && rep.s != null) ? rep.s : '');
 }
+/* fix203：平台模板自动判定——「QSC常规巡检（直营自检表）」= 门店日常自检行为，
+   与 888 手动勾选同效：剔除 QSC 计分统计（分数/报告数/合格数/检查项数/最新代表报告）。
+   判定键 = 报告 templateId（月度 raw 的 rep.tid；月度列表接口不带模板名，只有 tid）。
+   2026-09-23 实抓核对：广州佳润/广州海珠同创/中山康华 3 份报告 tid=10000001677588，
+   详情接口 templateName=「QSC常规巡检（直营自检表）」；直营组正式表 tid=10000000079361、
+   标准 QSC 表 tid=10000000080226 不受影响。平台以后新建自检表模板时在此追加 tid。 */
+const SC_AUTO_TPL_IDS = ['10000001677588'];
+function isSelfCheckTplAuto(rep) {
+  return !!(rep && rep.tid != null && SC_AUTO_TPL_IDS.indexOf(String(rep.tid)) >= 0);
+}
 function isSelfCheckMarked(rep, sn) {
   try {
+    // fix203：模板自动判定优先——不受手动标记影响（888 勾选框对该类报告禁用）
+    if (isSelfCheckTplAuto(rep)) return true;
     const m = (typeof window !== 'undefined' && window.__SELF_CHECK_MARKS__) || {};
     return !!m[scMarkKey(rep, sn)];
   } catch (e) { return false; }
@@ -399,7 +411,8 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
           if (rep.tid) b.tplCounts[rep.tid] = (b.tplCounts[rep.tid] || 0) + 1;
           if (sc != null) { b.scoreSum += sc; b.scoreCount++; if (sc >= 90) b.passCount++; }
         }
-        b.reports.push({ rid: rep.rid || '', sid: rep.sid || '', d: rep.d || '', s: sc, pass: rep.pass, tn: rep.tn || '', mk: scMarked ? 1 : 0, mkKey: scMarkKey(rep, sname) });
+        // fix203：mkAuto=模板自动判定（直营自检表），弹窗勾选框禁用；mk=1 含手动+自动两类
+        b.reports.push({ rid: rep.rid || '', sid: rep.sid || '', d: rep.d || '', s: sc, pass: rep.pass, tn: rep.tn || '', mk: scMarked ? 1 : 0, mkAuto: scMarked && isSelfCheckTplAuto(rep) ? 1 : 0, mkKey: scMarkKey(rep, sname) });
         if (!scMarked && rep.d >= b.latestDate) {
           b.latestDate = rep.d;
           b.latestScore = sc;

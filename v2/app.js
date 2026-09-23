@@ -4111,8 +4111,12 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
           : '<span style="color:#999">无报告编号</span>';
         // fix195：「自检」列——key=888 可勾选（勾选即从 QSC 计分统计剔除并全页重算）；
         // 其他状态只读展示（被标记的报告仍显示，但不计入分数/报告数等统计口径）
+        // fix203：模板自动判定（QSC常规巡检·直营自检表）的报告勾选框禁用——
+        //   剔除口径由平台模板决定，手动勾选/取消都不改变统计，避免勾选态与统计口径不一致
         let mkCell;
-        if(window.__IS_KEY888__ && r.mkKey){
+        if(r.mkAuto){
+          mkCell = `<label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#1a7f37;white-space:nowrap" title="「QSC常规巡检（直营自检表）」模板自动判定为自检，不计入统计"><input type="checkbox" checked disabled>自检</label>`;
+        }else if(window.__IS_KEY888__ && r.mkKey){
           mkCell = `<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:#555;white-space:nowrap"><input type="checkbox" ${r.mk?'checked':''} onchange="__toggleScMarkByRow(this,${idx})">自检</label>`;
         }else{
           mkCell = r.mk ? '<span style="color:#1a7f37;font-weight:600">✅ 自检</span>' : '<span style="color:#ccc">-</span>';
