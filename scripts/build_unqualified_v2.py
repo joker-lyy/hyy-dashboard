@@ -15,6 +15,7 @@
 要点：
   - fix148：commitImgUploadTime 按逗号拆分与 commitImgurl 逐张配对
   - fix123：剥离照片 URL 的 OSS 压缩参数，保留原始图
+  - fix205：cgCompare 对比链剔除自检报告（手动标记 + 直营自检表模板），只对比真实巡检
   - 每次运行全量重建（脚本幂等），由每日管线在 collect_raw 之后调用
 """
 import glob
@@ -36,6 +37,12 @@ import requests  # noqa: E402
 import hhy_api  # noqa: E402
 
 TYPES = ("CG", "ZJ", "SP")
+
+# fix205：巡检变化对比只串「真实巡检」——自检报告不入对比链（口径与前端 fix195/fix203 一致）：
+#   ① 手动标记：data/selfCheckMarks.json marks 键「rid:<rid>」（key=888 页面勾选）
+#   ② 直营自检表模板：明细 raw.templateId == 10000001677588（QSC常规巡检·直营自检表）
+# 自检是门店日常行为，串进链里会产出「自检→自检」「同日 9/22→9/22」等无效对比。
+SELF_CHECK_TPL_ID = "10000001677588"
 
 RAW_SN_MAP = {}  # rid -> 门店名（从 raw 月度汇总反查，兜底历史明细文件缺 storeName）
 RAW_NL_MAP = {}  # rid -> 组织路径（raw 月度汇总 nl 字段，fix182 区域兜底）
@@ -200,7 +207,8 @@ def extract_report(fp):
         if rg2 and rg2 != "总部":
             rg, ps = rg2, ps2
     sc = str(raw.get("storeCode") or "")
-    meta = {"typ": typ, "rid": rid, "sn": sn, "sc": sc, "d": d, "rg": rg, "ps": ps}
+    meta = {"typ": typ, "rid": rid, "sn": sn, "sc": sc, "d": d, "rg": rg, "ps": ps,
+            "tid": str(raw.get("templateId") or "")}  # fix205：模板 id 随 meta 透出供对比链剔除自检
     items = []
     for cat in raw.get("notcategoryList") or []:
         cname = cat.get("categoryName") or ""
@@ -233,6 +241,15 @@ def extract_report(fp):
                     "corrected": it.get("isCorrected") == 1,  # fix185：isCorrected 三态 0未整改/1已整改/2待审核，仅1算已整改
                 })
     return meta, items
+
+
+def load_selfcheck_marks():
+    """fix205：读 fix195 手动自检标记（键格式 rid:<rid>）。文件缺失/损坏返回空集（不阻断重建）。"""
+    try:
+        j = json.load(open(os.path.join(BASE, "data", "selfCheckMarks.json"), encoding="utf-8"))
+        return set((j.get("marks") or {}).keys())
+    except Exception:
+        return set()
 
 
 def main():
@@ -332,10 +349,19 @@ def main():
         })
 
     # ---- cgCompare：同店相邻两次常规巡检对比 ----
+    # fix205：自检报告不入对比链（①手动标记 ②直营自检表模板）——对比只反映真实巡检变化
+    sc_marks = load_selfcheck_marks()
     cg = []
+    n_sc_skip = 0
     for (t, _rid), (meta, items) in reports.items():
-        if t == "CG" and meta["d"]:
-            cg.append((meta, {it["t"]: it for it in items}))
+        if t != "CG" or not meta["d"]:
+            continue
+        if ("rid:" + meta["rid"]) in sc_marks or meta.get("tid") == SELF_CHECK_TPL_ID:
+            n_sc_skip += 1
+            continue
+        cg.append((meta, {it["t"]: it for it in items}))
+    if n_sc_skip:
+        print(f"[fix205] cgCompare 自检剔除：{n_sc_skip} 份自检报告不入对比链")
     by_store = {}
     for meta, itemmap in cg:
         by_store.setdefault(meta["sn"], []).append((meta, itemmap))

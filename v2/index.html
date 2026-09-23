@@ -462,7 +462,7 @@ a.fbtn{text-decoration:none;display:inline-block}
       <select class="search" id="unqCmpRgSel" style="max-width:220px"></select>
       <input type="text" class="search" id="unqCmpSearch" placeholder="搜索门店、区域…" style="max-width:220px">
     </div>
-    <div style="color:#7a8399;font-size:12px;margin:6px 0">每家门店取最近两次常规巡检（QSC）报告配对：好转/劣化/复发一目了然；⚠️ = 该问题连续两次不合格（近30天重复），最需督办</div>
+    <div style="color:#7a8399;font-size:12px;margin:6px 0">每家门店取最近两次常规巡检（QSC）报告配对：好转/劣化/复发一目了然；⚠️ = 该问题连续两次不合格（近30天重复），最需督办。fix205：自检报告（手动标记/直营自检表）不参与对比</div>
     <div id="unqCmpList"></div>
   </div>
 
@@ -525,9 +525,9 @@ window.onerror = function(msg, url, line, col, err){
   return false;
 };
 </script>
-<script src="xindian_baseline.js?v=20260923fix204"></script>
-<script src="aggregate.js?v=20260923fix204"></script>
-<script src="app.js?v=20260923fix204"></script>
+<script src="xindian_baseline.js?v=20260923fix205"></script>
+<script src="aggregate.js?v=20260923fix205"></script>
+<script src="app.js?v=20260923fix205"></script>
 
 <!-- fix201：手动更新按钮逻辑（本机触发服务 127.0.0.1:8778）
      自动更新时段（每天 00:30/10:30/13:30/16:30/19:30）前后 30 分钟内禁止手动更新 -->
