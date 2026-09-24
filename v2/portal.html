@@ -7,7 +7,7 @@
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;background:#f4f6fa;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-  /* fix210：直营看板门户——顶部导航页签，切换三大板块（fix210b：业绩板块按用户要求移除） */
+  /* fix210：直营看板门户——顶部导航页签切换板块（fix210b 移除业绩板块；fix215 增加巡检变化对比） */
   #portalNav{background:#1A2A4A;display:flex;align-items:center;gap:6px;padding:8px 14px;box-shadow:0 2px 8px rgba(0,0,0,.18);flex-wrap:nowrap;overflow-x:auto;flex:0 0 auto}
   #portalNav .brand{color:#fff;font-size:15px;font-weight:700;margin-right:10px;white-space:nowrap}
   #portalNav .brand small{font-weight:400;font-size:11px;color:#9db2d9;margin-left:6px}
@@ -25,19 +25,21 @@
     <span class="brand">🍣 苍井寿司 · 直营看板<small>只读</small></span>
     <button data-p="rank" class="on">📊 门店排名</button>
     <button data-p="rect">📋 整改追踪</button>
+    <button data-p="cmp">📈 巡检变化对比</button>
     <button data-p="study">🎓 直营学习</button>
     <span class="sp"></span>
   </div>
 
   <div class="pane on" id="pane-rank"><iframe data-src="index.html#s=eyJ0IjoicmVndWxhckluc3BlY3Rpb24iLCJzdWIiOiJyZWd1bGFyU3RvcmVSYW5rIiwiZyI6IuWfueiuree7hO-8iOebtOiQpee7hO-8iSIsInNvbG8iOiJyYW5rIiwicm8iOjF9" allowfullscreen></iframe></div>
   <div class="pane" id="pane-rect"><iframe data-src="index.html#s=eyJ0IjoidW5xdWFsaWZpZWREZXRhaWwiLCJzdWIiOiJ1bnFSZWN0aWZ5Iiwic29sbyI6InJlY3QiLCJybyI6MX0" allowfullscreen></iframe></div>
+  <div class="pane" id="pane-cmp"><iframe data-src="index.html#s=eyJ0IjoidW5xdWFsaWZpZWREZXRhaWwiLCJzdWIiOiJ1bnFDb21wYXJlIiwic29sbyI6ImNtcCIsInJvIjoxfQ" allowfullscreen></iframe></div>
   <div class="pane" id="pane-study"><iframe data-src="https://joker-lyy.github.io/study-dashboard/index.html#s=eyJ0YWIiOiLnm7TokKXlrabkuaDmmI7nu4YiLCJwbGFuSWR4IjowLCJzdWIiOiLlhajpg6giLCJyYW5nZSI6IuacrOaciCIsInJGcm9tIjpudWxsLCJyVG8iOm51bGwsImdGaWx0ZXIiOiLlhajpg6giLCJwcm9tb1N1YiI6IuWtpuS5oOWcsOWbviIsInByb21vTWFwSWR4IjowLCJwcm9tb1NpbmNlIjoiMjAyNi0wOS0wMSIsInBSZWdpb24iOiLlhajpg6giLCJwR3JvdXAiOiLlhajpg6giLCJwU3RvcmUiOiLlhajpg6giLCJldmFsU3ViIjoi5paw5Yqg55uf5ZWG5Z-56K6t6K6y5biI6K-E5Lu3Iiwic29sbyI6ImRpcmVjdCJ9" allowfullscreen></iframe></div>
 
 <script>
 (function(){
   /* ---------- 页签定义 ---------- */
-  var PANES = ['rank','rect','study'];
-  var LABELS = {rank:'📊 门店排名', rect:'📋 整改追踪', study:'🎓 直营学习'};
+  var PANES = ['rank','rect','cmp','study'];
+  var LABELS = {rank:'📊 门店排名', rect:'📋 整改追踪', cmp:'📈 巡检变化对比', study:'🎓 直营学习'};
 
   /* ---------- 懒加载 iframe：首次激活才加载 ---------- */
   function activate(key){
@@ -61,7 +63,7 @@
   });
 
   /* ---------- 初始页签：#p= 记忆，默认门店排名 ---------- */
-  var m = (location.hash || '').match(/p=(rank|rect|study)/);
+  var m = (location.hash || '').match(/p=(rank|rect|cmp|study)/);
   activate(m ? m[1] : 'rank');
 })();
 </script>

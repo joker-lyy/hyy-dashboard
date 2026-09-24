@@ -2332,6 +2332,8 @@ function renderUnqCompare(){
   const s = (currentStart||'').slice(0,10), e = (currentEnd||'').slice(0,10);
   if (s) rows = rows.filter(x=>x.cd >= s);   // 按本次巡检日期落区间
   if (e) rows = rows.filter(x=>x.cd <= e);
+  // fix215：solo 锁组先过滤再计数——保证结论芯片数字与下方列表口径一致
+  if (window.__soloCmp) rows = rows.filter(x=>x.ps === '培训组');
   // 结论芯片
   const verdicts = ['__all__','差了','好了','持平'];
   const chipsEl = $('unqCmpVerdictChips');
@@ -2343,14 +2345,28 @@ function renderUnqCompare(){
   // 组别 / 区域下拉筛选（fix129）
   const psList = [...new Set(rows.map(x=>x.ps).filter(Boolean))].sort();
   const rgList = [...new Set(rows.map(x=>x.rg).filter(Boolean))].sort();
-  if (!psList.includes(unqCmpPs)) unqCmpPs = '__all__';
+  // fix215：solo 分享页组别锁死「培训组」——不参与 psList 重置，下拉禁用只读（fix196 同款）
+  if (window.__soloCmp){
+    unqCmpPs = '培训组';
+  } else if (!psList.includes(unqCmpPs)) unqCmpPs = '__all__';
   if (!rgList.includes(unqCmpRg)) unqCmpRg = '__all__';
   const psSel = $('unqCmpPsSel'), rgSel = $('unqCmpRgSel');
   const optHtml = (list, label)=>`<option value="__all__">全部${label}（${list.length}）</option>` + list.map(v=>`<option value="${html(v)}">${html(v)}</option>`).join('');
-  psSel.innerHTML = optHtml(psList, '组别');
+  if (window.__soloCmp){
+    // fix215 锁死态：固定单选项 + 禁用，样式降透明+灰底提示不可改（fix196 同款）
+    psSel.innerHTML = `<option value="培训组">组别：培训组（已锁定）</option>`;
+    psSel.value = '培训组';
+    psSel.disabled = true;
+    psSel.style.background = '#f3f5fa';
+    psSel.style.opacity = '.85';
+    psSel.title = '分享视图已锁定组别：培训组';
+  } else {
+    psSel.innerHTML = optHtml(psList, '组别');
+    psSel.value = unqCmpPs;
+    psSel.onchange = ()=>{ unqCmpPs = psSel.value; renderUnqCompare(); };
+  }
   rgSel.innerHTML = optHtml(rgList, '区域');
-  psSel.value = unqCmpPs; rgSel.value = unqCmpRg;
-  psSel.onchange = ()=>{ unqCmpPs = psSel.value; renderUnqCompare(); };
+  rgSel.value = unqCmpRg;
   rgSel.onchange = ()=>{ unqCmpRg = rgSel.value; renderUnqCompare(); };
   if (unqCmpPs !== '__all__') rows = rows.filter(x=>x.ps===unqCmpPs);
   if (unqCmpRg !== '__all__') rows = rows.filter(x=>x.rg===unqCmpRg);
@@ -4620,6 +4636,46 @@ async function applyShareView(){
     }
     return;
   }
+  // fix215：巡检变化对比「可交互分享页」——组别锁死培训组（fix196 同款机制），
+  //   结论芯片/区域/搜索可点；无任何自刷新（fix210 口径：纯只读快照）
+  if (st.solo === 'cmp'){
+    window.__soloCmp = true;
+    if (!document.getElementById('shareCmpSoloStyle')){
+      const cst2 = document.createElement('style');
+      cst2.id = 'shareCmpSoloStyle';
+      cst2.textContent = 'body.share-cmp-solo>header .datebar,body.share-cmp-solo>header #updateBtn,body.share-cmp-solo #mainTabs,body.share-cmp-solo .range-banner,body.share-cmp-solo #unqSnapshotBar,body.share-cmp-solo #unqSubTabs,body.share-cmp-solo>header .subtitle{display:none!important}body.share-cmp-solo #unqCompare .filterbar{top:var(--soloStickyTop,105px)!important}';
+      document.head.appendChild(cst2);
+    }
+    document.body.classList.add('share-cmp-solo');
+    // fix214 同款：吸附线按页头实际高度运行时重算（写死值必留缝隙）
+    try{
+      const __cmpStickyFix = () => {
+        const hd6 = document.querySelector('body>header');
+        if (hd6) document.documentElement.style.setProperty('--soloStickyTop', hd6.offsetHeight + 'px');
+      };
+      __cmpStickyFix();
+      window.addEventListener('resize', __cmpStickyFix);
+      setTimeout(__cmpStickyFix, 500);
+      setTimeout(__cmpStickyFix, 1500);
+    }catch(e){ console.warn('cmp solo sticky fix failed', e); }
+    try{
+      const tbC = document.querySelector('#mainTabs .tab[data-t="unqualifiedDetail"]');
+      if (tbC) tbC.click();
+      setTimeout(()=>{
+        const sbC = document.querySelector('.subtab[data-sub="unqCompare"]');
+        if (sbC) sbC.click();
+        // unq2 晚到时 onUnq2Ready 会因 unqCompare 已 active 而自动重绘
+      }, 400);
+    }catch(e){ console.warn('cmp solo share apply failed', e); }
+    const dbC = document.querySelector('.datebar'); if(dbC) dbC.style.display = 'none';
+    const svC = $('shareViewBtn'); if(svC) svC.style.display = 'none';
+    const spC = document.getElementById('sharePngBtn'); if(spC) spC.style.display = 'none';
+    if(!document.getElementById('shareRoBar')){
+      document.body.insertAdjacentHTML('beforeend',
+        '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 巡检变化对比 · 培训组（分享视图 · 只读快照）</div>');
+    }
+    return;
+  }
   // fix196：整改追踪「可交互分享页」——组别锁死培训组、其他筛选可点、
   //   新增本月/上月时段按钮（仅此页生效，不还原 st.s/st.e 全局区间、不加只读锁）
   if (st.solo === 'rect'){
@@ -4786,7 +4842,8 @@ async function applyShareView(){
 setInterval(async ()=>{
   if(document.body.classList.contains('share-ro') ||
      document.body.classList.contains('share-rect-solo') ||
-     document.body.classList.contains('share-rank-solo')) return;
+     document.body.classList.contains('share-rank-solo') ||
+     document.body.classList.contains('share-cmp-solo')) return;
   if(appData && appData._rawMonths){
     await tryAggregateRange(currentStart, currentEnd);
   } else {
