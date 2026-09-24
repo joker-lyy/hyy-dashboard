@@ -4629,7 +4629,7 @@ async function applyShareView(){
     if (!document.getElementById('shareRectSoloStyle')){
       const sst = document.createElement('style');
       sst.id = 'shareRectSoloStyle';
-      sst.textContent = 'body.share-rect-solo>header .datebar,body.share-rect-solo>header #updateBtn,body.share-rect-solo #mainTabs,body.share-rect-solo .range-banner,body.share-rect-solo #unqSnapshotBar,body.share-rect-solo #unqSubTabs,body.share-rect-solo #unqRfRgSel,body.share-rect-solo #unqRectify h2.pt,body.share-rect-solo #unqRfSummary,body.share-rect-solo>header .subtitle{display:none!important}body.share-rect-solo #unqRfSoloMonthBar{position:static!important}body.share-rect-solo #unqRectify .filterbar{top:var(--rectSoloStickyTop,70px)!important}';
+      sst.textContent = 'body.share-rect-solo>header .datebar,body.share-rect-solo>header #updateBtn,body.share-rect-solo #mainTabs,body.share-rect-solo .range-banner,body.share-rect-solo #unqSnapshotBar,body.share-rect-solo #unqSubTabs,body.share-rect-solo #unqRfRgSel,body.share-rect-solo #unqRectify h2.pt,body.share-rect-solo #unqRfSummary,body.share-rect-solo>header .subtitle{display:none!important}body.share-rect-solo #unqRfSoloMonthBar{position:static!important}body.share-rect-solo #unqRectify .filterbar{top:var(--soloStickyTop,70px)!important}';
       document.head.appendChild(sst);
     }
     document.body.classList.add('share-rect-solo');
@@ -4638,7 +4638,7 @@ async function applyShareView(){
     try{
       const __rectStickyFix = () => {
         const hd4 = document.querySelector('body>header');
-        if (hd4) document.documentElement.style.setProperty('--rectSoloStickyTop', hd4.offsetHeight + 'px');
+        if (hd4) document.documentElement.style.setProperty('--soloStickyTop', hd4.offsetHeight + 'px');
       };
       __rectStickyFix();
       window.addEventListener('resize', __rectStickyFix);
@@ -4676,10 +4676,22 @@ async function applyShareView(){
     if(!document.getElementById('shareRankSoloStyle')){
       const rst = document.createElement('style');
       rst.id = 'shareRankSoloStyle';
-      rst.textContent = 'body.share-rank-solo>header #updateBtn,body.share-rank-solo>header #statusPill,body.share-rank-solo>header .datebar input[type=date],body.share-rank-solo>header .datebar label,body.share-rank-solo>header #applyDateBtn,body.share-rank-solo #mainTabs,body.share-rank-solo .range-banner,body.share-rank-solo #regularSubTabs{display:none!important}body.share-rank-solo #regularStoreRankPosFilter{pointer-events:none!important;opacity:.55}';
+      rst.textContent = 'body.share-rank-solo>header #updateBtn,body.share-rank-solo>header #statusPill,body.share-rank-solo>header .datebar input[type=date],body.share-rank-solo>header .datebar label,body.share-rank-solo>header #applyDateBtn,body.share-rank-solo #mainTabs,body.share-rank-solo .range-banner,body.share-rank-solo #regularSubTabs{display:none!important}body.share-rank-solo #regularStoreRankPosFilter{pointer-events:none!important;opacity:.55}body.share-rank-solo #regularStoreRank .filterbar{top:var(--soloStickyTop,105px)!important}';
       document.head.appendChild(rst);
     }
     document.body.classList.add('share-rank-solo');
+    // fix214：与 fix213 同款——rank solo 吸附线按页头实际高度运行时重算
+    //   （页头=标题行+日期条「上月/本月」按钮，高度≠全局写死的 105，缝隙会漏表格行/标题）
+    try{
+      const __rankStickyFix = () => {
+        const hd5 = document.querySelector('body>header');
+        if (hd5) document.documentElement.style.setProperty('--soloStickyTop', hd5.offsetHeight + 'px');
+      };
+      __rankStickyFix();
+      window.addEventListener('resize', __rankStickyFix);
+      setTimeout(__rankStickyFix, 500);
+      setTimeout(__rankStickyFix, 1500);
+    }catch(e){ console.warn('rank solo sticky fix failed', e); }
     try{
       const tbR = document.querySelector('#mainTabs .tab[data-t="regularInspection"]');
       if(tbR) tbR.click();
