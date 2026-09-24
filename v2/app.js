@@ -4629,10 +4629,22 @@ async function applyShareView(){
     if (!document.getElementById('shareRectSoloStyle')){
       const sst = document.createElement('style');
       sst.id = 'shareRectSoloStyle';
-      sst.textContent = 'body.share-rect-solo>header .datebar,body.share-rect-solo>header #updateBtn,body.share-rect-solo #mainTabs,body.share-rect-solo .range-banner,body.share-rect-solo #unqSnapshotBar,body.share-rect-solo #unqSubTabs,body.share-rect-solo #unqRfRgSel,body.share-rect-solo #unqRectify h2.pt,body.share-rect-solo #unqRfSummary,body.share-rect-solo>header .subtitle{display:none!important}body.share-rect-solo #unqRfSoloMonthBar{position:static!important}body.share-rect-solo #unqRectify .filterbar{top:70px!important}';
+      sst.textContent = 'body.share-rect-solo>header .datebar,body.share-rect-solo>header #updateBtn,body.share-rect-solo #mainTabs,body.share-rect-solo .range-banner,body.share-rect-solo #unqSnapshotBar,body.share-rect-solo #unqSubTabs,body.share-rect-solo #unqRfRgSel,body.share-rect-solo #unqRectify h2.pt,body.share-rect-solo #unqRfSummary,body.share-rect-solo>header .subtitle{display:none!important}body.share-rect-solo #unqRfSoloMonthBar{position:static!important}body.share-rect-solo #unqRectify .filterbar{top:var(--rectSoloStickyTop,70px)!important}';
       document.head.appendChild(sst);
     }
     document.body.classList.add('share-rect-solo');
+    // fix213：吸附线不再写死——运行时按页头实际高度重算（页头隐藏日期条/副标题后高度≠105/70，
+    //   写死值必留缝隙、滚动时表格行从页头与筛选条之间露出）；resize 与延迟各补测一次防 late reflow
+    try{
+      const __rectStickyFix = () => {
+        const hd4 = document.querySelector('body>header');
+        if (hd4) document.documentElement.style.setProperty('--rectSoloStickyTop', hd4.offsetHeight + 'px');
+      };
+      __rectStickyFix();
+      window.addEventListener('resize', __rectStickyFix);
+      setTimeout(__rectStickyFix, 500);
+      setTimeout(__rectStickyFix, 1500);
+    }catch(e){ console.warn('rect solo sticky fix failed', e); }
     try{
       const tb = document.querySelector('#mainTabs .tab[data-t="unqualifiedDetail"]');
       if (tb) tb.click();
