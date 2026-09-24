@@ -4629,7 +4629,7 @@ async function applyShareView(){
     if (!document.getElementById('shareRectSoloStyle')){
       const sst = document.createElement('style');
       sst.id = 'shareRectSoloStyle';
-      sst.textContent = 'body.share-rect-solo>header .datebar,body.share-rect-solo>header #updateBtn,body.share-rect-solo #mainTabs,body.share-rect-solo .range-banner,body.share-rect-solo #unqSnapshotBar,body.share-rect-solo #unqSubTabs,body.share-rect-solo #unqRfRgSel{display:none!important}';
+      sst.textContent = 'body.share-rect-solo>header .datebar,body.share-rect-solo>header #updateBtn,body.share-rect-solo #mainTabs,body.share-rect-solo .range-banner,body.share-rect-solo #unqSnapshotBar,body.share-rect-solo #unqSubTabs,body.share-rect-solo #unqRfRgSel,body.share-rect-solo #unqRectify h2.pt,body.share-rect-solo #unqRfSummary{display:none!important}';
       document.head.appendChild(sst);
     }
     document.body.classList.add('share-rect-solo');
