@@ -1614,13 +1614,20 @@ def _fetch_region_ranking(type_name: str, start_date: str, end_date: str) -> Lis
     按指定时间范围拉取常规巡检或每日自检数据，按岗位+区域聚合平均分排名。
     type_name: 'regular' | 'self'
     """
-    positions = cfg.TARGET_POSITIONS
+    # fix208：新店运营组按 fix202 虚拟桶口径拆成三个子组织逐个取数，
+    # 输出 position 仍统一标「新店运营组」（label_org 记录原始组名）。
+    positions: List[tuple] = []
+    for _pos, _org in cfg.TARGET_POSITIONS:
+        if _org == "新店运营组":
+            positions.extend((_pos, _sub, _org) for _sub in cfg.XY_VIRTUAL_SUBORGS)
+        else:
+            positions.append((_pos, _org, _org))
     region_list: List[Dict[str, Any]] = []
 
-    for pos_name, org_name in positions:
+    for pos_name, org_name, label_org in positions:
         try:
             token, matched = api.switch_position_and_login(pos_name, org_name)
-            pos_label = cfg.POSITION_LABELS.get(org_name, org_name)
+            pos_label = cfg.POSITION_LABELS.get(label_org, label_org)
             leaves = api.leaf_regions(token, root_name=org_name)
             # 组织树里的真实区域名，用于把报告行正确归到区域（避免名字与慧运营不一致）
             region_names = {leaf.get("organizeName", "") for leaf in leaves if leaf.get("organizeName")}
@@ -1963,8 +1970,9 @@ def _fetch_region_ranking(type_name: str, start_date: str, end_date: str) -> Lis
                     })
 
         except Exception as e:
+            # fix208：单组失败只跳过、不再拖垮整个 rankings（避免回到整页停更）
             traceback.print_exc()
-            raise RuntimeError(f"拉取区域排名 {type_name}/{pos_name}/{org_name} 失败: {e}")
+            print(f"[WARN] 区域排名 {type_name}/{pos_name}/{org_name} 取数失败，跳过: {e}")
 
     region_list.sort(key=_region_sort_key)
     return region_list

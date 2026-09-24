@@ -4664,6 +4664,69 @@ async function applyShareView(){
     }, 10*60*1000);
     return;
   }
+  // fix209：门店分数排名「可交互分享页」——锁死 常规巡检(QSC)→门店分数排名及明细→培训组（直营组），
+  //   「巡检报告」查看保留（报告/门店清单弹窗不受限，弹窗内可继续看报告）；
+  //   顶部页签/日期栏/板块子页签隐藏，组别按钮禁点只读；数据随看板自动刷新（10 分钟比对 generatedAt）
+  if(st.solo === 'rank'){
+    // fix142 同款：组别须在渲染前设置，子页签渲染时即生效
+    if(st.g) activePosFilter = st.g;
+    if(!document.getElementById('shareRankSoloStyle')){
+      const rst = document.createElement('style');
+      rst.id = 'shareRankSoloStyle';
+      rst.textContent = 'body.share-rank-solo>header .datebar,body.share-rank-solo>header #updateBtn,body.share-rank-solo #mainTabs,body.share-rank-solo .range-banner,body.share-rank-solo #regularSubTabs{display:none!important}body.share-rank-solo #regularStoreRankPosFilter{pointer-events:none!important;opacity:.55}';
+      document.head.appendChild(rst);
+    }
+    document.body.classList.add('share-rank-solo');
+    try{
+      const tbR = document.querySelector('#mainTabs .tab[data-t="regularInspection"]');
+      if(tbR) tbR.click();
+      setTimeout(()=>{
+        const sbR = document.querySelector('.subtab[data-sub="regularStoreRank"]');
+        if(sbR) sbR.click();
+        // 组别锁死还原：模拟点击「培训组」按钮（与手点完全等价：选中态+过滤+区域chip 同时生效；
+        //   默认页签在 boot 时已按 __all__ 渲染过，仅设 activePosFilter 不会重绘，必须补一次点击）
+        if(st.g){
+          let nR = 0;
+          const ivR = setInterval(()=>{
+            nR++;
+            const gb = document.querySelector('#regularStoreRankPosFilter .fbtn[data-pos="'+CSS.escape(st.g)+'"]');
+            if(gb){
+              if(!gb.classList.contains('active')) gb.click();
+              clearInterval(ivR);
+            } else if(nR > 40){ clearInterval(ivR); }
+          }, 250);
+        }
+      }, 400);
+    }catch(e){ console.warn('rank solo share apply failed', e); }
+    const dbR = document.querySelector('.datebar'); if(dbR) dbR.style.display = 'none';
+    const svR = $('shareViewBtn'); if(svR) svR.style.display = 'none';
+    const spR = document.getElementById('sharePngBtn'); if(spR) spR.style.display = 'none';
+    if(!document.getElementById('shareRoBar')){
+      document.body.insertAdjacentHTML('beforeend',
+        '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 门店分数排名及明细 · 培训组（直营组）（分享视图 · 随看板自动更新）</div>');
+    }
+    // solo 页数据自刷新：每 10 分钟静默比对 data.json generatedAt，变了才整页重载
+    //   （分享视图无状态，#s= hash 在 boot 时自动还原，整页重载最稳不脏状态）
+    (async ()=>{
+      try{
+        const r0 = await fetch(`${DATA_BASE}/data.json?v=${Date.now()}`, {cache:'no-store'});
+        if(r0.ok){
+          const j0 = await r0.json();
+          window.__rankSoloAt = (j0 && j0.data && j0.data.generatedAt) || (j0 && j0.publishedAt) || '';
+        }
+      }catch(e){}
+    })();
+    setInterval(async ()=>{
+      try{
+        const r = await fetch(`${DATA_BASE}/data.json?v=${Date.now()}`, {cache:'no-store'});
+        if(!r.ok) return;
+        const j = await r.json();
+        const at = (j && j.data && j.data.generatedAt) || (j && j.publishedAt) || '';
+        if(at && window.__rankSoloAt && at !== window.__rankSoloAt) location.reload();
+      }catch(e){}
+    }, 10*60*1000);
+    return;
+  }
   try{
     if(st.s && st.e){
       $('startDate').value = st.s; $('endDate').value = st.e;
