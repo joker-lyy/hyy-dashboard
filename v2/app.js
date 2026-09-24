@@ -2993,7 +2993,7 @@ function renderRegularInspection(d){
     .filter(s=>(s.storeName||'').toLowerCase().includes(rankSearch))
     .sort((a,b)=> b.score - a.score);
   $('regularStoreRankTable').innerHTML = `
-    <thead><tr><th>排名</th><th>门店</th><th>组别</th><th>区域</th><th>常规巡检（QSC）得分</th><th>报告数</th><th>巡检报告</th></tr></thead>
+    <thead><tr><th>排名</th><th>门店</th><th>组别</th><th>区域</th><th>常规巡检（QSC）得分</th><th>报告数</th><th>巡检报告</th><th>自检报告</th></tr></thead>
     <tbody>
       ${rankItems.map((s,idx)=>{
         const rank = idx+1;
@@ -3001,6 +3001,11 @@ function renderRegularInspection(d){
         if(rank===1) cls += ' gold';
         else if(rank===2) cls += ' silver';
         else if(rank===3) cls += ' bronze';
+        // fix216：自检报告列——与巡店报告分离，点开只看被标记自检的报告（fix195/203 同源 mk）
+        const scReps = (s.reports || []).filter(r=>r.mk);
+        const scCell = scReps.length
+          ? `<span class="link-btn" style="color:#1a7f37" onclick="showStoreInspReports('CG','${encodeURIComponent(s.storeName||'')}','${encodeURIComponent(s.position||'')}',1)">查看自检(${scReps.length})</span>`
+          : '<span style="color:#ccc">-</span>';
         return `
           <tr>
             <td><span class="${cls}">${rank}</span></td>
@@ -3012,10 +3017,11 @@ function renderRegularInspection(d){
             <td>${(s.reports && s.reports.length > 1)
               ? `<span class="link-btn" onclick="showStoreInspReports('CG','${encodeURIComponent(s.storeName||'')}','${encodeURIComponent(s.position||'')}')">查看报告(${s.reports.filter(r=>!r.mk).length})</span>`
               : reportLink(s, '查看报告', 'CG')}</td>
+            <td>${scCell}</td>
           </tr>
         `;
       }).join('')}
-      ${rankItems.length===0?'<tr><td colspan="7" class="empty">无数据</td></tr>':''}
+      ${rankItems.length===0?'<tr><td colspan="8" class="empty">无数据</td></tr>':''}
     </tbody>
   `;
 
@@ -4082,7 +4088,8 @@ function showStoreSelfReports(storeNameEnc, positionEnc, regionEnc){
 }
 
 // fix109h：常规(CG)/视频(SP)/AI 巡检门店的多份报告明细弹窗（与自检「查看报告(N)」同风格）
-function showStoreInspReports(kind, storeNameEnc, positionEnc){
+// fix216：scOnly=1 → 自检报告视图（排名页「自检报告」列入口）：只展示被标记自检的报告
+function showStoreInspReports(kind, storeNameEnc, positionEnc, scOnly){
   const storeName = decodeURIComponent(storeNameEnc || '');
   const position  = decodeURIComponent(positionEnc || '');
   const typeLabel = kind === 'CG' ? '常规巡检（QSC）' : (kind === 'SP' ? '视频巡检' : 'AI 慧检');
@@ -4099,15 +4106,19 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
     if(target){ reports = (target.reports || []).slice(); if(reports.length) break; }
   }
   reports.sort((a,b)=> (b.d||'').localeCompare(a.d||''));
+  // fix216：自检视图只留被标记的报告（手动标记+模板自动判定同源 mk）
+  const isSc = !!scOnly;
+  if (isSc) reports = reports.filter(r=>r.mk);
 
   // fix195：记录当前弹窗参数与报告行（勾选「自检」重算后按原参数重开弹窗）
   window.__lastInspReportsArgs = { kind, storeNameEnc, positionEnc };
   window.__curInspReports = reports;
   const markedCnt = reports.filter(r=>r.mk).length;
 
-  regionModalSnapshot();$('regionModalTitle').textContent = `${html(storeName)} · ${typeLabel}报告明细`;
-  $('regionModalSub').innerHTML =
-    `组别：${html(position)}　报告数：<b>${reports.length - markedCnt}</b>${markedCnt ? `<span style="color:#b8860b">（另有自检 ${markedCnt} 份，不计入统计）</span>` : ''}　<span style="color:#888">（当前查询区间）</span>`;
+  regionModalSnapshot();$('regionModalTitle').textContent = `${html(storeName)} · ${typeLabel}${isSc ? '自检' : ''}报告明细`;
+  $('regionModalSub').innerHTML = isSc
+    ? `组别：${html(position)}　自检报告：<b>${reports.length}</b> 份（不计入 QSC 统计）　<span style="color:#888">（当前查询区间）</span>`
+    : `组别：${html(position)}　报告数：<b>${reports.length - markedCnt}</b>${markedCnt ? `<span style="color:#b8860b">（另有自检 ${markedCnt} 份，不计入统计）</span>` : ''}　<span style="color:#888">（当前查询区间）</span>`;
 
   $('regionModalTable').innerHTML = `
     <thead><tr>
@@ -4148,7 +4159,7 @@ function showStoreInspReports(kind, storeNameEnc, positionEnc){
           </tr>
         `;
       }).join('')}
-      ${reports.length===0?'<tr><td colspan="6" class="empty">该门店在当前区间内暂无报告明细</td></tr>':''}
+      ${reports.length===0?`<tr><td colspan="6" class="empty">${isSc ? '该门店在当前区间内暂无自检报告' : '该门店在当前区间内暂无报告明细'}</td></tr>`:''}
     </tbody>
   `;
   $('regionModal').classList.add('active');
