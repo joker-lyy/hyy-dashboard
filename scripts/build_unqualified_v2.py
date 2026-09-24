@@ -350,6 +350,9 @@ def main():
 
     # ---- cgCompare：同店相邻两次常规巡检对比 ----
     # fix205：自检报告不入对比链（①手动标记 ②直营自检表模板）——对比只反映真实巡检变化
+    # fix207：每店只输出最新一次配对（lst[-2]→lst[-1]），并按本次日期倒序——
+    #   此前输出全部历史相邻配对且按旧→新排序，最新巡检的对比卡被压在旧卡后面，
+    #   被误读为「对比没更新」（9/24 用户反馈 9/22 五家直营店复巡看不到变化）
     sc_marks = load_selfcheck_marks()
     cg = []
     n_sc_skip = 0
@@ -370,7 +373,8 @@ def main():
         if len(lst) < 2:
             continue
         lst.sort(key=lambda x: x[0]["d"])
-        for prev, cur in zip(lst, lst[1:]):
+        # fix207：只取最新一次配对；rep30 的 30 天复发回看仍用完整 lst（不含自检）
+        for prev, cur in [(lst[-2], lst[-1])]:
             pm, pmap = prev
             cm, cmap = cur
             pu, cu = len(pmap), len(cmap)
@@ -408,7 +412,9 @@ def main():
                 "delta": delta, "verdict": verdict,
                 "repeated": repeated, "regressed": regressed, "improved": improved,
             })
-    cg_compare.sort(key=lambda x: x["cd"])
+    # fix207：按本次日期倒序（最新巡检的对比排最前），同日按店名升序
+    cg_compare.sort(key=lambda x: x["sn"])
+    cg_compare.sort(key=lambda x: x["cd"], reverse=True)
 
     out = {
         "success": True,
@@ -431,7 +437,7 @@ def main():
         extra = f"  9月条目={sep_cg}" if sep_cg is not None else ""
         print(f"  {typ}: {len(ents)} 条  {min(ds) if ds else '-'} ~ {max(ds) if ds else '-'}{extra}")
     print(f"  rectify: {len(rectify)} 行（其中 9 月 {sum(1 for r in rectify if r['d']>='2026-09-01')} 行；无整改单剔除 {n_st3 if order_ok else 0} 条/{'已' if order_ok else '未'}判定）")
-    print(f"  cgCompare: {len(cg_compare)} 行（本次巡检在 9 月的 {sum(1 for r in cg_compare if r['cd']>='2026-09-01')} 行）")
+    print(f"  cgCompare: {len(cg_compare)} 行（fix207 每店仅最新一次配对；本次巡检在 9 月的 {sum(1 for r in cg_compare if r['cd']>='2026-09-01')} 行）")
 
 
 if __name__ == "__main__":
