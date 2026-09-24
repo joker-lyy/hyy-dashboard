@@ -4629,7 +4629,7 @@ async function applyShareView(){
     if (!document.getElementById('shareRectSoloStyle')){
       const sst = document.createElement('style');
       sst.id = 'shareRectSoloStyle';
-      sst.textContent = 'body.share-rect-solo>header .datebar,body.share-rect-solo #mainTabs,body.share-rect-solo .range-banner,body.share-rect-solo #unqSnapshotBar,body.share-rect-solo #unqSubTabs,body.share-rect-solo #unqRfRgSel{display:none!important}';
+      sst.textContent = 'body.share-rect-solo>header .datebar,body.share-rect-solo>header #updateBtn,body.share-rect-solo #mainTabs,body.share-rect-solo .range-banner,body.share-rect-solo #unqSnapshotBar,body.share-rect-solo #unqSubTabs,body.share-rect-solo #unqRfRgSel{display:none!important}';
       document.head.appendChild(sst);
     }
     document.body.classList.add('share-rect-solo');
@@ -4648,32 +4648,23 @@ async function applyShareView(){
     const spv3 = document.getElementById('sharePngBtn'); if(spv3) spv3.style.display = 'none';
     if(!document.getElementById('shareRoBar')){
       document.body.insertAdjacentHTML('beforeend',
-        '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 整改追踪 · 培训组（分享视图 · 每日随看板自动更新）</div>');
+        '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 整改追踪 · 培训组（分享视图 · 只读快照）</div>');
     }
-    // solo 页数据自刷新：每 10 分钟静默重拉 unqualified_v2.json，generatedAt 变了才重绘
-    setInterval(async ()=>{
-      try{
-        const r = await fetch(`${DATA_BASE}/unqualified_v2.json?v=${Date.now()}`);
-        if (!r.ok) return;
-        const j = await r.json();
-        if (j && j.generatedAt && (!unq2State.data || unq2State.data.generatedAt !== j.generatedAt)){
-          unq2State.data = j; unq2State.loaded = true;
-          onUnq2Ready(j);
-        }
-      }catch(e){}
-    }, 10*60*1000);
+    // fix210：禁用 solo 页数据自刷新（原每 10 分钟重拉 unqualified_v2.json 比对 generatedAt 已移除），
+    //   只读分享页改为纯只读快照——打开时是什么数据就一直是什么数据，不再自动更新
     return;
   }
   // fix209：门店分数排名「可交互分享页」——锁死 常规巡检(QSC)→门店分数排名及明细→培训组（直营组），
   //   「巡检报告」查看保留（报告/门店清单弹窗不受限，弹窗内可继续看报告）；
-  //   顶部页签/日期栏/板块子页签隐藏，组别按钮禁点只读；数据随看板自动刷新（10 分钟比对 generatedAt）
+  //   顶部页签/日期栏/板块子页签隐藏，组别按钮禁点只读；
+  //   fix210：禁用一切自动更新（自身 10 分钟比对重载已移除，全局 10 分钟刷新对本页豁免）——纯只读快照
   if(st.solo === 'rank'){
     // fix142 同款：组别须在渲染前设置，子页签渲染时即生效
     if(st.g) activePosFilter = st.g;
     if(!document.getElementById('shareRankSoloStyle')){
       const rst = document.createElement('style');
       rst.id = 'shareRankSoloStyle';
-      rst.textContent = 'body.share-rank-solo>header .datebar,body.share-rank-solo>header #updateBtn,body.share-rank-solo #mainTabs,body.share-rank-solo .range-banner,body.share-rank-solo #regularSubTabs{display:none!important}body.share-rank-solo #regularStoreRankPosFilter{pointer-events:none!important;opacity:.55}';
+      rst.textContent = 'body.share-rank-solo>header #updateBtn,body.share-rank-solo>header #statusPill,body.share-rank-solo>header .datebar input[type=date],body.share-rank-solo>header .datebar label,body.share-rank-solo>header #applyDateBtn,body.share-rank-solo #mainTabs,body.share-rank-solo .range-banner,body.share-rank-solo #regularSubTabs{display:none!important}body.share-rank-solo #regularStoreRankPosFilter{pointer-events:none!important;opacity:.55}';
       document.head.appendChild(rst);
     }
     document.body.classList.add('share-rank-solo');
@@ -4698,33 +4689,15 @@ async function applyShareView(){
         }
       }, 400);
     }catch(e){ console.warn('rank solo share apply failed', e); }
-    const dbR = document.querySelector('.datebar'); if(dbR) dbR.style.display = 'none';
+    // fix210：datebar 恢复显示（只留「上月数据/本月数据」快捷按钮，日期输入/应用按钮由 CSS 隐藏）
     const svR = $('shareViewBtn'); if(svR) svR.style.display = 'none';
     const spR = document.getElementById('sharePngBtn'); if(spR) spR.style.display = 'none';
     if(!document.getElementById('shareRoBar')){
       document.body.insertAdjacentHTML('beforeend',
-        '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 门店分数排名及明细 · 培训组（直营组）（分享视图 · 随看板自动更新）</div>');
+        '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 门店分数排名及明细 · 培训组（直营组）（分享视图 · 只读快照）</div>');
     }
-    // solo 页数据自刷新：每 10 分钟静默比对 data.json generatedAt，变了才整页重载
-    //   （分享视图无状态，#s= hash 在 boot 时自动还原，整页重载最稳不脏状态）
-    (async ()=>{
-      try{
-        const r0 = await fetch(`${DATA_BASE}/data.json?v=${Date.now()}`, {cache:'no-store'});
-        if(r0.ok){
-          const j0 = await r0.json();
-          window.__rankSoloAt = (j0 && j0.data && j0.data.generatedAt) || (j0 && j0.publishedAt) || '';
-        }
-      }catch(e){}
-    })();
-    setInterval(async ()=>{
-      try{
-        const r = await fetch(`${DATA_BASE}/data.json?v=${Date.now()}`, {cache:'no-store'});
-        if(!r.ok) return;
-        const j = await r.json();
-        const at = (j && j.data && j.data.generatedAt) || (j && j.publishedAt) || '';
-        if(at && window.__rankSoloAt && at !== window.__rankSoloAt) location.reload();
-      }catch(e){}
-    }, 10*60*1000);
+    // fix210：禁用 solo 页数据自刷新（原每 10 分钟比对 data.json generatedAt 变了整页 reload 已移除），
+    //   分享页为纯只读快照：打开时是什么数据就保持什么数据，不自动跟随看板刷新
     return;
   }
   try{
@@ -4774,6 +4747,9 @@ async function applyShareView(){
   const db = document.querySelector('.datebar'); if(db) db.style.display = 'none';
   const sb2 = $('shareViewBtn'); if(sb2) sb2.style.display = 'none';
   const sp2 = document.getElementById('sharePngBtn'); if(sp2) sp2.style.display = 'none';
+  // fix210：只读版本禁用更新功能——fix201「更新【巡店看板】数据」按钮在 header 上、
+  //   不在 section.panel 内（fix141 的 pointer-events 锁罩不住它），必须显式隐藏
+  const ub2 = document.getElementById('updateBtn'); if(ub2) ub2.style.display = 'none';
   if(!document.getElementById('shareRoBar')){
     document.body.insertAdjacentHTML('beforeend',
       '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 只读分享视图（' + (st.t==='unqualifiedDetail'?'巡检问题汇总及整改跟进':st.t) + (st.s&&st.e? ' · ' + st.s + ' ~ ' + st.e : '') + '）</div>');
@@ -4781,7 +4757,12 @@ async function applyShareView(){
 }
 
 // 每 10 分钟刷新：按当前所处模式刷新
+// fix210：只读版本禁用更新功能——通用只读(share-ro)/整改追踪(share-rect-solo)/
+//   门店排名(share-rank-solo) 三类只读分享视图一律跳过，页面保持打开时的快照、不再自动重绘
 setInterval(async ()=>{
+  if(document.body.classList.contains('share-ro') ||
+     document.body.classList.contains('share-rect-solo') ||
+     document.body.classList.contains('share-rank-solo')) return;
   if(appData && appData._rawMonths){
     await tryAggregateRange(currentStart, currentEnd);
   } else {

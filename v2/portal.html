@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>苍井寿司 · 直营看板</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;background:#f4f6fa;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  /* fix210：直营看板门户——顶部导航页签，切换四大板块 */
+  #portalNav{background:#1A2A4A;display:flex;align-items:center;gap:6px;padding:8px 14px;box-shadow:0 2px 8px rgba(0,0,0,.18);flex-wrap:nowrap;overflow-x:auto;flex:0 0 auto}
+  #portalNav .brand{color:#fff;font-size:15px;font-weight:700;margin-right:10px;white-space:nowrap}
+  #portalNav .brand small{font-weight:400;font-size:11px;color:#9db2d9;margin-left:6px}
+  #portalNav button{border:none;border-radius:16px;padding:6px 16px;font-size:13px;cursor:pointer;white-space:nowrap;background:rgba(255,255,255,.14);color:#dbe4ff;transition:all .15s}
+  #portalNav button:hover{background:rgba(255,255,255,.25)}
+  #portalNav button.on{background:#2f6fed;color:#fff;font-weight:600}
+  #portalNav .sp{flex:1 1 auto}
+  #portalNav .upd{color:#8ea4cc;font-size:11px;white-space:nowrap}
+  .pane{flex:1 1 auto;display:none;min-height:0}
+  .pane.on{display:block}
+  .pane iframe{width:100%;height:100%;border:0;display:block;background:#f4f6fa}
+  /* 业绩板块 */
+  #pane-biz{overflow-y:auto;padding:16px 18px 30px}
+  .biz-cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .biz-card{flex:1 1 150px;background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 4px rgba(26,42,74,.08);border:1px solid #e6eaf2}
+  .biz-card .k{font-size:12px;color:#8895aa;margin-bottom:6px}
+  .biz-card .v{font-size:22px;font-weight:700;color:#1A2A4A}
+  .biz-card .s{font-size:11px;color:#a8b3c5;margin-top:4px}
+  .biz-sec{background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 1px 4px rgba(26,42,74,.08);border:1px solid #e6eaf2;margin-bottom:14px}
+  .biz-sec h3{font-size:14px;color:#1A2A4A;margin-bottom:10px}
+  .biz-sec img{width:100%;max-width:860px;display:block;border:1px solid #eceff5;border-radius:8px}
+  .biz-note{font-size:12px;color:#98a3b5;background:#fff8e8;border:1px solid #f0e2b6;border-radius:8px;padding:8px 12px;margin-bottom:14px}
+</style>
+</head>
+<body>
+  <div id="portalNav">
+    <span class="brand">🍣 苍井寿司 · 直营看板<small>只读</small></span>
+    <button data-p="rank" class="on">📊 门店排名</button>
+    <button data-p="rect">📋 整改追踪</button>
+    <button data-p="study">🎓 直营学习</button>
+    <button data-p="biz">💰 门店业绩</button>
+    <span class="sp"></span>
+    <span class="upd" id="portalUpd"></span>
+  </div>
+
+  <div class="pane on" id="pane-rank"><iframe data-src="index.html#s=eyJ0IjoicmVndWxhckluc3BlY3Rpb24iLCJzdWIiOiJyZWd1bGFyU3RvcmVSYW5rIiwiZyI6IuWfueiuree7hO-8iOebtOiQpee7hO-8iSIsInNvbG8iOiJyYW5rIiwicm8iOjF9" allowfullscreen></iframe></div>
+  <div class="pane" id="pane-rect"><iframe data-src="index.html#s=eyJ0IjoidW5xdWFsaWZpZWREZXRhaWwiLCJzdWIiOiJ1bnFSZWN0aWZ5Iiwic29sbyI6InJlY3QiLCJybyI6MX0" allowfullscreen></iframe></div>
+  <div class="pane" id="pane-study"><iframe data-src="https://joker-lyy.github.io/study-dashboard/index.html#s=eyJ0YWIiOiLnm7TokKXlrabkuaDmmI7nu4YiLCJwbGFuSWR4IjowLCJzdWIiOiLlhajpg6giLCJyYW5nZSI6IuacrOaciCIsInJGcm9tIjpudWxsLCJyVG8iOm51bGwsImdGaWx0ZXIiOiLlhajpg6giLCJwcm9tb1N1YiI6IuWtpuS5oOWcsOWbviIsInByb21vTWFwSWR4IjowLCJwcm9tb1NpbmNlIjoiMjAyNi0wOS0wMSIsInBSZWdpb24iOiLlhajpg6giLCJwR3JvdXAiOiLlhajpg6giLCJwU3RvcmUiOiLlhajpg6giLCJldmFsU3ViIjoi5paw5Yqg55uf5ZWG5Z-56K6t6K6y5biI6K-E5Lu3Iiwic29sbyI6ImRpcmVjdCJ9" allowfullscreen></iframe></div>
+  <div class="pane" id="pane-biz">
+    <div class="biz-note">📌 业绩数据来自企迈每日自动抓取（每天 22:30 更新报表图）。结构化明细表（总览卡+门店达成率排名）将在抓取脚本增加 JSON 导出后上线。</div>
+    <div class="biz-cards" id="bizCards"></div>
+    <div class="biz-sec"><h3>📈 数据分析（总览）</h3><img src="img/qmai_analysis_latest.jpg" alt="数据分析日报" loading="lazy"></div>
+    <div class="biz-sec"><h3>🏪 直营店收银汇总（分店明细）</h3><img src="img/qmai_summary_latest.jpg" alt="直营店收银汇总" loading="lazy"></div>
+  </div>
+
+<script>
+(function(){
+  /* ---------- 页签定义 ---------- */
+  var PANES = ['rank','rect','study','biz'];
+  var LABELS = {rank:'📊 门店排名', rect:'📋 整改追踪', biz:'💰 门店业绩', study:'🎓 直营学习'};
+
+  /* ---------- 汇总卡（数据：qmai_daily.json，每日 22:30 后更新） ---------- */
+  fetch('data/qmai_daily.json', {cache:'no-store'}).then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+    if(!j) return;
+    var cards = [
+      {k:'总营业收入', v:'¥' + Number(j.totalRevenue).toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2})},
+      {k:'总订单数', v:j.totalOrders},
+      {k:'总营业额', v:'¥' + Number(j.totalSales).toLocaleString('zh-CN')},
+      {k:'平均日达成率', v:j.dayRate + '%'}
+    ];
+    document.getElementById('bizCards').innerHTML = cards.map(function(c){
+      return '<div class="biz-card"><div class="k">' + c.k + '</div><div class="v">' + c.v + '</div><div class="s">' + j.date + ' 数据 · 月进度 ' + j.monthProgress + '%</div></div>';
+    }).join('');
+    var u = document.getElementById('portalUpd');
+    if(u) u.textContent = '业绩数据：' + j.date;
+  }).catch(function(){});
+
+  /* ---------- 懒加载 iframe：首次激活才加载 ---------- */
+  function activate(key){
+    PANES.forEach(function(p){
+      var pane = document.getElementById('pane-' + p);
+      var on = (p === key);
+      pane.classList.toggle('on', on);
+      if(on){
+        var f = pane.querySelector('iframe');
+        if(f && f.getAttribute('data-src')){ f.src = f.getAttribute('data-src'); f.removeAttribute('data-src'); }
+      }
+    });
+    document.querySelectorAll('#portalNav button[data-p]').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('data-p') === key);
+    });
+    try{ history.replaceState(null, '', '#p=' + key); }catch(e){}
+  }
+
+  document.querySelectorAll('#portalNav button[data-p]').forEach(function(b){
+    b.addEventListener('click', function(){ activate(b.getAttribute('data-p')); });
+  });
+
+  /* ---------- 初始页签：#p= 记忆，默认门店排名 ---------- */
+  var m = (location.hash || '').match(/p=(rank|rect|biz|study)/);
+  activate(m ? m[1] : 'rank');
+})();
+</script>
+</body>
+</html>
