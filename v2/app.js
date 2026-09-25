@@ -4685,6 +4685,8 @@ async function applyShareView(){
       document.body.insertAdjacentHTML('beforeend',
         '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 巡检变化对比 · 培训组（分享视图 · 只读快照）</div>');
     }
+    // fix217：数据跟随——同 rect，每 10 分钟比对时间戳，变了整页 reload
+    startSoloDataWatch();
     return;
   }
   // fix196：整改追踪「可交互分享页」——组别锁死培训组、其他筛选可点、
@@ -4729,8 +4731,9 @@ async function applyShareView(){
       document.body.insertAdjacentHTML('beforeend',
         '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 整改追踪 · 培训组（分享视图 · 只读快照）</div>');
     }
-    // fix210：禁用 solo 页数据自刷新（原每 10 分钟重拉 unqualified_v2.json 比对 generatedAt 已移除），
-    //   只读分享页改为纯只读快照——打开时是什么数据就一直是什么数据，不再自动更新
+    // fix217：数据跟随——每 10 分钟比对 data.json/unqualified_v2.json 时间戳，变了整页 reload
+    //   （fix210 的纯只读快照升级为自动跟随原看板数据更新）
+    startSoloDataWatch();
     return;
   }
   // fix209：门店分数排名「可交互分享页」——锁死 常规巡检(QSC)→门店分数排名及明细→培训组（直营组），
@@ -4787,8 +4790,8 @@ async function applyShareView(){
       document.body.insertAdjacentHTML('beforeend',
         '<div id="shareRoBar" style="position:fixed;left:0;right:0;bottom:0;background:#1A2A4A;color:#fff;padding:7px 16px;font-size:12px;text-align:center;z-index:99998">📖 门店分数排名及明细 · 培训组（直营组）（分享视图 · 只读快照）</div>');
     }
-    // fix210：禁用 solo 页数据自刷新（原每 10 分钟比对 data.json generatedAt 变了整页 reload 已移除），
-    //   分享页为纯只读快照：打开时是什么数据就保持什么数据，不自动跟随看板刷新
+    // fix217：数据跟随——同 rect，每 10 分钟比对时间戳，变了整页 reload（恢复 fix209 机制）
+    startSoloDataWatch();
     return;
   }
   try{
@@ -4847,9 +4850,41 @@ async function applyShareView(){
   }
 }
 
+// fix217：solo 分享页数据跟随——每 10 分钟拉 data.json/unqualified_v2.json 比对时间戳，
+//   变了整页 reload（恢复 fix209 曾有、fix210 移除的机制）。门户页签开着也跟随原看板数据更新，
+//   节奏与主看板 10 分钟刷新一致；直营学习页签（study solo direct）自身已有 5 分钟热替换。
+function startSoloDataWatch(){
+  if (window.__soloWatchActive) return;
+  window.__soloWatchActive = true;
+  const urls = [cb(DATA_BASE + '/data.json'), DATA_BASE + '/unqualified_v2.json?v=' + Date.now()];
+  const gen = j => String((j && (j.publishedAt || j.generatedAt || j.cachedAt)) || '');
+  const snap = async () => {
+    const out = {};
+    for (const u of urls){
+      try{
+        const r = await fetch(u, {cache:'no-store'});
+        if (r.ok) out[u] = gen(await r.json());
+      }catch(e){}
+    }
+    return out;
+  };
+  window.__soloBootGens = {};
+  snap().then(s => { Object.assign(window.__soloBootGens, s); }).catch(()=>{});
+  window.__soloWatchCheck = async () => {
+    const boot = window.__soloBootGens || {};
+    if (!Object.keys(boot).length) return;
+    const cur = await snap();
+    for (const u of Object.keys(boot)){
+      if (boot[u] && cur[u] && cur[u] !== boot[u]){ location.reload(); return; }
+    }
+  };
+  setInterval(() => { window.__soloWatchCheck(); }, 10*60*1000);
+}
+
 // 每 10 分钟刷新：按当前所处模式刷新
-// fix210：只读版本禁用更新功能——通用只读(share-ro)/整改追踪(share-rect-solo)/
-//   门店排名(share-rank-solo) 三类只读分享视图一律跳过，页面保持打开时的快照、不再自动重绘
+// fix210：只读版本禁用就地更新——通用只读(share-ro)/整改追踪(share-rect-solo)/
+//   门店排名(share-rank-solo) 三类只读分享视图一律跳过就地重绘；
+//   fix217：solo 页改由 startSoloDataWatch 每 10 分钟比对时间戳、变了整页 reload 跟随
 setInterval(async ()=>{
   if(document.body.classList.contains('share-ro') ||
      document.body.classList.contains('share-rect-solo') ||
