@@ -15,6 +15,10 @@
   #portalNav button:hover{background:rgba(255,255,255,.25)}
   #portalNav button.on{background:#2f6fed;color:#fff;font-weight:600}
   #portalNav .sp{flex:1 1 auto}
+  /* fix218：刷新数据按钮——区别于页签的描边样式 */
+  #portalNav #refreshBtn{background:rgba(47,111,237,.16);border:1px solid rgba(157,178,217,.5);color:#cfe0ff;margin-left:4px}
+  #portalNav #refreshBtn:hover{background:rgba(47,111,237,.38)}
+  #portalNav #refreshBtn:disabled{opacity:.55;cursor:wait}
   .pane{flex:1 1 auto;display:none;min-height:0}
   .pane.on{display:block}
   .pane iframe{width:100%;height:100%;border:0;display:block;background:#f4f6fa}
@@ -28,6 +32,7 @@
     <button data-p="cmp">📈 巡检变化对比</button>
     <button data-p="study">🎓 直营学习</button>
     <span class="sp"></span>
+    <button id="refreshBtn" title="一键重新拉取已打开页签的最新发布数据">🔄 刷新数据</button>
   </div>
 
   <div class="pane on" id="pane-rank"><iframe data-src="index.html#s=eyJ0IjoicmVndWxhckluc3BlY3Rpb24iLCJzdWIiOiJyZWd1bGFyU3RvcmVSYW5rIiwiZyI6IuWfueiuree7hO-8iOebtOiQpee7hO-8iSIsInNvbG8iOiJyYW5rIiwicm8iOjF9" allowfullscreen></iframe></div>
@@ -60,6 +65,30 @@
 
   document.querySelectorAll('#portalNav button[data-p]').forEach(function(b){
     b.addEventListener('click', function(){ activate(b.getAttribute('data-p')); });
+  });
+
+  /* ---------- fix218：刷新数据按钮——一键重拉已打开页签的最新发布数据 ----------
+     给已加载 iframe 的 src 注入 _r= 时间戳强制重载（不用 contentWindow.reload，跨域的
+     study 页也能用；URL 变了必然真实重载，规避同 hash 地址不重载的问题）。未加载的
+     页签保持懒加载（首次激活自然会拉最新）。平时另有 solo 页每 10 分钟自动跟随。 */
+  function pullFresh(f){
+    var src = f.getAttribute('data-src') || f.getAttribute('src') || '';
+    if(!src) return;
+    var stamp = '_r=' + Date.now();
+    if(/_r=\d+/.test(src)) src = src.replace(/([?&])_r=\d+/, '$1' + stamp);
+    else src = src.replace('#', (src.indexOf('?') > -1 ? '&' : '?') + stamp + '#');
+    f.removeAttribute('data-src');
+    f.src = src;
+  }
+  var rb = document.getElementById('refreshBtn');
+  rb.addEventListener('click', function(){
+    PANES.forEach(function(p){
+      var f = document.querySelector('#pane-' + p + ' iframe');
+      if(f && f.getAttribute('src')) pullFresh(f);
+    });
+    rb.textContent = '⏳ 拉取中…';
+    rb.disabled = true;
+    setTimeout(function(){ rb.textContent = '🔄 刷新数据'; rb.disabled = false; }, 1500);
   });
 
   /* ---------- 初始页签：#p= 记忆，默认门店排名 ---------- */
