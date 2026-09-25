@@ -252,7 +252,7 @@ a.fbtn{text-decoration:none;display:inline-block}
       <button class="fbtn" id="shareViewBtn" title="生成当前板块的只读分享链接">🔗 分享本视图</button>
       <button class="fbtn" id="sharePngBtn" onclick="sharePng()" title="把当前页面生成为图片，复制后直接粘贴发送">🖼 分享图片</button>
       <!-- fix201：手动更新（本机触发服务 8778，自动更新时段 ±30 分钟禁点） -->
-      <button class="fbtn" id="updateBtn" onclick="hyyManualUpdate()" title="本机全量抓数并更新看板（约 20-35 分钟）">🔄 更新【巡店看板】数据</button>
+      <button class="fbtn" id="updateBtn" onclick="hyyManualUpdate()" title="本机全量抓数并更新看板（约 20-35 分钟）" style="display:none">🔄 更新【巡店看板】数据</button>
     </div>
   </div>
   <div class="tabs" id="mainTabs">
@@ -598,9 +598,17 @@ function hyyManualUpdate() {
     }).catch(e => hyyUpdFail("启动更新失败：" + e));
   }).catch(() => hyyUpdFail("连不上本机更新服务（127.0.0.1:8778）。\n双击一次「一键启动全部工具」把它挂起来，再点更新。"));
 }
+/* fix219：更新按钮仅本机可用——默认隐藏，探测到本机触发服务(8778)可达才显示；
+   访客电脑没有该服务，按钮保持隐藏：不会误按、也不会弹「连不上本机服务」的报错框 */
 window.addEventListener("load", () => {
   hyyUpdGuardTick();
-  fetch(HYY_UPD_SVC + "/ping").then(r => r.json()).then(j => { if (j.ok && j.running) hyyUpdBtn("⏳ 更新中 " + (j.startedAt || ""), true); }).catch(() => {});
+  fetch(HYY_UPD_SVC + "/ping").then(r => r.json()).then(j => {
+    const b = document.getElementById("updateBtn");
+    if (!b || !j || !j.ok) return;   // 非本机环境：保持隐藏，静默
+    b.style.display = "";
+    hyyUpdGuardTick();
+    if (j.running) hyyUpdBtn("⏳ 更新中 " + (j.startedAt || ""), true);
+  }).catch(() => {});
 });
 </script>
 
