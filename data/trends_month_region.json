@@ -1,1 +1,1 @@
-{"success":true,"data":{"dates":["2026-10-01"],"series":[],"kpi":{"totalCompleted":0,"totalQualified":0,"avgDailyCompleted":0.0,"qualifiedRate":0.0}},"error":null}
+{"success":true,"data":{"dates":["2026-10-01"],"series":[{"name":"吴纯锋区域","data":[8]},{"name":"赖先晓区域","data":[6]},{"name":"超级加盟商","data":[6]},{"name":"付鹏区域","data":[2]},{"name":"陈秀金区域","data":[2]},{"name":"刘浩区域","data":[2]},{"name":"直营组","data":[2]},{"name":"开业督导组","data":[1]}],"kpi":{"totalCompleted":29,"totalQualified":0,"avgDailyCompleted":29.0,"qualifiedRate":0.0}},"error":null}

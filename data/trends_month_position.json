@@ -1,1 +1,1 @@
-{"success":true,"data":{"dates":["2026-10-01"],"series":[],"kpi":{"totalCompleted":0,"totalQualified":0,"avgDailyCompleted":0.0,"qualifiedRate":0.0}},"error":null}
+{"success":true,"data":{"dates":["2026-10-01"],"series":[{"name":"培训组（直营组）","data":[16]},{"name":"加盟营运组","data":[13]}],"kpi":{"totalCompleted":29,"totalQualified":0,"avgDailyCompleted":29.0,"qualifiedRate":0.0}},"error":null}
