@@ -610,6 +610,22 @@ window.addEventListener("load", () => {
     if (j.running) hyyUpdBtn("⏳ 更新中 " + (j.startedAt || ""), true);
   }).catch(() => {});
 });
+/* fix226：探测失败不永久放弃——每 60s 静默重试一次。
+   背景：新版 Chrome/Edge 的 Local Network Access 策略会拦「公网页面(https://joker-lyy.github.io)
+   → 本机服务(127.0.0.1:8778)」的请求（fix219 的探测被拦 → 按钮消失），服务端已补
+   Access-Control-Allow-Private-Network 响应头放行；此处重试兜底「先开页面、后启动
+   一键启动」以及权限弹窗允许后的场景，服务可达时按钮自动浮现，无需手动刷新 */
+window.setInterval(() => {
+  const b = document.getElementById("updateBtn");
+  if (!b || b.style.display !== "none" || hyyUpdBusy) return;
+  fetch(HYY_UPD_SVC + "/ping").then(r => r.json()).then(j => {
+    if (b && j && j.ok) {
+      b.style.display = "";
+      hyyUpdGuardTick();
+      if (j.running) hyyUpdBtn("⏳ 更新中 " + (j.startedAt || ""), true);
+    }
+  }).catch(() => {});
+}, 60000);
 </script>
 
 <!-- fix49：问题图片点击放大灯箱 -->
