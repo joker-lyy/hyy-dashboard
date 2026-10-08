@@ -44,6 +44,7 @@ data/raw/YYYY-MM.json
 import datetime
 import json
 import os
+import re
 import sys
 import traceback
 
@@ -428,7 +429,9 @@ def main():
     index = {
         "generatedAt": fetched_at,
         "startDate": SYSTEM_START_DATE,
-        "months": sorted(f[:-5] for f in os.listdir(OUT_DIR) if f.endswith(".json")),
+        # fix228：正则限定 YYYY-MM.json —— 旧写法 endswith(".json") 会把索引文件自己
+        #   （index.json）也当月份收进 months（前端拿到 'index' 垃圾项）
+        "months": sorted(f[:-5] for f in os.listdir(OUT_DIR) if re.fullmatch(r"\d{4}-\d{2}\.json", f)),
         "detail": summary,
     }
     with open(os.path.join(OUT_DIR, "index.json"), "w", encoding="utf-8") as f:
