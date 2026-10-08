@@ -146,13 +146,15 @@ jobs:
           git push origin main
           echo "已发布，GitHub Pages 1-2 分钟后生效"
 
-      # fix223 同款规则：失败告警任何时段都必须发（电脑关机时这里是唯一能吭声的通道）。
+      # 2026-10-08 定稿（对齐学习看板）：白天档静音，仅凌晨轮（北京 00~09 点档）发失败告警。
       - name: 失败告警到企业微信
         if: failure()
         shell: bash
         env:
           WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
         run: |
+          H=$((10#$(TZ=Asia/Shanghai date +%H)))
+          if [ "$H" -ge 10 ]; then echo "白天档静音，不发失败告警（仅凌晨轮告警）"; exit 0; fi
           python - <<'PY'
           import json, os, urllib.request
           hook = os.environ.get("WECOM_WEBHOOK") or ""
