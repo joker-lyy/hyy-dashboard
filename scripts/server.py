@@ -384,6 +384,10 @@ def _aggregate_regular_regions(
         if not sname or is_test_store(sname):
             continue
         region = match_region(rep.get("nameLink", ""), region_names)
+        # fix225：角色 token 可能返回全公司报告（如「培训经理@培训组」未注入 organizeId），
+        # 区域不在本组叶子集合内的一律丢弃，防止兜底建桶把加盟商区域塞进本组。
+        if region not in region_names:
+            continue
         bucket = cg_store_map.setdefault(sname, {
             "position": pos_label,
             "region": region,
@@ -603,6 +607,9 @@ def _aggregate_video_regions(
             test_region_counts[region] = test_region_counts.get(region, 0) + 1
             continue
         region = match_region(r.get("nameLink", ""), region_names)
+        # fix225：角色 token 全公司泄漏防御——非本组区域直接丢弃
+        if region not in region_names:
+            continue
         sc = str(r.get("storeCode", "")).strip()
         if not sc:
             continue
@@ -755,6 +762,9 @@ def _aggregate_self_regions(
         if is_test_store(store_name):
             continue
         region = match_region(r.get("nameLink", ""), region_names)
+        # fix225：角色 token 全公司泄漏防御——非本组区域直接丢弃
+        if region not in region_names:
+            continue
 
         sc = str(r.get("storeCode", "")).strip()
         if sc and r.get("reportId"):
@@ -983,8 +993,15 @@ def _merge_self_completion(self_pos_region_map, self_pos_store_map, completion,
     - 补齐未提交自检报告的门店（它们的 completed=0，但 expected>0）
     - 应完成改用后端真实值，完成率随之重算
     """
+    # fix225：本组叶子区域名集合——角色 token 泄漏全公司完成率数据时，
+    # 区域不在本组叶子集合内的门店一律不并入（否则会在这里被新建出门店条目）。
+    region_names = {leaf.get("organizeName", "") for leaf in leaves if leaf.get("organizeName")}
+    region_names.discard("")
+
     # 1) 门店维度合并
     for sc, c in completion.items():
+        if region_names and c.get("region") and c["region"] not in region_names:
+            continue
         key = f"{pos_label}|{sc}"
         s = self_pos_store_map.get(key)
         if s is None:
@@ -1020,24 +1037,23 @@ def _merge_self_completion(self_pos_region_map, self_pos_store_map, completion,
         s.setdefault("unfinished", 0)
 
     # 2) 区域维度按门店重算
-    if region_store_counts:
-        # fix15b：直接采用已按「测试门店 + 门店状态非正常」过滤后的真实门店数，与常规巡检/视频口径一致
-        region_store_count = {rname: region_store_counts.get(rname, 0) for rname in region_store_counts}
-    else:
-        region_store_count = {leaf.get("organizeName", ""): safe_int(leaf.get("currentStoreCount"))
-                              for leaf in leaves}
-        # 剔除测试门店（按 self_rows 里出现的测试门店 storeCode 去重）
-        if self_rows:
-            region_names = set(region_store_count.keys())
-            test_codes: Dict[str, set] = {}
-            for r in self_rows:
-                if is_test_store(r.get("fullName", "")):
-                    region = match_region(r.get("nameLink", ""), region_names)
-                    sc = str(r.get("storeCode", "")).strip()
-                    if sc:
-                        test_codes.setdefault(region, set()).add(sc)
-            for rname, codes in test_codes.items():
-                region_store_count[rname] = max(0, region_store_count.get(rname, 0) - len(codes))
+    # fix225：原 fix15b 代码引用了不存在的 region_store_counts 变量（函数签名里没有），
+    # 一执行到就 NameError，被调用方 try/except 吞掉 →「门店完成率汇总」合并从未生效、
+    # 自检应完成数一直走估算口径。这里改回用 leaves 构建区域门店数（并剔除测试门店）。
+    region_store_count = {leaf.get("organizeName", ""): safe_int(leaf.get("currentStoreCount"))
+                          for leaf in leaves}
+    # 剔除测试门店（按 self_rows 里出现的测试门店 storeCode 去重）
+    if self_rows:
+        rnames = set(region_store_count.keys())
+        test_codes: Dict[str, set] = {}
+        for r in self_rows:
+            if is_test_store(r.get("fullName", "")):
+                region = match_region(r.get("nameLink", ""), rnames)
+                sc = str(r.get("storeCode", "")).strip()
+                if sc:
+                    test_codes.setdefault(region, set()).add(sc)
+        for rname, codes in test_codes.items():
+            region_store_count[rname] = max(0, region_store_count.get(rname, 0) - len(codes))
     agg: Dict[str, Dict[str, Any]] = {}
     for key, s in self_pos_store_map.items():
         if not key.startswith(pos_label + "|"):
@@ -1261,9 +1277,17 @@ def build_dashboard_data(start_date: str, end_date: str) -> Dict[str, Any]:
         leaves = api.leaf_regions(token, root_name=org_name)
         org_info = api.all_org_info(token)
         max_high_no = safe_int(org_info.get("maxHighNo"), 4)
+        # fix225：本组叶子区域名集合（角色 token 全公司泄漏过滤用）
+        region_names = {lv.get("organizeName", "") for lv in leaves if lv.get("organizeName")}
+        region_names.discard("")
 
         # 4) 品类不合格（常规巡检）
         cat_rows = api.fetch_category_unqualified_total(token, start_date, end_date, max_high_no)
+        # fix225：角色 token 可能返回全公司统计，只保留区域命中本组叶子的行；
+        # 若所有行都没有 nameLink（接口行结构变化），放弃过滤避免误杀。
+        if region_names and any((r.get("nameLink") or "").strip() for r in (cat_rows or [])):
+            cat_rows = [r for r in cat_rows
+                        if match_region(r.get("nameLink", ""), region_names) in region_names]
 
         # 5) 每日自检报告
         self_rows = api.fetch_self_inspection_reports(token, start_date, end_date)
@@ -1681,7 +1705,8 @@ def _fetch_region_ranking(type_name: str, start_date: str, end_date: str) -> Lis
                     if not _valid_store(region, sc):
                         continue
                     if region not in pos_region_stats:
-                        pos_region_stats[region] = {"store_count": _region_store_count(region), "stores": {}}
+                        # fix225：非本组区域（角色 token 全公司泄漏）直接跳过，不再兜底建桶
+                        continue
                     # 同一门店取区间内最新一份报告
                     existing = pos_region_stats[region]["stores"].get(sc)
                     rd = str(row.get("reportDate", "") or row.get("created", "") or "")
@@ -1746,7 +1771,8 @@ def _fetch_region_ranking(type_name: str, start_date: str, end_date: str) -> Lis
                     if not _valid_store(region, sc):
                         continue
                     if region not in pos_region_stats:
-                        pos_region_stats[region] = {"store_count": _region_store_count(region), "stores": {}}
+                        # fix225：非本组区域（角色 token 全公司泄漏）直接跳过，不再兜底建桶
+                        continue
                     existing = pos_region_stats[region]["stores"].get(sc)
                     rd = str(row.get("reportDate", "") or row.get("created", "") or "")
                     if existing is None or rd >= existing.get("_date", ""):
@@ -1812,7 +1838,8 @@ def _fetch_region_ranking(type_name: str, start_date: str, end_date: str) -> Lis
                     if not _valid_store(region, sc):
                         continue
                     if region not in pos_region_stats:
-                        pos_region_stats[region] = {"store_count": _region_store_count(region), "stores": {}}
+                        # fix225：非本组区域（角色 token 全公司泄漏）直接跳过，不再兜底建桶
+                        continue
                     existing = pos_region_stats[region]["stores"].get(sc)
                     rd = str(row.get("reportDate") or row.get("created") or row.get("createTime") or "")
                     if existing is None or rd >= existing.get("_date", ""):
@@ -1878,7 +1905,8 @@ def _fetch_region_ranking(type_name: str, start_date: str, end_date: str) -> Lis
                     if not _valid_store(region, sc):
                         continue
                     if region not in pos_region_stats:
-                        pos_region_stats[region] = {"store_count": _region_store_count(region), "stores": {}}
+                        # fix225：非本组区域（角色 token 全公司泄漏）直接跳过，不再兜底建桶
+                        continue
                     existing = pos_region_stats[region]["stores"].get(sc)
                     rd = str(r.get("reportDate", "") or r.get("created", "") or "")
                     if existing is None or rd >= existing.get("_date", ""):
@@ -1988,11 +2016,21 @@ def _fetch_self_trends(start_date: str, end_date: str, group_by: str = "position
     for pos_name, org_name in positions:
         try:
             token, matched = api.switch_position_and_login(pos_name, org_name)
+            # fix225：角色 token 可能返回全公司报告，先取本组叶子区域名用于过滤
+            try:
+                region_names = {lv.get("organizeName", "") for lv in api.leaf_regions(token, root_name=org_name)}
+                region_names.discard("")
+            except Exception:
+                region_names = set()
             rows = api.fetch_self_inspection_reports(token, start_date, end_date)
             pos_label = cfg.POSITION_LABELS.get(org_name, org_name)
             for r in rows:
+                region = match_region(r.get("nameLink", ""), region_names) if region_names \
+                    else extract_region(r.get("nameLink", ""))
+                if region_names and region not in region_names:
+                    continue
                 r["_position"] = pos_label
-                r["_region"] = extract_region(r.get("nameLink", ""))
+                r["_region"] = region
                 all_rows.append(r)
         except Exception:
             traceback.print_exc()
@@ -2063,11 +2101,21 @@ def _fetch_video_trends(start_date: str, end_date: str, group_by: str = "positio
     for pos_name, org_name in positions:
         try:
             token, matched = api.switch_position_and_login(pos_name, org_name)
+            # fix225：角色 token 可能返回全公司报告，先取本组叶子区域名用于过滤
+            try:
+                region_names = {lv.get("organizeName", "") for lv in api.leaf_regions(token, root_name=org_name)}
+                region_names.discard("")
+            except Exception:
+                region_names = set()
             rows = api.fetch_video_inspection_reports(token, start_date, end_date)
             pos_label = cfg.POSITION_LABELS.get(org_name, org_name)
             for r in rows:
+                region = match_region(r.get("nameLink", ""), region_names) if region_names \
+                    else extract_region(r.get("nameLink", ""))
+                if region_names and region not in region_names:
+                    continue
                 r["_position"] = pos_label
-                r["_region"] = extract_region(r.get("nameLink", ""))
+                r["_region"] = region
                 all_rows.append(r)
         except Exception:
             traceback.print_exc()
@@ -2375,8 +2423,11 @@ def _build_unqualified_detail(start_date: str, end_date: str) -> Dict[str, Any]:
             sname = (rep.get("fullName") or "").strip()
             if not sname or is_test_store(sname):
                 continue
-            scope_stores.add(sname)
             region = match_region(rep.get("nameLink", ""), region_names) or "未分配区域"
+            # fix225：非本组区域（角色 token 全公司泄漏）丢弃，不进下钻门店范围/排名
+            if region_names and region not in region_names:
+                continue
+            scope_stores.add(sname)
             store_meta[sname] = {"region": region, "position": pos_label}
 
             sc = safe_float(rep.get("score"), None)
@@ -2454,6 +2505,9 @@ def _build_unqualified_detail(start_date: str, end_date: str) -> Dict[str, Any]:
             cname = r.get("categoryName") or "未分类"
             region = match_region(r.get("nameLink"), region_names) if region_names \
                 else extract_region(r.get("nameLink"))
+            # fix225：非本组区域（角色 token 全公司泄漏）丢弃，分类/区域统计只算本组
+            if region_names and region not in region_names:
+                continue
             ins = safe_int(r.get("bxjcs"))
             unq = safe_int(r.get("bxjcsBhg"))
             mds = safe_int(r.get("bxjmds"))
@@ -2509,6 +2563,9 @@ def _build_unqualified_detail(start_date: str, end_date: str) -> Dict[str, Any]:
             if not sname or is_test_store(sname):
                 continue
             region = match_region(rep.get("nameLink", ""), region_names) or "未分配区域"
+            # fix225：非本组区域（角色 token 全公司泄漏）丢弃，不进自检门店排名
+            if region_names and region not in region_names:
+                continue
             raw_score = rep.get("score")
             if raw_score == cfg.UNREVIEWED_MARK or raw_score is None:
                 continue
