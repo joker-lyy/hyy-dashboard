@@ -573,43 +573,63 @@ def fetch_cg_reports(token: str, start_date: str, end_date: str) -> List[Dict[st
 
 
 def _fetch_report_list(token: str, start_date: str, end_date: str, plan_type: str) -> List[Dict[str, Any]]:
-    """通用 report/list 拉取，按 reportId 去重。"""
+    """通用 report/list 拉取，按 reportId 去重。
+
+    fix221（2026-10-08）：平台对该接口有「查询时间不能超过3个月」限制，
+    主统计区间跨进 10 月后（当年7/1~今天 > 3 个月）所有调用全部被拒，
+    导致 data 模块整轮失败且静默（看板停在 10/04）。
+    这里把长区间自动切成 ≤60 天的子区间逐段拉取再合并（reportId 去重），
+    单点修复所有调用方：CG/ZJ 报告列表、自检趋势 range 档、不合格明细等。"""
     path = "/web/ri/report/list?version=1"
     oid = _oid(None)  # 当前组织上下文：由 switch_position_and_login 设置
     page_size = 300
-    page_number = 1
-    all_rows = []
+
+    def _d(s: str) -> datetime.date:
+        return datetime.date.fromisoformat(s)
+
+    # 切子区间：每段 ≤60 天（平台限 3 个月，取 60 天留足余量），段间不重叠
+    seg_start = _d(start_date)
+    range_end = _d(end_date)
+    chunks = []
+    while seg_start <= range_end:
+        seg_end = min(range_end, seg_start + datetime.timedelta(days=59))
+        chunks.append((seg_start.isoformat(), seg_end.isoformat()))
+        seg_start = seg_end + datetime.timedelta(days=1)
+
+    all_rows: List[Dict[str, Any]] = []
     seen = set()
-    while True:
-        body = {
-            "planType": plan_type,
-            "pageNumber": page_number,
-            "pageSize": page_size,
-            "startDate": start_date,
-            "endDate": end_date,
-        }
-        if oid is not None:
-            body["organizeId"] = int(oid)
-        data = post_json(token, path, body)
-        if isinstance(data, list):
-            rows = data
-        elif isinstance(data, dict):
-            rows = data.get("list") or data.get("records") or data.get("rows") or []
-        else:
-            rows = []
-        if not rows:
-            break
-        for r in rows:
-            rid = r.get("reportId")
-            if rid in seen:
-                continue
-            seen.add(rid)
-            all_rows.append(r)
-        if len(rows) < page_size:
-            break
-        page_number += 1
-        if page_number > 100:
-            break
+    for c_start, c_end in chunks:
+        page_number = 1
+        while True:
+            body = {
+                "planType": plan_type,
+                "pageNumber": page_number,
+                "pageSize": page_size,
+                "startDate": c_start,
+                "endDate": c_end,
+            }
+            if oid is not None:
+                body["organizeId"] = int(oid)
+            data = post_json(token, path, body)
+            if isinstance(data, list):
+                rows = data
+            elif isinstance(data, dict):
+                rows = data.get("list") or data.get("records") or data.get("rows") or []
+            else:
+                rows = []
+            if not rows:
+                break
+            for r in rows:
+                rid = r.get("reportId")
+                if rid in seen:
+                    continue
+                seen.add(rid)
+                all_rows.append(r)
+            if len(rows) < page_size:
+                break
+            page_number += 1
+            if page_number > 100:
+                break
     return all_rows
 
 

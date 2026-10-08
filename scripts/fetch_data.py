@@ -549,10 +549,29 @@ def main():
 
     write_json("meta.json", meta)
 
-    failed = [k for k, v in meta["modules"].items()
-              if (isinstance(v, dict) and v.get("ok") is False)]
+    # fix222（2026-10-08）：失败必须让调用方感知，否则上层管线误判「成功」，
+    # 把旧数据当新数据推上线（10/02~10/08 实锤：data 模块连败 6 天无人知晓）。
+    # 统计层级：顶层 ok=False 的模块 + trends/rankings 等子字典里单文件失败项。
+    def _failed_names(modules):
+        bad = []
+        for k, v in modules.items():
+            if isinstance(v, dict):
+                if v.get("ok") is False:
+                    bad.append(k)
+                else:
+                    sub = [sk for sk, sv in v.items()
+                           if sv is False or (isinstance(sv, str) and sv)]
+                    if sub:
+                        bad.append("%s(%s)" % (k, ",".join(sub[:4])))
+        return bad
+
+    failed = _failed_names(meta["modules"])
     log("完成。" + (f"失败模块：{failed}" if failed else "全部成功"))
-    return 0
+    # 退出码：0=全部成功；1=部分模块失败（上层告警后继续上线其余数据）；
+    #         2=核心 data 模块失败（上层告警并中止本轮，避免新旧数据混杂上线）。
+    if isinstance(meta["modules"].get("data"), dict) and meta["modules"]["data"].get("ok") is False:
+        return 2
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

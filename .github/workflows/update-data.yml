@@ -1,0 +1,192 @@
+name: 【巡店看板】云端数据自动更新（电脑关机看门狗）
+
+on:
+  # 北京时间 00:05/10:05/13:05/16:05/19:05 = UTC 前一日 16:05 + 02:05/05:05/08:05/11:05。
+  # fix224（2026-10-08）：本机任务计划（00:30/10:30/13:30/16:30/19:30）依赖电脑开机，
+  # 关机即断更（10/02~10/08 data.json 停在 10/04 实锤）。本工作流 = 云端看门狗，
+  # 与学习看板 daily-update.yml 同思路：电脑关机也照常更新。
+  # 若数据够新（data.json < 3 小时，说明本机或上一轮云端刚更新过），
+  # 「数据新鲜度检查」会自动跳过本轮抓取，避免双端重复打接口。
+  schedule:
+    - cron: "5 2,5,8,11,16 * * *"
+  # Actions 页面可手动立即刷新
+  workflow_dispatch:
+
+# 同一时间只允许一轮刷新，避免数据文件互相覆盖。
+concurrency:
+  group: hyy-data-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    # 云端从海外访问国内接口波动大（学习看板实测 19~35 分钟），且报告明细逐份抓取有节流，
+    # 给足余量（超时值只影响异常场景）。
+    timeout-minutes: 180
+    env:
+      HY_USERNAME: ${{ secrets.HY_USERNAME }}
+      HY_PASSWORD: ${{ secrets.HY_PASSWORD }}
+      # HY_ENT/HY_API_BASE/HY_IMG_BASE 不注入：scripts/hhy_config.py 的默认值即生产值
+      #（cjss / zhyyapp.ruipos.com / testhyy.ruipos.com），避免空 Secret 覆盖默认值。
+      TZ: Asia/Shanghai
+
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 检查慧运营凭据
+        shell: bash
+        run: |
+          test -n "$HY_USERNAME" || { echo "错误：缺少 Secrets.HY_USERNAME（应与本机管线同款：888）"; exit 1; }
+          test -n "$HY_PASSWORD" || { echo "错误：缺少 Secrets.HY_PASSWORD"; exit 1; }
+          echo "凭据配置完整"
+
+      - name: 配置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: 安装依赖
+        run: pip install -r scripts/requirements.txt
+
+      # data.json 的 cachedAt 是 UTC 时间戳。<3 小时 = 本机/云端刚更新过，跳过本轮。
+      - name: 数据新鲜度检查
+        id: fresh
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, datetime
+          try:
+              d = json.loads(open("data/data.json", encoding="utf-8").read())
+              ts = datetime.datetime.strptime(d["cachedAt"], "%Y-%m-%d %H:%M:%S").replace(
+                  tzinfo=datetime.timezone.utc)
+              hours = (datetime.datetime.now(datetime.timezone.utc) - ts).total_seconds() / 3600
+          except Exception as e:
+              print("data.json 读取失败（%r），按需要刷新处理" % e)
+              raise SystemExit(0)
+          print("data.json cachedAt(UTC)=%s，年龄 %.1f 小时" % (d.get("cachedAt"), hours))
+          if hours < 3:
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("skip=true\n")
+              print("数据够新（<3 小时），云端本轮跳过抓取")
+          PY
+
+      - name: 采集原始报告
+        if: steps.fresh.outputs.skip != 'true'
+        run: python scripts/collect_raw.py
+
+      - name: 生成主数据与报表明细
+        if: steps.fresh.outputs.skip != 'true'
+        run: python scripts/fetch_data.py
+
+      # fetch_data.py 内部允许单模块记录错误，但发布前必须拦截，
+      # 不能出现「工作流成功、数据其实没更新」。
+      - name: 校验刷新结果
+        if: steps.fresh.outputs.skip != 'true'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("data/meta.json")
+          if not path.exists():
+              raise SystemExit("错误：未生成 data/meta.json")
+          meta = json.loads(path.read_text(encoding="utf-8"))
+          modules = meta.get("modules") or {}
+          required = ["data", "reportDetails", "unqualified", "trends", "trends_video", "rankings"]
+          errors = []
+          for name in required:
+              value = modules.get(name)
+              if value is None:
+                  errors.append(f"{name}: 缺失")
+              elif isinstance(value, dict) and value.get("ok") is False:
+                  errors.append(f"{name}: {value.get('error', '失败')}")
+              elif isinstance(value, dict):
+                  bad = [k for k, v in value.items() if v is False or (isinstance(v, str) and v)]
+                  if bad:
+                      errors.append(f"{name}: {bad}")
+          if errors:
+              raise SystemExit("刷新结果校验失败：" + "；".join(errors))
+          print("刷新结果校验通过")
+          print("generatedAt:", meta.get("generatedAt"))
+          print("date range:", meta.get("startDate"), "~", meta.get("endDate"))
+          print("modules:", json.dumps(modules, ensure_ascii=False))
+          PY
+
+      - name: 提交并发布数据
+        if: steps.fresh.outputs.skip != 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A data/
+          if git diff --cached --quiet; then
+            echo "数据无变化，跳过提交"
+            exit 0
+          fi
+          # 先提交本轮结果，再拉取远端并变基（不能在暂存区有内容时直接 pull --rebase）；
+          # 变基冲突（本机同时也在推）时以本轮新抓数据为准。
+          git commit -m "【巡店看板】data: 云端自动更新 $(TZ=Asia/Shanghai date +'%Y-%m-%d %H:%M')"
+          if ! git pull --rebase origin main; then
+            echo "rebase 冲突，改为以本轮新抓数据为准"
+            git rebase --abort || true
+            git fetch origin main
+            git reset --soft origin/main
+            git add -A data/
+            git commit -m "【巡店看板】data: 云端自动更新 $(TZ=Asia/Shanghai date +'%Y-%m-%d %H:%M')"
+          fi
+          git push origin main
+          echo "已发布，GitHub Pages 1-2 分钟后生效"
+
+      # fix223 同款规则：失败告警任何时段都必须发（电脑关机时这里是唯一能吭声的通道）。
+      - name: 失败告警到企业微信
+        if: failure()
+        shell: bash
+        env:
+          WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          hook = os.environ.get("WECOM_WEBHOOK") or ""
+          if not hook:
+              print("未配置 Secrets.WECOM_WEBHOOK，无法发企微告警（GitHub 会另发邮件通知）")
+              raise SystemExit(0)
+          msg = {"msgtype": "text", "text": {"content":
+                 "【巡店看板】⚠️ 云端自动更新失败\n"
+                 "电脑关机兜底更新未成功，请点日志排查：\n"
+                 "https://github.com/joker-lyy/hyy-dashboard/actions"}}
+          req = urllib.request.Request(hook, data=json.dumps(msg).encode(),
+                                       headers={"Content-Type": "application/json"})
+          print(urllib.request.urlopen(req, timeout=15).read().decode())
+          PY
+
+      # 成功通知只留北京 00~09 点档（= 00:05 凌晨轮），白天档静音（对齐本机 fix200）。
+      - name: 凌晨档成功通知
+        if: success() && steps.fresh.outputs.skip != 'true'
+        shell: bash
+        env:
+          WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+        run: |
+          H=$((10#$(TZ=Asia/Shanghai date +%H)))
+          if [ "$H" -ge 10 ]; then echo "白天档静音，不发成功通知"; exit 0; fi
+          python - <<'PY'
+          import json, os, urllib.request
+          hook = os.environ.get("WECOM_WEBHOOK") or ""
+          if not hook:
+              print("未配置 Secrets.WECOM_WEBHOOK，跳过成功通知")
+              raise SystemExit(0)
+          msg = {"msgtype": "text", "text": {"content":
+                 "【巡店看板】✅ 云端自动更新成功（电脑关机兜底档）\n"
+                 "看板 1-2 分钟后生效：joker-lyy.github.io/hyy-dashboard/v2/"}}
+          req = urllib.request.Request(hook, data=json.dumps(msg).encode(),
+                                       headers={"Content-Type": "application/json"})
+          print(urllib.request.urlopen(req, timeout=15).read().decode())
+          PY
