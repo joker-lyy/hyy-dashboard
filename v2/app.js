@@ -2382,7 +2382,10 @@ function renderUnqCompare(){
     const photos = (it.photos||[]).map(p=>Object.assign({}, p, {sn: p.sn||card.sn, rg: p.rg||card.rg}));
     return `<div style="margin:3px 0;font-size:12px">${icon} ${html(it.t)}${it.desc?`<span style="color:#5a6377">（${html(it.desc)}）</span>`:''}${photos.length?unq2ImgHtml(photos):''}</div>`;
   };
-  // fix229：默认折叠——门店名+概要信息一行展示，点击门店名/头部展开完整对比明细
+  window.__cmpItemLine = itemLine;
+  // fix230：列表仅折叠概要；点门店名打开单店弹窗报告（图片/分享按钮在弹窗内）
+  window.__cmpRows = {};
+  rows.forEach(x=>{ window.__cmpRows[encodeURIComponent(x.sn + '|' + x.cd)] = x; });
   $('unqCmpList').innerHTML = rows.map(x=>{
     const vc = x.verdict==='好了' ? '#1e8e3e' : (x.verdict==='差了' ? '#c0392b' : '#b8860b');
     const arrow = x.verdict==='好了' ? '↓' : (x.verdict==='差了' ? '↑' : '→');
@@ -2391,50 +2394,67 @@ function renderUnqCompare(){
     if (x.repeated.length) sum.push(`<span style="color:#c0392b;font-weight:700">⚠️ 连续不合格 ${x.repeated.length} 项（复发，最需督办）</span>`);
     if (x.regressed.length) sum.push(`<span style="color:#c0392b;font-weight:700">新劣化 ${x.regressed.length} 项（上次合格，本次不合格）</span>`);
     if (x.improved.length) sum.push(`<span style="color:#1e8e3e;font-weight:700">已改善 ${x.improved.length} 项</span>`);
-    const bodyId = 'cmpb_' + key, tipId = 'cmpt_' + key;
     return `
     <div class="unq-card" style="margin-bottom:12px">
-      <div class="unq-card-head" style="cursor:pointer" onclick="toggleCmpCard('${key}')" title="点击展开/收起对比明细">
+      <div class="unq-card-head" style="cursor:pointer" onclick="openCmpDetail('${key}')" title="点击查看该门店对比报告">
         <div>
-          <div class="unq-card-title" style="color:#2f6fed;text-decoration:underline dotted">${html(x.sn)} <span id="${tipId}" style="font-size:11px;color:#7a8399;text-decoration:none;font-weight:400">展开 ▾</span></div>
+          <div class="unq-card-title" style="color:#2f6fed;text-decoration:underline dotted">${html(x.sn)} <span style="font-size:11px;color:#7a8399;text-decoration:none;font-weight:400">查看报告 ›</span></div>
           <div class="unq-card-meta">${html(x.rg||'-')} · ${html(x.ps||'-')} · 上次 ${html(x.pd)} → 本次 ${html(x.cd)}</div>
         </div>
         <span class="unq-card-badge" style="background:${vc};color:#fff">${x.verdict} ${arrow} 不合格 ${x.pu}→${x.cu}</span>
       </div>
       ${sum.length?`<div style="padding:6px 12px;border-top:1px solid #eef0f5;font-size:12px;display:flex;gap:14px;flex-wrap:wrap">${sum.join('')}</div>`:''}
-      <div class="unq-card-items" id="${bodyId}" style="padding:8px 12px;display:none;border-top:1px solid #eef0f5">
-        ${x.repeated.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:4px 0">⚠️ 连续不合格（复发，最需督办 ${x.repeated.length} 项）</div>${x.repeated.map(it=>itemLine(it,'rep',x)).join('')}`:''}
-        ${x.regressed.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:8px 0 2px">新劣化 ${x.regressed.length} 项（上次合格，本次不合格）</div>${x.regressed.map(it=>itemLine(it,'reg',x)).join('')}`:''}
-        ${x.improved.length?`<div style="font-size:12px;font-weight:700;color:#1e8e3e;margin:8px 0 2px">已改善 ${x.improved.length} 项（上次不合格，本次合格）</div>${x.improved.map(it=>itemLine(it,'imp')).join('')}`:''}
-      </div>
     </div>`;
   }).join('');
 }
 
-// fix229：展开/收起单店对比明细（不重渲染，避免滚动位置丢失/照片重复入池）
-window.toggleCmpCard = function(key){
-  const b = document.getElementById('cmpb_' + key);
-  if(!b) return;
-  const open = b.style.display !== 'none';
-  b.style.display = open ? 'none' : '';
-  const t = document.getElementById('cmpt_' + key);
-  if(t) t.textContent = open ? '展开 ▾' : '收起 ▴';
+// fix230：单店对比报告弹窗——点门店名打开，含完整明细 + 🖼图片 / 🔗分享本店 按钮
+window.openCmpDetail = function(key){
+  const x = (window.__cmpRows||{})[key];
+  if(!x) return;
+  let ov = document.getElementById('cmpDetailOverlay');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'cmpDetailOverlay'; document.body.appendChild(ov); }
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99997;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.onclick = e => { if(e.target === ov) ov.remove(); };
+  const vc = x.verdict==='好了' ? '#1e8e3e' : (x.verdict==='差了' ? '#c0392b' : '#b8860b');
+  const arrow = x.verdict==='好了' ? '↓' : (x.verdict==='差了' ? '↑' : '→');
+  const itemLine = window.__cmpItemLine || (()=>'');
+  const body = `
+    ${x.repeated.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:4px 0">⚠️ 连续不合格（复发，最需督办 ${x.repeated.length} 项）</div>${x.repeated.map(it=>itemLine(it,'rep',x)).join('')}`:''}
+    ${x.regressed.length?`<div style="font-size:12px;font-weight:700;color:#c0392b;margin:8px 0 2px">新劣化 ${x.regressed.length} 项（上次合格，本次不合格）</div>${x.regressed.map(it=>itemLine(it,'reg',x)).join('')}`:''}
+    ${x.improved.length?`<div style="font-size:12px;font-weight:700;color:#1e8e3e;margin:8px 0 2px">已改善 ${x.improved.length} 项（上次不合格，本次合格）</div>${x.improved.map(it=>itemLine(it,'imp',x)).join('')}`:''}
+    ${(!x.repeated.length && !x.regressed.length && !x.improved.length)?'<div class="empty">两次巡检无项目变化</div>':''}`;
+  ov.innerHTML = `
+    <div style="background:#fff;border-radius:12px;max-width:760px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.25)" onclick="event.stopPropagation()">
+      <div id="cmpDetailBody" style="padding:16px 18px;overflow:auto">
+        <div class="unq-card-head" style="padding:0 0 8px">
+          <div>
+            <div class="unq-card-title">${html(x.sn)}</div>
+            <div class="unq-card-meta">${html(x.rg||'-')} · ${html(x.ps||'-')} · 上次 ${html(x.pd)} → 本次 ${html(x.cd)}</div>
+          </div>
+          <span class="unq-card-badge" style="background:${vc};color:#fff">${x.verdict} ${arrow} 不合格 ${x.pu}→${x.cu}</span>
+        </div>
+        <div style="border-top:1px solid #eef0f5;padding-top:8px">${body}</div>
+      </div>
+      <div style="padding:10px 18px;border-top:1px solid #eef0f5;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0">
+        <button onclick="sharePngCompare('${key}')" style="border:none;background:#E8890C;color:#fff;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:13px" title="把该门店对比报告渲染成一张图片，复制后直接粘贴发送">🖼 图片</button>
+        <button onclick="cmpShareView('${key}')" style="border:none;background:#2f6fed;color:#fff;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:13px" title="生成该门店的只读分享链接（对方可点照片看大图）">🔗 分享本店</button>
+        <button onclick="document.getElementById('cmpDetailOverlay').remove()" style="border:none;background:#f0f2f7;color:#1A2A4A;border-radius:6px;padding:7px 16px;cursor:pointer;font-size:13px">关闭</button>
+      </div>
+    </div>`;
 };
 
-// fix229：对比板块「分享本视图」——生成 solo='cmp' 交互分享链接（可展开门店、点照片看大图）；
-//   当前恰好展开一家门店时，只分享该门店（st.sn，接收方搜索框锁定到该店）
-window.cmpShareView = function(){
+// fix230：单店「分享本店」——solo='cmp' + sn 定向到该门店（接收方可展开明细、点照片看大图）
+window.cmpShareView = function(key){
+  const x = key ? (window.__cmpRows||{})[key] : null;
   const st = { t:'unqualifiedDetail', sub:'unqCompare', s:(currentStart||''), e:(currentEnd||''), ro:1, solo:'cmp' };
-  const openBodies = Array.from(document.querySelectorAll('.unq-card-items[id^="cmpb_"]')).filter(el=>el.style.display!=='none');
-  if(openBodies.length === 1){
-    try{ st.sn = decodeURIComponent(openBodies[0].id.replace(/^cmpb_/, '')); }catch(e){}
-  }
+  if(x) st.sn = x.sn;
   const url = location.origin + location.pathname + '#s=' + b64uEnc(JSON.stringify(st));
   window.openShareOverlay(url);
 };
 
-// fix229：对比板块「图片」——把整份对比列表渲染成一张长图（自动展开全部门店明细，完成后还原折叠态）
-window.sharePngCompare = async function(){
+// fix230：生成图片——传 key 时只截弹窗里该门店的报告；不传时截整份对比列表（兼容旧调用）
+window.sharePngCompare = async function(key){
   const escHtml = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const showTip = (h, sticky) => {
     let ov = document.getElementById("pngShareTip");
@@ -2443,28 +2463,22 @@ window.sharePngCompare = async function(){
     ov.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:640px;width:100%;padding:18px 20px;max-height:90vh;overflow:auto" onclick="event.stopPropagation()">${h}</div>`;
     return ov;
   };
-  const sec = document.getElementById('unqCompare');
-  if(!sec){ return; }
+  const single = key ? (window.__cmpRows||{})[key] : null;
+  const target = single ? document.getElementById('cmpDetailBody') : document.getElementById('unqCompare');
+  if(!target){ return; }
   showTip('<div style="font-size:14px;color:#1A2A4A">⏳ 正在生成图片，请稍候…</div>');
-  let restore = null;
   try {
     await window._loadHtml2canvas();
-    // 临时展开全部门店明细（照片 lazy 也要触发加载），完成后再还原折叠态
-    const bodies = Array.from(sec.querySelectorAll('.unq-card-items[id^="cmpb_"]'));
-    const saved = bodies.map(b=>[b, b.style.display]);
-    bodies.forEach(b=>{ b.style.display=''; });
-    restore = ()=>saved.forEach(([b,d])=>{ b.style.display=d; });
-    sec.querySelectorAll("img").forEach(im=>{ try{ im.crossOrigin = "anonymous"; im.loading = 'eager'; }catch(e){} });
+    target.querySelectorAll("img").forEach(im=>{ try{ im.crossOrigin = "anonymous"; im.loading = 'eager'; }catch(e){} });
     const s2=(currentStart||'').slice(0,10), e2=(currentEnd||'').slice(0,10);
-    const title = '常规巡检·同店变化对比' + (s2||e2 ? `(${s2||'…'}~${e2||'…'})` : '');
-    const canvas = await html2canvas(sec, {
-      useCORS: true, backgroundColor: "#f2f4f8", scale: 2, logging: false,
-      width: sec.scrollWidth || undefined, height: sec.scrollHeight || undefined,
-      windowWidth: sec.scrollWidth || undefined, windowHeight: sec.scrollHeight || undefined,
+    const title = (single ? ('常规巡检·同店对比·' + single.sn) : '常规巡检·同店变化对比') + (s2||e2 ? `(${s2||'…'}~${e2||'…'})` : '');
+    const canvas = await html2canvas(target, {
+      useCORS: true, backgroundColor: "#ffffff", scale: 2, logging: false,
+      width: target.scrollWidth || undefined, height: target.scrollHeight || undefined,
+      windowWidth: target.scrollWidth || undefined, windowHeight: target.scrollHeight || undefined,
       scrollX: 0, scrollY: 0,
-      ignoreElements: el => ["shareOverlay","pngShareTip","shareRoBar"].includes(el.id)
+      ignoreElements: el => ["shareOverlay","pngShareTip","shareRoBar","cmpDetailOverlay"].includes(el.id)
     });
-    if (restore) { restore(); restore = null; }
     const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
     let copied = false;
     try { await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]); copied = true; } catch (e) {}
@@ -2488,9 +2502,9 @@ window.sharePngCompare = async function(){
         </div>`, true);
     }
   } catch (e) {
-    showTip(`<div style="font-size:15px;font-weight:700;color:#e64340;margin-bottom:6px">生成失败</div><div style="font-size:12px;color:#7a8399">${escHtml(String(e && e.message || e))}<br>可改用「🔗 分享本视图」按钮发链接。</div>
+    showTip(`<div style="font-size:15px;font-weight:700;color:#e64340;margin-bottom:6px">生成失败</div><div style="font-size:12px;color:#7a8399">${escHtml(String(e && e.message || e))}<br>可改用「🔗 分享本店」按钮发链接。</div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px"><button onclick="document.getElementById('pngShareTip').remove()" style="background:#f0f2f7;color:#1A2A4A;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px">关闭</button></div>`, true);
-  } finally { if (restore) restore(); }
+  }
 };
 
 const UNQ_RF_TYPES = [
