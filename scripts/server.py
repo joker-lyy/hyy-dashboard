@@ -1363,6 +1363,9 @@ def build_dashboard_data(start_date: str, end_date: str) -> Dict[str, Any]:
         pos_total_items = sum(safe_int(s.get("sumCount")) for s in store_records)
         pos_unq_items = sum(safe_int(s.get("unqualifiedItems")) for s in store_records)
         pos_normal_items = sum(safe_int(s.get("normalCount")) for s in store_records)
+        # fix235：合格率改为门店级口径 = 合格店数 ÷ 已巡检店数（达标线：加盟营运 80 分，其余 90 分）
+        _pass_line = 80 if "加盟" in pos_label else 90
+        pos_qualified_stores = sum(1 for s in store_records if safe_float(s.get("score")) >= _pass_line)
         position_summaries.append({
             "position": pos_label,
             "organizeName": org_name,
@@ -1372,7 +1375,8 @@ def build_dashboard_data(start_date: str, end_date: str) -> Dict[str, Any]:
             "totalItems": pos_total_items,
             "normalItems": pos_normal_items,
             "unqualifiedItems": pos_unq_items,
-            "qualifiedRate": round(pos_normal_items / pos_total_items * 100, 1) if pos_total_items else 0.0,
+            "qualifiedStores": pos_qualified_stores,
+            "qualifiedRate": round(pos_qualified_stores / inspected * 100, 1) if inspected else 0.0,
             "submitRate": round(inspected / total_store_count * 100, 1) if total_store_count else 0.0,
             "regions": sorted(pos_region_stats.keys()),
         })
