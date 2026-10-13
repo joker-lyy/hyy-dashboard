@@ -505,10 +505,12 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
     }
 
     // 区域聚合
+    // fix236：与后端 fix233 同口径——0 店且名字不以「区域」结尾的叶子是部门（工程/空间设计等），不是区域，跳过
     for (const leaf of leaves) {
       const rname = leaf.organizeName;
       if (!rname) continue;
       const stores = regionStores[rname] || [];
+      if (stores.length === 0 && rname.indexOf('区域', rname.length - 2) === -1) continue;
       const scored = stores.filter(s => s.score > 0);
       const avg = scored.length
         ? Math.round((scored.reduce((a, s) => a + s.score, 0) / scored.length) * 100) / 100
@@ -581,7 +583,8 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
       unqualifiedItems: posStores.reduce((a, s) => a + rawSafeInt(s.unqualifiedItems), 0),
       qualifiedRate: storePassRate(posStores, posLabel),
       submitRate: rawRate(posStores.length, storeCount),                // 分子=已巡检，分母=组织树
-      regions: leaves.map(l => l.organizeName),
+      // fix236：区域标签同样过滤——0 店且不以「区域」结尾的部门叶子不显示
+      regions: leaves.map(l => l.organizeName).filter(nm => nm && ((regionStores[nm] || []).length > 0 || nm.slice(-2) === '区域')),
     });
   }
 
