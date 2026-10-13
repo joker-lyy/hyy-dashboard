@@ -101,6 +101,14 @@ function rawRate(num, den) {
   if (!den) return 0;
   return Math.round((num / den) * 1000) / 10;
 }
+// fix235：合格率门店级口径 = 合格店数 ÷ 已巡检店数（达标线：加盟营运 80 分，其余 90 分，与后端一致）
+function storePassRate(stores, posLabel) {
+  const line = (posLabel || '').indexOf('加盟') >= 0 ? 80 : 90;
+  const list = stores || [];
+  if (!list.length) return 0;
+  const ok = list.filter(s => rawSafeFloat(s.score, 0) >= line).length;
+  return Math.round((ok / list.length) * 1000) / 10;
+}
 function rawIsTestStore(name) {
   if (!name) return false;
   const s = String(name);
@@ -520,7 +528,7 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
         rectified: stores.reduce((a, s) => a + rawSafeInt(s.rectified), 0),
         expired: stores.reduce((a, s) => a + rawSafeInt(s.expired), 0),
         submitRate: rawRate(stores.length, rawSafeInt(leaf.currentStoreCount)),
-        qualifiedRate: rawRate(n, t),
+        qualifiedRate: storePassRate(stores, posLabel),
         stores,
       };
       if (!regionMap[rname]) regionMap[rname] = { ...rec, stores: [] };
@@ -539,7 +547,7 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
       regionMap[rname].needRectify = merged.reduce((a, s) => a + rawSafeInt(s.needRectify), 0);
       regionMap[rname].rectified = merged.reduce((a, s) => a + rawSafeInt(s.rectified), 0);
       regionMap[rname].expired = merged.reduce((a, s) => a + rawSafeInt(s.expired), 0);
-      regionMap[rname].qualifiedRate = rawRate(mn, mt);
+      regionMap[rname].qualifiedRate = storePassRate(merged, regionMap[rname].position || posLabel);
     }
 
     // 岗位汇总
@@ -571,7 +579,7 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
       totalItems: posItems,
       normalItems: posNormal,
       unqualifiedItems: posStores.reduce((a, s) => a + rawSafeInt(s.unqualifiedItems), 0),
-      qualifiedRate: rawRate(posNormal, posItems),
+      qualifiedRate: storePassRate(posStores, posLabel),
       submitRate: rawRate(posStores.length, storeCount),                // 分子=已巡检，分母=组织树
       regions: leaves.map(l => l.organizeName),
     });
