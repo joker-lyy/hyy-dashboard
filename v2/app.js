@@ -2330,8 +2330,10 @@ function renderUnqCompare(){
   const d = unq2State.data;
   let rows = (d && d.cgCompare) || [];
   const s = (currentStart||'').slice(0,10), e = (currentEnd||'').slice(0,10);
-  if (s) rows = rows.filter(x=>x.cd >= s);   // 按本次巡检日期落区间
-  if (e) rows = rows.filter(x=>x.cd <= e);
+  // fix231：上次或本次巡检日期任一落在区间内即显示——培训组跨月巡检（如上次9-21→本次10-10）
+  // 原先只按本次日期(cd)判定，9月月报里培训组整组消失
+  const hitRange = d => (!s || d >= s) && (!e || d <= e);
+  if (s || e) rows = rows.filter(x=>hitRange(x.cd) || hitRange(x.pd));
   // fix215：solo 锁组先过滤再计数——保证结论芯片数字与下方列表口径一致
   if (window.__soloCmp) rows = rows.filter(x=>x.ps === '培训组');
   // 结论芯片
