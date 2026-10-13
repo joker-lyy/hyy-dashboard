@@ -25,13 +25,13 @@
 
 // 区域基线：刘浩/陈晓君 = 2026-09 撤销后加盟营运组 leaves 实时值（预处理时动态覆盖）；
 // 开业督导组 = 2026-09-22 实测在营 5 家（撤销前组织树 8 家，其中 3 家已非在营，接口不再返回该叶子）；
-// 范鑫区域 = 撤销前基线（0 店占位）
+// fix232（2026-10-13）：移除「范鑫区域」0 店占位——平台已撤销该区域，raw 各月无任何范鑫报告数据，
+// 保留只会让新店运营组卡片多出一个空区域标签
 const XY_BASELINE = {
   leaves: [
     { organizeName: '刘浩区域', currentStoreCount: 23 },
     { organizeName: '陈晓君区域', currentStoreCount: 21 },
     { organizeName: '开业督导组', currentStoreCount: 5 },
-    { organizeName: '范鑫区域', currentStoreCount: 0 },
   ],
   // 静态兜底店名单：2026-09-21 撤销前（git 68b56f4fc）有报告的 29 家门店。
   // 仅用于 nl 缺失的报告兜底归属；正常路径按 nl 区域段动态匹配（可覆盖新开店）
