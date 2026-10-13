@@ -328,8 +328,13 @@ def _aggregate_regular_regions(
         rname = leaf.get("organizeName", "")
         if not rname:
             continue
+        # fix233：跳过「部门叶子」——如新店筹建组组织树下的「工程」「空间设计」是部门不是区域（经理），
+        # 特征=真实门店数为 0 且名字不以「区域」结尾；有店的非「区域」叶子（如「超级加盟商」27 家）不受影响
+        _cnt = (region_store_counts or {}).get(rname, safe_int(leaf.get("currentStoreCount")))
+        if safe_int(_cnt) == 0 and not rname.endswith("区域"):
+            continue
         pos_region_stats[rname] = {
-            "store_count": (region_store_counts or {}).get(rname, safe_int(leaf.get("currentStoreCount"))),
+            "store_count": _cnt,
             "inspected_count": 0,
             "sum_score": 0.0,
             "score_count": 0,
