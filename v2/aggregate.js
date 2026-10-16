@@ -228,6 +228,32 @@ function dailyExpected(generatedAtUtc, startDateStr, endDateStr) {
   return total;
 }
 
+/* fix237：开店/打烊拆分版应完成——每天各 1 份（开店 14:00 前、打烊 20:00 起）。
+   报表刷新日分档：<14 点两类都没采到 0/0；14~20 点开店份可采到 1/0；≥20 点 1/1。
+   返回 {kd, dy}：单店区间内开店/打烊各自应完成份数 */
+function dailyExpectedSplit(generatedAtUtc, startDateStr, endDateStr) {
+  const res = { kd: 0, dy: 0 };
+  if (!startDateStr || !endDateStr) return res;
+  const days = Math.max(1, Math.round((new Date(endDateStr) - new Date(startDateStr)) / 86400000) + 1);
+  if (!generatedAtUtc) { res.kd = days; res.dy = days; return res; }
+  const utc = new Date(generatedAtUtc.replace(' ', 'T') + 'Z');
+  if (isNaN(utc.getTime())) { res.kd = days; res.dy = days; return res; }
+  const bj = new Date(utc.getTime() + 8 * 3600 * 1000);
+  const dataDate = bj.toISOString().slice(0, 10);
+  const dataHour = bj.getUTCHours();
+  const start = new Date(startDateStr + 'T00:00:00Z').getTime();
+  const end = new Date(endDateStr + 'T00:00:00Z').getTime();
+  for (let t = start; t <= end; t += 86400000) {
+    const d = new Date(t).toISOString().slice(0, 10);
+    if (d < dataDate) { res.kd++; res.dy++; }
+    else if (d === dataDate) {
+      if (dataHour >= 14) res.kd++;
+      if (dataHour >= 20) res.dy++;
+    }
+  }
+  return res;
+}
+
 /* ---------------- 月份文件加载 ---------------- */
 async function loadRawIndex() {
   if (rawIndexCache) return rawIndexCache;
@@ -627,6 +653,10 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
   // 例：报表刷新 9/2 15:43（1 份），区间 9/1~9/3
   //     → 9/1=2 + 9/2=1 + 9/3=0 = 3 份/店；7 店 × 3 = **21 份**（与用户期望一致）
   const perStoreExpected = dailyExpected(effGeneratedAt, start, end);
+  // fix237：开店/打烊拆分应完成（每店每天各 1 份，刷新日按小时分档）
+  const perSplit = dailyExpectedSplit(effGeneratedAt, start, end);
+  const perStoreKd = perSplit.kd;
+  const perStoreDy = perSplit.dy;
   const storeBuckets = {};
   const zjCategoryAgg = {};
   // fix39：整改单聚合（第二阶段见下方 —— rectifyMap 在 storeBuckets 完成后再按"门店名"反查 region）
@@ -849,6 +879,11 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
       storeCount,
       completed,
       expected,
+      // fix237：开店/打烊拆分统计（应完成=门店数×每店分档应完成；已完成=区间内该类报告数）
+      kaidianExpected: storeCount * perStoreKd,
+      kaidianCompleted: r.stores.reduce((a, s) => a + rawSafeInt(s.kaidian), 0),
+      dayanExpected: storeCount * perStoreDy,
+      dayanCompleted: r.stores.reduce((a, s) => a + rawSafeInt(s.dayan), 0),
       unfinished: Math.max(0, expected - completed),
       completionRate: expected > 0 ? Math.round((completed / expected) * 1000) / 10 : 0,
       qualified: r.stores.reduce((a, s) => a + s.qualified, 0),
@@ -914,6 +949,11 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
       storeCount,
       expected,
       completed,
+      // fix237：开店/打烊拆分（岗位汇总）
+      kaidianExpected: storeCount * perStoreKd,
+      kaidianCompleted: p.stores.reduce((a, s) => a + rawSafeInt(s.kaidian), 0),
+      dayanExpected: storeCount * perStoreDy,
+      dayanCompleted: p.stores.reduce((a, s) => a + rawSafeInt(s.dayan), 0),
       qualified,
       unqualified,
       scoreCount,

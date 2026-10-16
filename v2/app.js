@@ -2941,6 +2941,7 @@ function renderSelfInspection(d){
       <th>应完成自检数</th><th>已完成</th>
       <th>合格份数</th><th>区域平均分</th>
       <th>完成率</th><th>点评率</th><th>合格率</th><th>整改率</th>
+      <th>门店开店自检</th><th>打烊检查</th>
       <th>门店清单</th>
     </tr></thead>
     <tbody>
@@ -2967,10 +2968,12 @@ function renderSelfInspection(d){
           <td class="${rateClass(r.reviewRate)}">${r.reviewRate != null ? r.reviewRate : 0}%</td>
           <td class="${rateClass(qRate*100)}">${qTotal > 0 ? Math.round(qRate * 1000) / 10 + '%' : '-'}</td>
           <td class="${rateClass(r.rectifyRate)}">${(r.rectified != null && (r.rectified + (r.needRectify||0)) > 0) ? r.rectifyRate + '%' : '-'}</td>
+          <td>${(r.kaidianCompleted||0) + ' / ' + (r.kaidianExpected!=null ? r.kaidianExpected : '-')}</td>
+          <td>${(r.dayanCompleted||0) + ' / ' + (r.dayanExpected!=null ? r.dayanExpected : '-')}</td>
           <td><span class="link-btn" onclick="showSelfRegionStores('${encodeURIComponent(r.region||'')}', '${encodeURIComponent(r.position||'')}')">查看门店 &gt;</span></td>
         </tr>`;
       }).join('')}
-      ${rfiltered.length===0?'<tr><td colspan="12" class="empty">无数据</td></tr>':''}
+      ${rfiltered.length===0?'<tr><td colspan="14" class="empty">无数据</td></tr>':''}
     </tbody>
   `;
 
