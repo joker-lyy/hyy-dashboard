@@ -701,30 +701,28 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
         });
         b.completed++;
         totalCompleted++;
-        if (String(rep.tn || '').indexOf('开店') >= 0) b.kaidian++;
-        else if (String(rep.tn || '').indexOf('打烊') >= 0) b.dayan++;
+        // fix31/fix34：先解析分数（排除"未点评"），0 分也计入
+        const sc = rep.s;
+        const scNum = (sc != null && sc !== '' && sc !== '未点评' && sc !== '未评') ? Number(sc) : null;
+        const scValid = scNum != null && !isNaN(scNum);
+        if (scValid) {
+          b.totalScore += scNum;
+          b.scoreCount++;
+        }
+        const isKdRep = String(rep.tn || '').indexOf('开店') >= 0;
+        const isDyRep = !isKdRep && String(rep.tn || '').indexOf('打烊') >= 0;
+        if (isKdRep) b.kaidian++;
+        else if (isDyRep) b.dayan++;
         // fix238：按开店/打烊分档累计得分与合格
-        const _scNum = (sc != null && sc !== '' && sc !== '未点评' && sc !== '未评') ? Number(sc) : null;
-        if (String(rep.tn || '').indexOf('开店') >= 0) {
-          if (_scNum != null && !isNaN(_scNum)) { b.kdTotal += _scNum; b.kdCnt++; }
+        if (isKdRep) {
+          if (scValid) { b.kdTotal += scNum; b.kdCnt++; }
           if (rep.pass) b.kdPass++; else if (String(rep.ps || '') === '不合格') b.kdUnq++;
-        } else if (String(rep.tn || '').indexOf('打烊') >= 0) {
-          if (_scNum != null && !isNaN(_scNum)) { b.dyTotal += _scNum; b.dyCnt++; }
+        } else if (isDyRep) {
+          if (scValid) { b.dyTotal += scNum; b.dyCnt++; }
           if (rep.pass) b.dyPass++; else if (String(rep.ps || '') === '不合格') b.dyUnq++;
         }
         if (rep.pass) b.qualified++;
         if (String(rep.ps || '') === '不合格') b.unqualified++;
-        // 未点评时 score 是字符串「未点评」，但 raw 里正常分数也以字符串"100.0"返回
-        // fix31：必须显式排除"未点评"并按 Number() 解析数字，否则 scoreCount 永远是 0
-        // fix34：去掉 num > 0 过滤，让 0 分（不合格报告）也计入平均分，否则有不合格时平均分虚高
-        const sc = rep.s;
-        if (sc != null && sc !== '' && sc !== '未点评' && sc !== '未评') {
-          const num = Number(sc);
-          if (!isNaN(num)) {
-            b.totalScore += num;
-            b.scoreCount++;
-          }
-        }
         if (rep.d >= b.latestDate) {
           b.latestDate = rep.d;
           b.reportId = rep.rid || '';
