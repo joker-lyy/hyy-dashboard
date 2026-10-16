@@ -694,6 +694,8 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
         const b = storeBuckets[key] || (storeBuckets[key] = {
           position: posLabel, region, storeCode: rep.sc, storeName: sname,
           completed: 0, kaidian: 0, dayan: 0, qualified: 0, unqualified: 0,
+          // fix238：开店/打烊各自得分与合格统计
+          kdTotal: 0, kdCnt: 0, dyTotal: 0, dyCnt: 0, kdPass: 0, kdUnq: 0, dyPass: 0, dyUnq: 0,
           totalScore: 0, scoreCount: 0, latestDate: '', reportId: '', signId: '',
           reports: [],  // fix46：存该店所有自检报告，弹窗"查看报告(N)"用
         });
@@ -701,6 +703,15 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
         totalCompleted++;
         if (String(rep.tn || '').indexOf('开店') >= 0) b.kaidian++;
         else if (String(rep.tn || '').indexOf('打烊') >= 0) b.dayan++;
+        // fix238：按开店/打烊分档累计得分与合格
+        const _scNum = (sc != null && sc !== '' && sc !== '未点评' && sc !== '未评') ? Number(sc) : null;
+        if (String(rep.tn || '').indexOf('开店') >= 0) {
+          if (_scNum != null && !isNaN(_scNum)) { b.kdTotal += _scNum; b.kdCnt++; }
+          if (rep.pass) b.kdPass++; else if (String(rep.ps || '') === '不合格') b.kdUnq++;
+        } else if (String(rep.tn || '').indexOf('打烊') >= 0) {
+          if (_scNum != null && !isNaN(_scNum)) { b.dyTotal += _scNum; b.dyCnt++; }
+          if (rep.pass) b.dyPass++; else if (String(rep.ps || '') === '不合格') b.dyUnq++;
+        }
         if (rep.pass) b.qualified++;
         if (String(rep.ps || '') === '不合格') b.unqualified++;
         // 未点评时 score 是字符串「未点评」，但 raw 里正常分数也以字符串"100.0"返回
@@ -786,6 +797,13 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
     completed: b.completed,
     kaidian: b.kaidian,
     dayan: b.dayan,
+    // fix238：门店级开店/打烊分数与合格
+    kaidianScore: b.kdCnt ? Math.round((b.kdTotal / b.kdCnt) * 100) / 100 : 0,
+    kaidianScoreCount: b.kdCnt,
+    dayanScore: b.dyCnt ? Math.round((b.dyTotal / b.dyCnt) * 100) / 100 : 0,
+    dayanScoreCount: b.dyCnt,
+    kaidianPass: b.kdPass, kaidianUnq: b.kdUnq,
+    dayanPass: b.dyPass, dayanUnq: b.dyUnq,
     qualified: b.qualified,
     unqualified: b.unqualified,
     totalScore: Math.round(b.totalScore * 10) / 10,
@@ -884,6 +902,19 @@ function aggregateSelf(months, start, end, baselineStoreMap, generatedAt) {
       kaidianCompleted: r.stores.reduce((a, s) => a + rawSafeInt(s.kaidian), 0),
       dayanExpected: storeCount * perStoreDy,
       dayanCompleted: r.stores.reduce((a, s) => a + rawSafeInt(s.dayan), 0),
+      // fix238：开店/打烊区域平均分（按有分数的门店平均，与 avgScore 同口径）与合格份数
+      kaidianAvgScore: (() => {
+        const ss = r.stores.filter(s => s.kaidianScoreCount > 0);
+        return ss.length ? Math.round((ss.reduce((a, s) => a + s.kaidianScore, 0) / ss.length) * 100) / 100 : 0;
+      })(),
+      dayanAvgScore: (() => {
+        const ss = r.stores.filter(s => s.dayanScoreCount > 0);
+        return ss.length ? Math.round((ss.reduce((a, s) => a + s.dayanScore, 0) / ss.length) * 100) / 100 : 0;
+      })(),
+      kaidianQualified: r.stores.reduce((a, s) => a + (s.kaidianPass || 0), 0),
+      kaidianUnqualified: r.stores.reduce((a, s) => a + (s.kaidianUnq || 0), 0),
+      dayanQualified: r.stores.reduce((a, s) => a + (s.dayanPass || 0), 0),
+      dayanUnqualified: r.stores.reduce((a, s) => a + (s.dayanUnq || 0), 0),
       unfinished: Math.max(0, expected - completed),
       completionRate: expected > 0 ? Math.round((completed / expected) * 1000) / 10 : 0,
       qualified: r.stores.reduce((a, s) => a + s.qualified, 0),

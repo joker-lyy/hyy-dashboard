@@ -290,8 +290,9 @@ a.fbtn{text-decoration:none;display:inline-block}
   </div>
 
   <div class="module-panel active" id="selfRegions">
-    <h2 class="pt">区域汇总 · 门店自检</h2>
+    <h2 class="pt" id="selfRegionTitle">区域汇总 · 门店自检</h2>
     <div class="filterbar">
+      <div class="pos-filter" id="selfRegionTypeFilter"></div>
       <input type="text" class="search" id="selfRegionSearch" placeholder="搜索区域或组别…">
       <div class="pos-filter" id="selfRegionPosFilter"></div>
     </div>
@@ -526,8 +527,8 @@ window.onerror = function(msg, url, line, col, err){
 };
 </script>
 <script src="xindian_baseline.js?v=20261013fix232"></script>
-<script src="aggregate.js?v=20261016fix237"></script>
-<script src="app.js?v=20261016fix237"></script>
+<script src="aggregate.js?v=20261016fix238"></script>
+<script src="app.js?v=20261016fix238"></script>
 
 <!-- fix201：手动更新按钮逻辑（本机触发服务 127.0.0.1:8778）
      自动更新时段（每天 00:30/10:30/13:30/16:30/19:30）前后 30 分钟内禁止手动更新 -->

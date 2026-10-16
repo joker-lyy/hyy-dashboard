@@ -47,6 +47,8 @@ let unqPhotoCache = {};
 let activePosFilter = '__all__';
 // fix48：门店分数排名内的"区域二级筛选"（点了组别后再筛区域）
 let selfRankRegionFilter = '__all__';
+// fix238：区域汇总·门店自检 的报告类型筛选（全部/门店开店自检/打烊检查）
+let selfRegionTypeFilter = '__all__';
 let regularRankRegionFilter = '__all__';
 let videoRankRegionFilter = '__all__';
 let activeMainTab = 'overview';
@@ -2916,15 +2918,39 @@ function regionsForActivePos(){
 function renderSelfInspection(d){
   const self = d.selfInspection || {};
 
-  // 1. 区域汇总
+  // 1. 区域汇总（fix238：报告类型筛选——全部 / 门店开店自检 / 打烊检查）
+  const typeBtns = [
+    {k:'__all__', l:'全部（门店自检）'},
+    {k:'kaidian', l:'门店开店自检'},
+    {k:'dayan',   l:'打烊检查'},
+  ];
+  const typeFilterEl = $('selfRegionTypeFilter');
+  typeFilterEl.innerHTML = typeBtns.map(t =>
+    `<button class="fbtn ${selfRegionTypeFilter===t.k?'active':''}" data-ty="${t.k}">${t.l}</button>`
+  ).join('');
+  typeFilterEl.querySelectorAll('.fbtn').forEach(btn=>{
+    btn.onclick = ()=>{
+      selfRegionTypeFilter = btn.dataset.ty || '__all__';
+      renderSelfInspection(d);
+    };
+  });
+  const ty = selfRegionTypeFilter;
+  const tyLabel = {'__all__':'门店自检','kaidian':'门店开店自检','dayan':'打烊检查'}[ty];
+  const titleEl = $('selfRegionTitle');
+  if (titleEl) titleEl.textContent = '区域汇总 · ' + tyLabel;
+  const isKd = ty === 'kaidian', isDy = ty === 'dayan';
+  // 按所选类型取数（全部=原口径）
+  const pick = (r, base, kd, dy) => isKd ? kd : (isDy ? dy : base);
+
   buildPosFilter('selfRegionPosFilter', ()=>renderSelfInspection(d));
   const regionItems = filterByPos(self.regions || []);
   const rsearch = ($('selfRegionSearch').value||'').trim().toLowerCase();
   // fix38：按区域平均分降序，无平均分（-）排最后；同分按区域名兜底
   const rfiltered = regionItems
     .map(r=>{
-      const hasScore = r.avgScore != null && r.avgScore > 0;
-      return {r, hasScore, score: hasScore ? r.avgScore : -1};
+      const sc = pick(r, r.avgScore, r.kaidianAvgScore, r.dayanAvgScore);
+      const hasScore = sc != null && sc > 0;
+      return {r, hasScore, score: hasScore ? sc : -1};
     })
     .filter(x=>
       (x.r.region||'').toLowerCase().includes(rsearch) ||
@@ -2941,11 +2967,10 @@ function renderSelfInspection(d){
       <th>应完成自检数</th><th>已完成</th>
       <th>合格份数</th><th>区域平均分</th>
       <th>完成率</th><th>点评率</th><th>合格率</th><th>整改率</th>
-      <th>门店开店自检</th><th>打烊检查</th>
       <th>门店清单</th>
     </tr></thead>
     <tbody>
-      ${rfiltered.map(({r, hasScore})=>{
+      ${rfiltered.map(({r})=>{
         const qTotal = (r.qualified||0) + (r.unqualified||0);
         const qRate = qTotal > 0 ? (r.qualified||0) / qTotal : 0;
         // 完成率 = 已完成 / 应完成（沿用系统口径，跟 V1 完全一致）
@@ -2953,27 +2978,33 @@ function renderSelfInspection(d){
           ? r.completionRate
           : (r.expected > 0 ? Math.round((r.completed||0) / r.expected * 1000) / 10 : 0);
         // fix36：区域平均分 = 该区域有得分的门店各自平均分的平均（aggregate.js 已算）
-        const regionAvg = (r.avgScore != null && r.avgScore > 0) ? r.avgScore : '-';
+        const regionAvgRaw = pick(r, r.avgScore, r.kaidianAvgScore, r.dayanAvgScore);
+        const regionAvg = (regionAvgRaw != null && regionAvgRaw > 0) ? regionAvgRaw : '-';
         const regionAvgCls = (regionAvg !== '-') ? scoreClass(regionAvg) : '';
+        // fix238：分档指标（全部=原口径）
+        const vExpected = pick(r, r.expected, r.kaidianExpected, r.dayanExpected);
+        const vCompleted = pick(r, r.completed, r.kaidianCompleted, r.dayanCompleted);
+        const vQualified = pick(r, r.qualified||0, r.kaidianQualified||0, r.dayanQualified||0);
+        const vUnq = pick(r, r.unqualified||0, r.kaidianUnqualified||0, r.dayanUnqualified||0);
+        const vRate = (vQualified + vUnq) > 0 ? vQualified / (vQualified + vUnq) : 0;
+        const vCompletion = vExpected > 0 ? Math.round((vCompleted||0) / vExpected * 1000) / 10 : 0;
         return `
         <tr>
           <td>${html(r.region||'-')}</td>
           <td>${html(r.position||'-')}</td>
           <td>${r.storeCount || 0}</td>
-          <td>${r.expected != null ? r.expected : '-'}</td>
-          <td>${r.completed != null ? r.completed : 0}</td>
-          <td>${r.qualified || 0}</td>
+          <td>${vExpected != null ? vExpected : '-'}</td>
+          <td>${vCompleted != null ? vCompleted : 0}</td>
+          <td>${vQualified || 0}</td>
           <td class="${regionAvgCls}">${regionAvg}</td>
-          <td class="${rateClass(completionRate)}">${completionRate != null ? completionRate : 0}%</td>
+          <td class="${rateClass(vCompletion)}">${vCompletion}%</td>
           <td class="${rateClass(r.reviewRate)}">${r.reviewRate != null ? r.reviewRate : 0}%</td>
-          <td class="${rateClass(qRate*100)}">${qTotal > 0 ? Math.round(qRate * 1000) / 10 + '%' : '-'}</td>
+          <td class="${rateClass(vRate*100)}">${(vQualified + vUnq) > 0 ? Math.round(vRate * 1000) / 10 + '%' : '-'}</td>
           <td class="${rateClass(r.rectifyRate)}">${(r.rectified != null && (r.rectified + (r.needRectify||0)) > 0) ? r.rectifyRate + '%' : '-'}</td>
-          <td>${(r.kaidianCompleted||0) + ' / ' + (r.kaidianExpected!=null ? r.kaidianExpected : '-')}</td>
-          <td>${(r.dayanCompleted||0) + ' / ' + (r.dayanExpected!=null ? r.dayanExpected : '-')}</td>
           <td><span class="link-btn" onclick="showSelfRegionStores('${encodeURIComponent(r.region||'')}', '${encodeURIComponent(r.position||'')}')">查看门店 &gt;</span></td>
         </tr>`;
       }).join('')}
-      ${rfiltered.length===0?'<tr><td colspan="14" class="empty">无数据</td></tr>':''}
+      ${rfiltered.length===0?'<tr><td colspan="12" class="empty">无数据</td></tr>':''}
     </tbody>
   `;
 
