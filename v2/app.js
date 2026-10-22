@@ -3273,16 +3273,22 @@ function renderStoreQuery(d){
       const valid = avgMonths.filter(v=>v!=null);
       const latest = valid.length?valid[valid.length-1]:null;
       const miss = monthsSel.some(m=>!(r.monthly[m]||[]).length);
-      return {r, avgMonths, latest, miss};
+      // fix244：主表格「页面快照」= 最近一份报告的慧运营原页面
+      let snap=null;
+      for(let i=monthsSel.length-1;i>=0 && !snap;i--){
+        const list=(r.monthly[monthsSel[i]]||[]).filter(x=>x.rid).sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+        if(list.length) snap={rid:list[0].rid, sid:list[0].sid||'', d:list[0].d||''};
+      }
+      return {r, avgMonths, latest, miss, snap};
     });
   if(sf==='pass') items=items.filter(x=>x.latest!=null && x.latest>=lineOf(x.r.position));
   else if(sf==='unpass') items=items.filter(x=>x.latest!=null && x.latest<lineOf(x.r.position));
   else if(sf==='miss') items=items.filter(x=>x.miss);
   items.sort((a,b)=>((b.latest!=null)-(a.latest!=null)) || ((b.latest||0)-(a.latest||0)) || String(a.r.storeName).localeCompare(String(b.r.storeName),'zh'));
   $('storeQueryTable').innerHTML=`
-    <thead><tr><th>门店</th><th>组别</th><th>区域</th>${monthsSel.map(m=>`<th>${m.slice(5)}月得分</th>`).join('')}<th style="width:22%">描述（归纳）</th></tr></thead>
+    <thead><tr><th>门店</th><th>组别</th><th>区域</th>${monthsSel.map(m=>`<th>${m.slice(5)}月得分</th>`).join('')}<th style="width:22%">描述（归纳）</th><th>页面快照</th></tr></thead>
     <tbody>
-      ${items.map(({r,avgMonths})=>`
+      ${items.map(({r,avgMonths,snap})=>`
         <tr>
           <td>${html(r.storeName)}</td>
           <td>${html(r.position)}</td>
@@ -3294,8 +3300,9 @@ function renderStoreQuery(d){
             return `<td class="${v!=null?scoreClass(v):''}"><span class="link-btn" onclick="showStoreQueryMonthReports('${encodeURIComponent(r.position)}','${encodeURIComponent(r.storeName)}','${m}')">${v!=null?v:'未点评'}</span></td>`;
           }).join('')}
           <td style="font-size:12px;color:#555;text-align:left">${html(sqDesc(r, monthsSel))}</td>
+          <td style="white-space:nowrap">${(()=>{ const u=snap?reportUrl(snap.rid,snap.sid,'CG'):''; return u?`<a href="${html(u)}" target="_blank" rel="noopener" style="color:#1a5fb4;font-size:12px">页面快照</a>${snap.d?`<div style="font-size:11px;color:#98a2b3">${html(snap.d)}</div>`:''}`:'<span style="color:#bbb">—</span>'; })()}</td>
         </tr>`).join('')}
-      ${items.length===0?`<tr><td colspan="${monthsSel.length+4}" class="empty">无数据</td></tr>`:''}
+      ${items.length===0?`<tr><td colspan="${monthsSel.length+5}" class="empty">无数据</td></tr>`:''}
     </tbody>`;
 }
 /* fix241：门店勾选比对 */
