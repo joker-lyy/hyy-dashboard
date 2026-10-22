@@ -3302,19 +3302,42 @@ function showStoreQueryMonthReports(posEnc, storeEnc, month){
     }
   }
   reports.sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+  // fix242：整改情况——unq2 rectify 逐报告明细按 rid 挂（typ=CG）；页面快照=慧运营原报告页
+  const rectByRid = {};
+  try{
+    const rows=(unq2State.data && Array.isArray(unq2State.data.rectify)) ? unq2State.data.rectify : [];
+    for(const x of rows){ if((x.typ||'CG')==='CG' && x.rid) rectByRid[String(x.rid)]=x; }
+  }catch(err){}
+  if(!unq2State.promise){ loadUnq2().then(()=>{ const m=$('regionModal'); if(m&&m.classList.contains('active')) showStoreQueryMonthReports(posEnc,storeEnc,month); }).catch(()=>{}); }
   regionModalSnapshot();
   $('regionModalTitle').textContent=`${storeName} · ${month.slice(5)}月 QSC 报告`;
   $('regionModalSub').innerHTML=`组别：${html(position)}　报告数：<b>${reports.length}</b>`;
   $('regionModalTable').innerHTML=`
-    <thead><tr><th>日期</th><th>巡检类型</th><th>结果</th><th>分数</th><th>巡店报告</th></tr></thead>
+    <thead><tr><th>日期</th><th>巡检类型</th><th>结果</th><th>分数</th><th>整改情况</th><th>巡店报告</th><th>页面快照</th></tr></thead>
     <tbody>
       ${reports.map(r=>{
         const pass=(r.pass===true||Number(r.pass)===1);
         const passStyle=r.pass==null?'color:#999':(pass?'color:#1a7f37;font-weight:600':'color:#c0392b;font-weight:600');
         const link=(r.s==null||!(r.s>0))?'<span style="color:#bbb">未点评</span>':(r.rid?reportLink({reportId:r.rid,signId:r.sid,storeName,region:'',reportDate:r.d,score:r.s,isPass:r.pass},'查看详情','CG'):'<span style="color:#999">无报告编号</span>');
-        return `<tr><td>${html(r.d||'-')}</td><td>${html(r.tn||'常规巡检')}</td><td style="${passStyle}">${r.pass==null?'-':(pass?'合格':'不合格')}</td><td class="${(r.s!=null&&r.s>0)?scoreClass(r.s):''}">${(r.s!=null&&r.s>0)?r.s:'-'}</td><td>${link}</td></tr>`;
+        let rectHtml='<span style="color:#bbb">—</span>';
+        if(!pass && r.rid){
+          const rc=rectByRid[String(r.rid)];
+          if(rc && (Number(rc.total)||0)>0){
+            const total=Number(rc.total)||0, done=Number(rc.done)||0, open=Number(rc.open)||0, rev=Number(rc.rev)||0;
+            const color = done>=total ? '#1e8e3e' : (done>0 ? '#b8860b' : '#c0392b');
+            rectHtml = `<span style="color:${color};font-weight:700">${done}/${total}</span>`
+              + (open>0?` <span style="display:inline-block;background:#fdecea;color:#C0392B;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">待整改 ${open}</span>`:'')
+              + (rev>0?` <span style="display:inline-block;background:#fff4e0;color:#B26A00;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">待审核 ${rev}</span>`:'')
+              + (done>=total?' <span style="display:inline-block;background:#e8f5ee;color:#1e8e3e;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">已闭环</span>':'');
+          } else {
+            rectHtml = '<span style="display:inline-block;background:#eceff1;color:#607d8b;border-radius:4px;padding:1px 6px;font-size:11px;font-weight:600">无整改单</span>';
+          }
+        }
+        const snapUrl = r.rid ? reportUrl(r.rid, r.sid, 'CG') : '';
+        const snap = snapUrl ? `<a href="${html(snapUrl)}" target="_blank" rel="noopener" style="color:#1a5fb4;font-size:12px">页面快照</a>` : '<span style="color:#bbb">—</span>';
+        return `<tr><td>${html(r.d||'-')}</td><td>${html(r.tn||'常规巡检')}</td><td style="${passStyle}">${r.pass==null?'-':(pass?'合格':'不合格')}</td><td class="${(r.s!=null&&r.s>0)?scoreClass(r.s):''}">${(r.s!=null&&r.s>0)?r.s:'-'}</td><td style="white-space:nowrap">${rectHtml}</td><td>${link}</td><td>${snap}</td></tr>`;
       }).join('')}
-      ${reports.length===0?'<tr><td colspan="5" class="empty">该月无报告</td></tr>':''}
+      ${reports.length===0?'<tr><td colspan="7" class="empty">该月无报告</td></tr>':''}
     </tbody>`;
   $('regionModal').classList.add('active');
 }
