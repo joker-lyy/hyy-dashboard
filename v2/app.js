@@ -3273,22 +3273,16 @@ function renderStoreQuery(d){
       const valid = avgMonths.filter(v=>v!=null);
       const latest = valid.length?valid[valid.length-1]:null;
       const miss = monthsSel.some(m=>!(r.monthly[m]||[]).length);
-      // fix244：主表格「页面快照」= 最近一份报告的慧运营原页面
-      let snap=null;
-      for(let i=monthsSel.length-1;i>=0 && !snap;i--){
-        const list=(r.monthly[monthsSel[i]]||[]).filter(x=>x.rid).sort((a,b)=>(b.d||'').localeCompare(a.d||''));
-        if(list.length) snap={rid:list[0].rid, sid:list[0].sid||'', d:list[0].d||''};
-      }
-      return {r, avgMonths, latest, miss, snap};
+      return {r, avgMonths, latest, miss};
     });
   if(sf==='pass') items=items.filter(x=>x.latest!=null && x.latest>=lineOf(x.r.position));
   else if(sf==='unpass') items=items.filter(x=>x.latest!=null && x.latest<lineOf(x.r.position));
   else if(sf==='miss') items=items.filter(x=>x.miss);
   items.sort((a,b)=>((b.latest!=null)-(a.latest!=null)) || ((b.latest||0)-(a.latest||0)) || String(a.r.storeName).localeCompare(String(b.r.storeName),'zh'));
   $('storeQueryTable').innerHTML=`
-    <thead><tr><th>门店</th><th>组别</th><th>区域</th>${monthsSel.map(m=>`<th>${m.slice(5)}月得分</th>`).join('')}<th style="width:22%">描述（归纳）</th><th>页面快照</th></tr></thead>
+    <thead><tr><th>门店</th><th>组别</th><th>区域</th>${monthsSel.map(m=>`<th>${m.slice(5)}月得分</th>`).join('')}<th style="width:22%">描述（归纳）</th></tr></thead>
     <tbody>
-      ${items.map(({r,avgMonths,snap})=>`
+      ${items.map(({r,avgMonths})=>`
         <tr>
           <td>${html(r.storeName)}</td>
           <td>${html(r.position)}</td>
@@ -3300,11 +3294,64 @@ function renderStoreQuery(d){
             return `<td class="${v!=null?scoreClass(v):''}"><span class="link-btn" onclick="showStoreQueryMonthReports('${encodeURIComponent(r.position)}','${encodeURIComponent(r.storeName)}','${m}')">${v!=null?v:'未点评'}</span></td>`;
           }).join('')}
           <td style="font-size:12px;color:#555;text-align:left">${html(sqDesc(r, monthsSel))}</td>
-          <td style="white-space:nowrap">${(()=>{ const u=snap?reportUrl(snap.rid,snap.sid,'CG'):''; return u?`<a href="${html(u)}" target="_blank" rel="noopener" style="color:#1a5fb4;font-size:12px">页面快照</a>${snap.d?`<div style="font-size:11px;color:#98a2b3">${html(snap.d)}</div>`:''}`:'<span style="color:#bbb">—</span>'; })()}</td>
         </tr>`).join('')}
-      ${items.length===0?`<tr><td colspan="${monthsSel.length+5}" class="empty">无数据</td></tr>`:''}
+      ${items.length===0?`<tr><td colspan="${monthsSel.length+4}" class="empty">无数据</td></tr>`:''}
     </tbody>`;
 }
+/* fix245：数据快照——把当前筛选下的单店成绩查询表格导出为一张图片（复制剪贴板+下载） */
+window.SQExportSnapshot = async function(){
+  const tbl = document.getElementById('storeQueryTable');
+  if(!tbl || !tbl.querySelector('tbody tr')){ alert('表格暂无数据，无法生成快照'); return; }
+  let tip = document.getElementById('pngShareTip');
+  if(tip) tip.remove();
+  tip = document.createElement('div'); tip.id='pngShareTip';
+  tip.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:24px';
+  tip.innerHTML='<div style="background:#fff;border-radius:12px;padding:18px 20px;font-size:14px;color:#1A2A4A">⏳ 正在生成数据快照…</div>';
+  document.body.appendChild(tip);
+  try{
+    await window._loadHtml2canvas();
+    // 汇总当前筛选条件
+    const monthsAll=(storeQueryCache&&storeQueryCache.months)||[];
+    const monthsSel=(!storeQueryMonthsSel||!storeQueryMonthsSel.size)?monthsAll:monthsAll.filter(m=>storeQueryMonthsSel.has(m));
+    const posChips=document.querySelectorAll('#storeQueryPosFilter .fbtn, #storeQueryPosFilter .chip');
+    let posTxt='全部组别';
+    posChips.forEach(el=>{ if(el.classList.contains('active')||el.classList.contains('on')) posTxt=el.textContent.trim(); });
+    const regionTxt = storeQueryRegion==='__all__' ? '全部区域' : storeQueryRegion;
+    const pickTxt = storeQueryPicked ? ('已勾选 '+storeQueryPicked.size+' 家门店') : '未勾选门店（全部）';
+    const scoreSel=document.getElementById('storeQueryScoreFilter');
+    const scoreTxt=scoreSel&&scoreSel.selectedIndex>0?scoreSel.options[scoreSel.selectedIndex].text:'成绩：全部';
+    const searchTxt=($('storeQuerySearch').value||'').trim();
+    // 离屏容器：标题+筛选条件+表格克隆
+    const box=document.createElement('div');
+    box.style.cssText='position:fixed;left:-99999px;top:0;background:#fff;padding:24px 28px;font-family:inherit;z-index:-1;width:max-content';
+    box.innerHTML=`
+      <div style="font-size:20px;font-weight:700;color:#1A2A4A;margin-bottom:6px">单店成绩查询 · 常规巡检（QSC）数据快照</div>
+      <div style="font-size:13px;color:#667085;margin-bottom:14px">月份：${monthsSel.map(m=>m.slice(5)+'月').join(' / ') || '—'}　|　组别：${html(posTxt)}　|　区域：${html(regionTxt)}　|　${html(pickTxt)}　|　${html(scoreTxt)}${searchTxt?'　|　搜索：'+html(searchTxt):''}　|　生成时间：${new Date().toLocaleString('zh-CN',{hour12:false})}</div>`;
+    const clone=tbl.cloneNode(true);
+    clone.querySelectorAll('.link-btn, a').forEach(el=>{ el.style.color='#1a5fb4'; el.removeAttribute('onclick'); });
+    box.appendChild(clone);
+    document.body.appendChild(box);
+    let canvas;
+    try{
+      canvas=await html2canvas(box,{useCORS:true,backgroundColor:'#ffffff',scale:2,logging:false});
+    } finally { box.remove(); }
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+    let copied=false;
+    try{ await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]); copied=true; }catch(e){}
+    const dataUrl=canvas.toDataURL('image/png');
+    const fname='单店成绩查询数据快照_'+new Date().toISOString().slice(0,10)+'.png';
+    tip.innerHTML=`<div style="background:#fff;border-radius:12px;max-width:720px;width:100%;padding:18px 20px;max-height:90vh;overflow:auto" onclick="event.stopPropagation()">
+      <div style="font-size:15px;font-weight:700;color:#1A2A4A;margin-bottom:6px">${copied?'✅ 数据快照已复制':'🖼 数据快照已生成'}</div>
+      <div style="font-size:12px;color:#7a8399;margin-bottom:10px">${copied?'到微信/企微聊天窗口 <b>Ctrl+V 粘贴</b>即可发送。':'可「下载文件」后直接发送，或在图片上右键复制。'}</div>
+      <img src="${dataUrl}" style="width:100%;border:1px solid #e3e6ee;border-radius:8px">
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <a download="${fname}" href="${dataUrl}" style="background:#f0f2f7;color:#1A2A4A;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px;text-decoration:none">下载文件</a>
+        <button onclick="document.getElementById('pngShareTip').remove()" style="background:#2f6fed;color:#fff;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-size:13px">完成</button>
+      </div></div>`;
+  }catch(e){
+    tip.innerHTML=`<div style="background:#fff;border-radius:12px;padding:18px 20px;font-size:14px;color:#e64340">生成失败：${html(String(e&&e.message||e))}</div>`;
+  }
+};
 /* fix241：门店勾选比对 */
 let storeQueryPicked = null; // null=全部；Set('组别||门店')=仅显示勾选
 /* fix243：月份/区域筛选 */
