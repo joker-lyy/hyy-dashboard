@@ -3225,9 +3225,25 @@ function renderStoreQuery(d){
   (d.stores||[]).forEach(s=>{ regionOf[s.position+'||'+s.storeName]=s.region; });
   const search=($('storeQuerySearch').value||'').trim().toLowerCase();
   const sf=$('storeQueryScoreFilter') ? ($('storeQueryScoreFilter').value||'__all__') : '__all__';
+  // fix241：门店勾选面板（未勾选=全部）
+  const sqPanel=$('storeQueryStoreFilter');
+  if(sqPanel){
+    const storeList = filterByPos(rows).slice().sort((a,b)=>String(a.storeName).localeCompare(String(b.storeName),'zh'));
+    const picked = storeQueryPicked || new Set();
+    sqPanel.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+        <span style="font-size:12px;color:#666">勾选要比对的门店（当前已选 <b>${picked.size}</b>${storeQueryPicked?'，仅显示勾选门店':'，未勾选=显示全部'}）</span>
+        <span class="link-btn" onclick="SQStorePickAll()">全选</span>
+        <span class="link-btn" onclick="SQStorePickNone()">清空</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px 14px;max-height:150px;overflow:auto;border:1px solid #e3e6ee;border-radius:6px;padding:8px">
+        ${storeList.map(r=>{const key=r.position+'||'+r.storeName;return `<label style="font-size:12px;display:inline-flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" ${picked.has(key)?'checked':''} onchange="SQStoreChange(this,'${encodeURIComponent(key)}')"> ${html(r.storeName)}</label>`;}).join('') || '<span style="font-size:12px;color:#999">无门店</span>'}
+      </div>`;
+  }
   const lineOf = pos => (pos||'').indexOf('加盟')>=0?80:90;
   let items = filterByPos(rows)
     .filter(r=>(r.storeName||'').toLowerCase().includes(search))
+    .filter(r=>!storeQueryPicked || storeQueryPicked.has(r.position+'||'+r.storeName))
     .map(r=>{
       const avgMonths = months.map(m=>sqAvg(r.monthly[m]));
       const valid = avgMonths.filter(v=>v!=null);
@@ -3258,6 +3274,20 @@ function renderStoreQuery(d){
       ${items.length===0?`<tr><td colspan="${months.length+4}" class="empty">无数据</td></tr>`:''}
     </tbody>`;
 }
+/* fix241：门店勾选比对 */
+let storeQueryPicked = null; // null=全部；Set('组别||门店')=仅显示勾选
+function SQToggleStorePanel(){
+  const p=$('storeQueryStoreFilter'); if(!p) return;
+  p.style.display = p.style.display==='none' ? '' : 'none';
+}
+function SQStoreChange(el, keyEnc){
+  const key=decodeURIComponent(keyEnc||'');
+  if(!storeQueryPicked) storeQueryPicked=new Set();
+  if(el.checked) storeQueryPicked.add(key); else storeQueryPicked.delete(key);
+  renderRegularInspection(appData);
+}
+function SQStorePickAll(){ storeQueryPicked=null; renderRegularInspection(appData); }
+function SQStorePickNone(){ storeQueryPicked=new Set(); renderRegularInspection(appData); }
 function showStoreQueryMonthReports(posEnc, storeEnc, month){
   const position=decodeURIComponent(posEnc||''), storeName=decodeURIComponent(storeEnc||'');
   const payload=rawMonthCache[month]; if(!payload) return;
