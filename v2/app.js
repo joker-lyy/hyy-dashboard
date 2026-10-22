@@ -3225,16 +3225,39 @@ function renderStoreQuery(d){
   (d.stores||[]).forEach(s=>{ regionOf[s.position+'||'+s.storeName]=s.region; });
   const search=($('storeQuerySearch').value||'').trim().toLowerCase();
   const sf=$('storeQueryScoreFilter') ? ($('storeQueryScoreFilter').value||'__all__') : '__all__';
+  // fix243：月份筛选 + 区域筛选（chips 风格与组别一致）
+  const monthsAll = storeQueryCache.months;
+  const monthsSel = (!storeQueryMonthsSel || !storeQueryMonthsSel.size) ? monthsAll : monthsAll.filter(m=>storeQueryMonthsSel.has(m));
+  const mfEl=$('storeQueryMonthFilter');
+  if(mfEl){
+    const sel = (!storeQueryMonthsSel || !storeQueryMonthsSel.size) ? new Set(monthsAll) : storeQueryMonthsSel;
+    mfEl.innerHTML = `<span style="font-size:12px;color:#666;align-self:center;margin-right:2px">月份：</span>`
+      + monthsAll.map(m=>`<button class="fbtn ${sel.has(m)?'active':''}" onclick="SQMonthToggle('${m}')">${m.slice(5)}月</button>`).join('')
+      + `<button class="fbtn ${(!storeQueryMonthsSel||!storeQueryMonthsSel.size)?'active':''}" onclick="SQMonthAll()">全部月份</button>`;
+  }
+  const rcEl=$('storeQueryRegionChips');
+  let regionList=[];
+  if(rcEl){
+    const setR=new Set();
+    filterByPos(rows).forEach(r=>{ const rg=regionOf[r.position+'||'+r.storeName]; if(rg) setR.add(rg); });
+    regionList=[...setR].sort((a,b)=>String(a).localeCompare(String(b),'zh'));
+    rcEl.innerHTML = `<span style="font-size:12px;color:#666;align-self:center;margin-right:2px">区域：</span>`
+      + `<button class="fbtn ${storeQueryRegion==='__all__'?'active':''}" onclick="SQRegionSet('__all__')">全部区域</button>`
+      + regionList.map(rg=>`<button class="fbtn ${storeQueryRegion===rg?'active':''}" onclick="SQRegionSet('${html(encodeURIComponent(rg))}')">${html(rg)}</button>`).join('');
+  }
   // fix241：门店勾选面板（未勾选=全部）
   const sqPanel=$('storeQueryStoreFilter');
   if(sqPanel){
-    const storeList = filterByPos(rows).slice().sort((a,b)=>String(a.storeName).localeCompare(String(b.storeName),'zh'));
+    const storeList = filterByPos(rows)
+      .filter(r=>storeQueryRegion==='__all__' || regionOf[r.position+'||'+r.storeName]===storeQueryRegion)
+      .slice().sort((a,b)=>String(a.storeName).localeCompare(String(b.storeName),'zh'));
     const picked = storeQueryPicked || new Set();
     sqPanel.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
         <span style="font-size:12px;color:#666">勾选要比对的门店（当前已选 <b>${picked.size}</b>${storeQueryPicked?'，仅显示勾选门店':'，未勾选=显示全部'}）</span>
         <span class="link-btn" onclick="SQStorePickAll()">全选</span>
         <span class="link-btn" onclick="SQStorePickNone()">清空</span>
+        <input type="text" class="search" placeholder="筛选门店…" style="width:150px;padding:2px 8px" oninput="SQPickFilter(this)">
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px 14px;max-height:150px;overflow:auto;border:1px solid #e3e6ee;border-radius:6px;padding:8px">
         ${storeList.map(r=>{const key=r.position+'||'+r.storeName;return `<label style="font-size:12px;display:inline-flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" ${picked.has(key)?'checked':''} onchange="SQStoreChange(this,'${encodeURIComponent(key)}')"> ${html(r.storeName)}</label>`;}).join('') || '<span style="font-size:12px;color:#999">无门店</span>'}
@@ -3244,11 +3267,12 @@ function renderStoreQuery(d){
   let items = filterByPos(rows)
     .filter(r=>(r.storeName||'').toLowerCase().includes(search))
     .filter(r=>!storeQueryPicked || storeQueryPicked.has(r.position+'||'+r.storeName))
+    .filter(r=>storeQueryRegion==='__all__' || regionOf[r.position+'||'+r.storeName]===storeQueryRegion)
     .map(r=>{
-      const avgMonths = months.map(m=>sqAvg(r.monthly[m]));
+      const avgMonths = monthsSel.map(m=>sqAvg(r.monthly[m]));
       const valid = avgMonths.filter(v=>v!=null);
       const latest = valid.length?valid[valid.length-1]:null;
-      const miss = months.some(m=>!(r.monthly[m]||[]).length);
+      const miss = monthsSel.some(m=>!(r.monthly[m]||[]).length);
       return {r, avgMonths, latest, miss};
     });
   if(sf==='pass') items=items.filter(x=>x.latest!=null && x.latest>=lineOf(x.r.position));
@@ -3256,26 +3280,42 @@ function renderStoreQuery(d){
   else if(sf==='miss') items=items.filter(x=>x.miss);
   items.sort((a,b)=>((b.latest!=null)-(a.latest!=null)) || ((b.latest||0)-(a.latest||0)) || String(a.r.storeName).localeCompare(String(b.r.storeName),'zh'));
   $('storeQueryTable').innerHTML=`
-    <thead><tr><th>门店</th><th>组别</th><th>区域</th>${months.map(m=>`<th>${m.slice(5)}月得分</th>`).join('')}<th style="width:22%">描述（归纳）</th></tr></thead>
+    <thead><tr><th>门店</th><th>组别</th><th>区域</th>${monthsSel.map(m=>`<th>${m.slice(5)}月得分</th>`).join('')}<th style="width:22%">描述（归纳）</th></tr></thead>
     <tbody>
       ${items.map(({r,avgMonths})=>`
         <tr>
           <td>${html(r.storeName)}</td>
           <td>${html(r.position)}</td>
           <td>${html(regionOf[r.position+'||'+r.storeName] || rawMatchRegion(r.orgPath, new Set()) || '-')}</td>
-          ${months.map((m,i)=>{
+          ${monthsSel.map((m,i)=>{
             const list=r.monthly[m]||[];
             const v=avgMonths[i];
             if(!list.length) return '<td style="color:#ccc">—</td>';
             return `<td class="${v!=null?scoreClass(v):''}"><span class="link-btn" onclick="showStoreQueryMonthReports('${encodeURIComponent(r.position)}','${encodeURIComponent(r.storeName)}','${m}')">${v!=null?v:'未点评'}</span></td>`;
           }).join('')}
-          <td style="font-size:12px;color:#555;text-align:left">${html(sqDesc(r, months))}</td>
+          <td style="font-size:12px;color:#555;text-align:left">${html(sqDesc(r, monthsSel))}</td>
         </tr>`).join('')}
-      ${items.length===0?`<tr><td colspan="${months.length+4}" class="empty">无数据</td></tr>`:''}
+      ${items.length===0?`<tr><td colspan="${monthsSel.length+4}" class="empty">无数据</td></tr>`:''}
     </tbody>`;
 }
 /* fix241：门店勾选比对 */
 let storeQueryPicked = null; // null=全部；Set('组别||门店')=仅显示勾选
+/* fix243：月份/区域筛选 */
+let storeQueryMonthsSel = null; // null=全部月份；Set('2026-10')=仅显示勾选月份
+let storeQueryRegion = '__all__';
+function SQMonthToggle(m){
+  if(!storeQueryMonthsSel || !storeQueryMonthsSel.size){ storeQueryMonthsSel=new Set(); }
+  if(storeQueryMonthsSel.has(m)) storeQueryMonthsSel.delete(m); else storeQueryMonthsSel.add(m);
+  if(!storeQueryMonthsSel.size) storeQueryMonthsSel=null;
+  renderRegularInspection(appData);
+}
+function SQMonthAll(){ storeQueryMonthsSel=null; renderRegularInspection(appData); }
+function SQRegionSet(rg){ storeQueryRegion = decodeURIComponent(rg||'__all__'); renderRegularInspection(appData); }
+function SQPickFilter(inp){
+  const q=(inp.value||'').trim().toLowerCase();
+  const panel=$('storeQueryStoreFilter'); if(!panel) return;
+  panel.querySelectorAll('label').forEach(l=>{ l.style.display = (!q || (l.textContent||'').toLowerCase().includes(q)) ? '' : 'none'; });
+}
 function SQToggleStorePanel(){
   const p=$('storeQueryStoreFilter'); if(!p) return;
   p.style.display = p.style.display==='none' ? '' : 'none';
