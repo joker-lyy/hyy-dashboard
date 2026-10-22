@@ -325,6 +325,7 @@ a.fbtn{text-decoration:none;display:inline-block}
     <button class="subtab active" data-sub="regularRegions">区域汇总</button>
     <button class="subtab" data-sub="regularPositions">组别汇总</button>
     <button class="subtab" data-sub="regularStoreRank">门店分数排名及明细</button>
+    <button class="subtab" data-sub="regularStoreQuery">单店成绩查询</button>
   </div>
 
   <div class="module-panel active" id="regularRegions">
@@ -352,6 +353,23 @@ a.fbtn{text-decoration:none;display:inline-block}
     <div class="rank-region-filter" id="regularStoreRankRegionFilter"></div>
     <div class="rank-wrap">
       <table class="rank" id="regularStoreRankTable"></table>
+    </div>
+  </div>
+
+  <div class="module-panel" id="regularStoreQuery">
+    <h2 class="pt">单店成绩查询 · 常规巡检（QSC）</h2>
+    <div class="filterbar">
+      <input type="text" class="search" id="storeQuerySearch" placeholder="搜索门店…">
+      <select class="search" id="storeQueryScoreFilter" style="width:auto">
+        <option value="__all__">成绩：全部</option>
+        <option value="pass">成绩：达标</option>
+        <option value="unpass">成绩：不达标</option>
+        <option value="miss">区间失检</option>
+      </select>
+      <div class="pos-filter" id="storeQueryPosFilter"></div>
+    </div>
+    <div class="rank-wrap">
+      <table class="rank" id="storeQueryTable"></table>
     </div>
   </div>
 </section>
@@ -527,8 +545,8 @@ window.onerror = function(msg, url, line, col, err){
 };
 </script>
 <script src="xindian_baseline.js?v=20261013fix232"></script>
-<script src="aggregate.js?v=20261016fix239"></script>
-<script src="app.js?v=20261016fix239"></script>
+<script src="aggregate.js?v=20261022fix240"></script>
+<script src="app.js?v=20261022fix240"></script>
 
 <!-- fix201：手动更新按钮逻辑（本机触发服务 127.0.0.1:8778）
      自动更新时段（每天 00:30/10:30/13:30/16:30/19:30）前后 30 分钟内禁止手动更新 -->

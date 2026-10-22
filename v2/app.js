@@ -3165,8 +3165,130 @@ function renderRegularInspection(d){
     </tbody>
   `;
 
+  // 4.5 单店成绩查询（fix240：多月份并排 + 描述归纳 + 点分数开报告）
+  try{ renderStoreQuery(d); }catch(e){ console.error('[storeQuery]', e); }
+
   // 5. 高发问题汇总 —— 由 switchSubTab 触发（unqData 异步加载后写 regularProblemsCards）
 }
+
+/* ===== fix240：单店成绩查询（QSC）============================ */
+let storeQueryCache = null; // {months, rows}
+function buildStoreQueryData(){
+  const months = Object.keys(rawMonthCache).sort();
+  const rows = {};
+  for(const month of months){
+    const payload = rawMonthCache[month]; if(!payload) continue;
+    for(const [orgName, pdata] of Object.entries(payload.positions||{})){
+      const posLabel = RAW_POSITION_LABELS[orgName] || orgName;
+      for(const rep of (pdata.cg||[])){
+        const sname=(rep.sn||'').trim();
+        if(!sname || rawIsTestStore(sname)) continue;
+        if(!rawInOrgNl(rep.nl, orgName)) continue;
+        if(isSelfCheckMarked(rep, sname)) continue; // 自检不计分（fix195 同源）
+        const key = posLabel+'||'+sname;
+        const r = rows[key] || (rows[key]={storeName:sname, position:posLabel, orgPath:rep.nl, monthly:{}});
+        (r.monthly[month] = r.monthly[month]||[]).push({rid:rep.rid||'', sid:rep.sid||'', d:rep.d||'', s:rawSafeFloat(rep.s,null), pass:rep.pass, tn:rep.tn||''});
+      }
+    }
+  }
+  return {months, rows: Object.values(rows)};
+}
+function sqAvg(list){
+  const scored = (list||[]).filter(x=>x.s!=null && x.s>0);
+  if(!scored.length) return null;
+  return Math.round(scored.reduce((a,x)=>a+x.s,0)/scored.length*10)/10;
+}
+function sqDesc(row, months){
+  const parts=[];
+  const withRep = months.filter(m=>(row.monthly[m]||[]).length);
+  const scores = withRep.map(m=>sqAvg(row.monthly[m])).filter(v=>v!=null);
+  if(scores.length>=2){
+    const diff = Math.round((scores[scores.length-1]-scores[0])*10)/10;
+    parts.push(`走势 ${scores.map(v=>Math.round(v)).join('→')}${diff>0?'↑':(diff<0?'↓':'→')}`);
+  } else if(scores.length===1){
+    parts.push(`${withRep[0].slice(5)}月 ${Math.round(scores[0])} 分`);
+  }
+  const unq = months.reduce((a,m)=>a+(row.monthly[m]||[]).filter(x=>x.pass===false||Number(x.pass)===0).length,0);
+  if(unq) parts.push(`不合格 ${unq} 份`);
+  const miss = months.filter(m=>!(row.monthly[m]||[]).length).map(m=>m.slice(5)+'月');
+  if(miss.length) parts.push(`失检：${miss.join('/')}`);
+  if(!parts.length) parts.push('区间内无有效报告');
+  return parts.join('；');
+}
+function renderStoreQuery(d){
+  buildPosFilter('storeQueryPosFilter', ()=>renderRegularInspection(d));
+  const monthKey = Object.keys(rawMonthCache).sort().join(',');
+  if(!storeQueryCache || storeQueryCache.months.join(',')!==monthKey) storeQueryCache = buildStoreQueryData();
+  const {months, rows} = storeQueryCache;
+  if(!months.length){ $('storeQueryTable').innerHTML='<tbody><tr><td class="empty">月份数据尚未加载完成，请稍后再试</td></tr></tbody>'; return; }
+  const regionOf = {};
+  (d.stores||[]).forEach(s=>{ regionOf[s.position+'||'+s.storeName]=s.region; });
+  const search=($('storeQuerySearch').value||'').trim().toLowerCase();
+  const sf=$('storeQueryScoreFilter') ? ($('storeQueryScoreFilter').value||'__all__') : '__all__';
+  const lineOf = pos => (pos||'').indexOf('加盟')>=0?80:90;
+  let items = filterByPos(rows)
+    .filter(r=>(r.storeName||'').toLowerCase().includes(search))
+    .map(r=>{
+      const avgMonths = months.map(m=>sqAvg(r.monthly[m]));
+      const valid = avgMonths.filter(v=>v!=null);
+      const latest = valid.length?valid[valid.length-1]:null;
+      const miss = months.some(m=>!(r.monthly[m]||[]).length);
+      return {r, avgMonths, latest, miss};
+    });
+  if(sf==='pass') items=items.filter(x=>x.latest!=null && x.latest>=lineOf(x.r.position));
+  else if(sf==='unpass') items=items.filter(x=>x.latest!=null && x.latest<lineOf(x.r.position));
+  else if(sf==='miss') items=items.filter(x=>x.miss);
+  items.sort((a,b)=>((b.latest!=null)-(a.latest!=null)) || ((b.latest||0)-(a.latest||0)) || String(a.r.storeName).localeCompare(String(b.r.storeName),'zh'));
+  $('storeQueryTable').innerHTML=`
+    <thead><tr><th>门店</th><th>组别</th><th>区域</th>${months.map(m=>`<th>${m.slice(5)}月得分</th>`).join('')}<th style="width:22%">描述（归纳）</th></tr></thead>
+    <tbody>
+      ${items.map(({r,avgMonths})=>`
+        <tr>
+          <td>${html(r.storeName)}</td>
+          <td>${html(r.position)}</td>
+          <td>${html(regionOf[r.position+'||'+r.storeName] || rawMatchRegion(r.orgPath, new Set()) || '-')}</td>
+          ${months.map((m,i)=>{
+            const list=r.monthly[m]||[];
+            const v=avgMonths[i];
+            if(!list.length) return '<td style="color:#ccc">—</td>';
+            return `<td class="${v!=null?scoreClass(v):''}"><span class="link-btn" onclick="showStoreQueryMonthReports('${encodeURIComponent(r.position)}','${encodeURIComponent(r.storeName)}','${m}')">${v!=null?v:'未点评'}</span></td>`;
+          }).join('')}
+          <td style="font-size:12px;color:#555;text-align:left">${html(sqDesc(r, months))}</td>
+        </tr>`).join('')}
+      ${items.length===0?`<tr><td colspan="${months.length+4}" class="empty">无数据</td></tr>`:''}
+    </tbody>`;
+}
+function showStoreQueryMonthReports(posEnc, storeEnc, month){
+  const position=decodeURIComponent(posEnc||''), storeName=decodeURIComponent(storeEnc||'');
+  const payload=rawMonthCache[month]; if(!payload) return;
+  let reports=[];
+  for(const [orgName,pdata] of Object.entries(payload.positions||{})){
+    const posLabel=RAW_POSITION_LABELS[orgName]||orgName;
+    if(posLabel!==position) continue;
+    for(const rep of (pdata.cg||[])){
+      if((rep.sn||'').trim()!==storeName) continue;
+      if(isSelfCheckMarked(rep, storeName)) continue;
+      reports.push({rid:rep.rid,sid:rep.sid,d:rep.d,s:rawSafeFloat(rep.s,null),pass:rep.pass,tn:rep.tn});
+    }
+  }
+  reports.sort((a,b)=>(b.d||'').localeCompare(a.d||''));
+  regionModalSnapshot();
+  $('regionModalTitle').textContent=`${storeName} · ${month.slice(5)}月 QSC 报告`;
+  $('regionModalSub').innerHTML=`组别：${html(position)}　报告数：<b>${reports.length}</b>`;
+  $('regionModalTable').innerHTML=`
+    <thead><tr><th>日期</th><th>巡检类型</th><th>结果</th><th>分数</th><th>巡店报告</th></tr></thead>
+    <tbody>
+      ${reports.map(r=>{
+        const pass=(r.pass===true||Number(r.pass)===1);
+        const passStyle=r.pass==null?'color:#999':(pass?'color:#1a7f37;font-weight:600':'color:#c0392b;font-weight:600');
+        const link=(r.s==null||!(r.s>0))?'<span style="color:#bbb">未点评</span>':(r.rid?reportLink({reportId:r.rid,signId:r.sid,storeName,region:'',reportDate:r.d,score:r.s,isPass:r.pass},'查看详情','CG'):'<span style="color:#999">无报告编号</span>');
+        return `<tr><td>${html(r.d||'-')}</td><td>${html(r.tn||'常规巡检')}</td><td style="${passStyle}">${r.pass==null?'-':(pass?'合格':'不合格')}</td><td class="${(r.s!=null&&r.s>0)?scoreClass(r.s):''}">${(r.s!=null&&r.s>0)?r.s:'-'}</td><td>${link}</td></tr>`;
+      }).join('')}
+      ${reports.length===0?'<tr><td colspan="5" class="empty">该月无报告</td></tr>':''}
+    </tbody>`;
+  $('regionModal').classList.add('active');
+}
+/* ===== fix240 end ============================================ */
 
 function renderVideoInspection(d){
   const video = d.videoInspection || {};
@@ -4541,6 +4663,8 @@ $('selfRegionSearch').oninput = ()=>renderSelfInspection(appData);
 $('selfStoreRankSearch').oninput = ()=>renderSelfInspection(appData);
 $('regionSearch').oninput = ()=>renderRegularInspection(appData);
 $('regularStoreRankSearch').oninput = ()=>renderRegularInspection(appData);
+$('storeQuerySearch').oninput = ()=>renderRegularInspection(appData);
+$('storeQueryScoreFilter').onchange = ()=>renderRegularInspection(appData);
 $('videoRegionSearch').oninput = ()=>renderVideoInspection(appData);
 $('videoStoreRankSearch').oninput = ()=>renderVideoInspection(appData);
 $('aiRegionSearch').oninput = ()=>renderAiInspection(appData);
