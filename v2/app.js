@@ -3384,7 +3384,20 @@ function SQStorePickAll(){ storeQueryPicked=null; renderRegularInspection(appDat
 function SQStorePickNone(){ storeQueryPicked=new Set(); renderRegularInspection(appData); }
 function showStoreQueryMonthReports(posEnc, storeEnc, month){
   const position=decodeURIComponent(posEnc||''), storeName=decodeURIComponent(storeEnc||'');
-  const payload=rawMonthCache[month]; if(!payload) return;
+  let payload=rawMonthCache[month];
+  /* fix246：该月原始数据未在缓存（启动预加载单月失败/新月份）时自动补拉，不再静默无反应 */
+  if(!payload){
+    if(typeof loadRawMonth==='function'){
+      setStatus(`正在加载 ${month.slice(5)} 月原始数据…`, 'loading');
+      loadRawMonth(month).then(()=>{ setStatus(''); const m=$('regionModal'); if(m&&m.classList.contains('active')) showStoreQueryMonthReports(posEnc,storeEnc,month); }).catch(()=>{
+        setStatus('');
+        alert(`${month.slice(5)} 月原始数据加载失败，请刷新页面重试`);
+      });
+      return;
+    }
+    alert(`${month.slice(5)} 月数据尚未加载，请刷新页面后重试`);
+    return;
+  }
   let reports=[];
   for(const [orgName,pdata] of Object.entries(payload.positions||{})){
     const posLabel=RAW_POSITION_LABELS[orgName]||orgName;
