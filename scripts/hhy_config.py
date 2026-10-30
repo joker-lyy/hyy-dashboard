@@ -12,9 +12,10 @@
 import os
 
 # 慧运营账号（企业编码/账号/密码）—— 云端部署请通过环境变量注入
+# fix247（2026-10-30）：旧账号 18998601634 被改密/失效（接口同时 415），切回主账号 888
 ENT = os.environ.get("HY_ENT", "cjss")
-USERNAME = os.environ.get("HY_USERNAME", "18998601634")
-PASSWORD = os.environ.get("HY_PASSWORD", "hyy123456")
+USERNAME = os.environ.get("HY_USERNAME", "888")
+PASSWORD = os.environ.get("HY_PASSWORD", "Aa123456")
 
 # API 基础地址（前端静态域名只是入口，数据走这个后端）
 # 2026-09-03：用户浏览器实测真实主机为 zhyyapp.ruipos.com（无 -en 后缀），

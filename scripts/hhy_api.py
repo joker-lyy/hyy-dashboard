@@ -237,6 +237,26 @@ def post_query(token: str, path: str, params: Dict[str, Any]) -> Any:
     return _req_fallback(path, fire)
 
 
+def post_json(token: str, path: str, params: Dict[str, Any]) -> Any:
+    """
+    fix247（2026-10-30）：通用「JSON body 传参」POST。
+
+    平台 10/28 晚起对 /web/ri/cg/stat/storeInspectionReport 改为 JSON body
+    （query+form 老格式返回 415 Unsupported Media Type），探针实测
+    「参数全放 JSON body」返回 code=0 且分页生效（rows=422）。
+    """
+    def fire(url):
+        resp = requests.post(url, json=params, headers=_headers(token), timeout=90)
+        resp.raise_for_status()
+        data = resp.json()
+        if _is_token_expired(data):
+            raise TokenExpiredError("token expired")
+        if data.get("code") != 200 and data.get("status") != 0:
+            raise RuntimeError(f"请求 {path} 失败: {data}")
+        return data.get("data")
+    return _req_fallback(path, fire)
+
+
 def fetch_store_inspection_report(token: str, start_date: str, end_date: str,
                                   organize_id: Any = None) -> List[Dict[str, Any]]:
     """
@@ -260,7 +280,7 @@ def fetch_store_inspection_report(token: str, start_date: str, end_date: str,
         }
         if oid is not None:
             params["organizeId"] = int(oid)
-        data = post_query(token, path, params)
+        data = post_json(token, path, params)  # fix247: 平台改 JSON body
         if isinstance(data, list):
             rows = data
             total = len(rows)
