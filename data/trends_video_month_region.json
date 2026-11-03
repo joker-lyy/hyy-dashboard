@@ -1,1 +1,1 @@
-{"success":true,"data":{"dates":["2026-11-01","2026-11-02","2026-11-03"],"series":[],"kpi":{"totalCompleted":0,"totalQualified":0,"avgDailyCompleted":0.0,"qualifiedRate":0.0}},"error":null}
+{"success":true,"data":{"dates":["2026-11-01","2026-11-02","2026-11-03"],"series":[{"name":"刘浩区域","data":[0,0,3]},{"name":"陈晓君区域","data":[0,0,2]}],"kpi":{"totalCompleted":5,"totalQualified":0,"avgDailyCompleted":1.7,"qualifiedRate":0.0}},"error":null}
