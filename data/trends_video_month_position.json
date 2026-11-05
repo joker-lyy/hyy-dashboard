@@ -1,1 +1,1 @@
-{"success":true,"data":{"dates":["2026-11-01","2026-11-02","2026-11-03","2026-11-04","2026-11-05"],"series":[{"name":"培训组（直营组）","data":[0,0,0,0,3]},{"name":"加盟营运组","data":[0,0,5,0,0]}],"kpi":{"totalCompleted":8,"totalQualified":0,"avgDailyCompleted":1.6,"qualifiedRate":0.0}},"error":null}
+{"success":true,"data":{"dates":["2026-11-01","2026-11-02","2026-11-03","2026-11-04","2026-11-05"],"series":[{"name":"培训组（直营组）","data":[0,0,0,0,9]},{"name":"加盟营运组","data":[0,0,5,0,0]}],"kpi":{"totalCompleted":14,"totalQualified":0,"avgDailyCompleted":2.8,"qualifiedRate":0.0}},"error":null}
