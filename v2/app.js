@@ -4026,7 +4026,9 @@ function renderRankTable(tableId, metaId, rows, period, loading, typeName='regul
   const isAll = typeName === 'all';
   const header = isAll
     ? '<th>排名</th><th>区域</th><th>组别</th><th>门店数</th><th>已巡检</th><th>不合格项</th><th>完成率</th><th>合格率</th><th>点评率</th><th>整改率</th><th>区域平均分</th><th>门店分数区间</th>'
-    : '<th>排名</th><th>区域</th><th>组别</th><th>门店数</th><th>已巡检</th><th>平均分</th><th>合格率</th><th>整改率</th><th>点评率</th>';
+    : (typeName === 'regular'
+        ? '<th>排名</th><th>区域</th><th>组别</th><th>门店数</th><th>已巡检</th><th>平均分</th><th title="合格店数 ÷ 已巡检店数（单店达标线：加盟 80 分 / 其余 90 分）">门店合格率</th><th>整改率</th><th>点评率</th>'
+        : '<th>排名</th><th>区域</th><th>组别</th><th>门店数</th><th>已巡检</th><th>平均分</th><th>合格率</th><th>整改率</th><th>点评率</th>');
   const colspan = isAll ? 12 : 9;
   const regionLink = (r) => `<span class="link-btn" onclick="showRankRegionStores('${encodeURIComponent(r.region||'').replace(/'/g,'%27')}','${encodeURIComponent(r.position||'').replace(/'/g,'%27')}','${typeName}')">${html(r.region)}</span>`;
   table.innerHTML = `
@@ -5417,7 +5419,7 @@ function renderPositionCards(type, d){
           <div><span class="pv">${submitRate}%</span><span class="pl">完成率</span></div>
           <div><span class="pv">${avgScore || '-'}</span><span class="pl">平均分</span></div>
           <div><span class="pv">${unq}</span><span class="pl">不合格项</span></div>
-          <div><span class="pv">${qRate}%</span><span class="pl">合格率</span></div>
+          <div><span class="pv">${qRate}%</span><span class="pl" title="${type === 'regular' ? '合格店数 ÷ 已巡检店数' : ''}">${type === 'regular' ? '门店合格率' : '合格率'}</span></div>
           <div><span class="pv">${regionList.length}</span><span class="pl">区域数</span></div>
         </div>
         <div class="reg-tags">${visible.map(r=>`<span class="reg-tag">${html(r)}</span>`).join('')}${more}</div>
