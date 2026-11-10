@@ -16,6 +16,10 @@
   - fix148：commitImgUploadTime 按逗号拆分与 commitImgurl 逐张配对
   - fix123：剥离照片 URL 的 OSS 压缩参数，保留原始图
   - fix205：cgCompare 对比链剔除自检报告（手动标记 + 直营自检表模板），只对比真实巡检
+  - fix249：rectify 以平台整改单接口为准反向补齐（明细常在报告当天「未点评」时抓取，
+    次日督导点评出整改单后明细不回补 → items 空 → 应整改单数显示 0）。整改单接口
+    按月分段全量拉取（跨度不可超 1 年，95 天窗口会漏 6/7/8 月历史单），平台有单的
+    报告一律按平台整改项生成 rectify 行；接口失败则完整回退本地明细旧逻辑。
   - 每次运行全量重建（脚本幂等），由每日管线在 collect_raw 之后调用
 """
 import glob
@@ -46,6 +50,7 @@ SELF_CHECK_TPL_ID = "10000001677588"
 
 RAW_SN_MAP = {}  # rid -> 门店名（从 raw 月度汇总反查，兜底历史明细文件缺 storeName）
 RAW_NL_MAP = {}  # rid -> 组织路径（raw 月度汇总 nl 字段，fix182 区域兜底）
+RAW_D_MAP = {}   # rid -> 报告日期 d（fix249：本地无明细文件、只有整改单时用它拿准确报告日）
 
 
 def load_raw_maps():
@@ -56,6 +61,7 @@ def load_raw_maps():
        用月度汇总的 nl（检查人组织路径，如 '总经办/加盟服务部/新店运营组/陈晓君区域'）兜底。"""
     RAW_SN_MAP.clear()
     RAW_NL_MAP.clear()
+    RAW_D_MAP.clear()
     raw_dir = os.path.join(BASE, "data", "raw")
     if not os.path.isdir(raw_dir):
         return
@@ -78,6 +84,9 @@ def load_raw_maps():
                     nl = (r.get("nl") or "").strip()
                     if nl and rid not in RAW_NL_MAP:
                         RAW_NL_MAP[rid] = nl
+                    d = to_date(r.get("d") or r.get("reportDate"))
+                    if d and rid not in RAW_D_MAP:
+                        RAW_D_MAP[rid] = d
 
 
 def parse_nl(nl):
@@ -134,11 +143,18 @@ def to_date(s):
 ORDER_API = "https://hyygrayapi.ruipos.com/web/ri/item/list"
 
 
-def fetch_order_rids(days=95):
-    """fix187：整改单实时接口全量翻页 → 有整改单的 reportId 集合。
-    背景（正佳 9/1 实锤）：明细 isCorrected=0 ≠ 存在整改单——慧运营不为部分
-    不合格项生成整改单，此类项在看板显示「待整改」永远无法闭环，且后台根本查不到。
-    失败返回 (set(), False)：调用方必须跳过无单判定，绝不因本功能挂掉整条重建。"""
+def fetch_orders(months_back=11):
+    """fix187 + fix249：整改单实时接口「按月分段全量」→ {reportId: [整改项, ...]}。
+
+    为什么必须按月分段（11/10 实测）：
+      ① 接口硬限制 startDate~endDate 跨度 ≤ 1 年，超了直接返回
+         {"message":"查询时间不可超过1年"} 且 data 为空（静默 0 条，极易误判）；
+      ② 旧版单窗口 95 天只覆盖近 3 个月，6/7/8 月的历史整改单全漏
+         （按月分段后比 95 天窗口多出 322 份报告有单）。
+    每段用首页 totalRow 做条数校验，累计不足不结束，确保翻页不漏单。
+    失败返回 ({}, False)：调用方完整回退本地明细旧逻辑，绝不因本功能挂掉整条重建。
+    """
+    from collections import defaultdict
     try:
         tok = hhy_api.login()
         if isinstance(tok, dict):
@@ -155,26 +171,90 @@ def fetch_order_rids(days=95):
             "timeZone": "Asia/Shanghai",
             "token": tok,
         })
-        start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
-        end = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-        rids, page = set(), 1
-        while True:
-            j = S.post(ORDER_API + "?version=1", json={
-                "pageNumber": page, "pageSize": 200, "sortField": "createTime",
-                "sortOrder": "desc", "startDate": start, "endDate": end}, timeout=30).json()
-            lst = j.get("data") or []
-            for it in lst:
-                rid = str(it.get("reportId") or "")
-                if rid:
-                    rids.add(rid)
-            if j.get("isLastPage") or not lst or page > 100:
-                break
-            page += 1
-        print(f"[fix187] 整改单接口拉取成功：{page} 页，{len(rids)} 份报告有整改单")
-        return rids, True
+        # 从约 months_back 个月前的月初起，逐月分段到今天（每段 ≤ 1 个月，规避 1 年限制）
+        cur = (datetime.now() - timedelta(days=30 * months_back)).replace(day=1)
+        endall = datetime.now() + timedelta(days=1)
+        orders = defaultdict(list)
+        n_pages, n_items, n_seg = 0, 0, 0
+        while cur < endall:
+            nxt = datetime(cur.year + (1 if cur.month == 12 else 0),
+                           (cur.month % 12) + 1, 1)
+            s = cur.strftime("%Y-%m-%d")
+            e = min(nxt, endall).strftime("%Y-%m-%d")
+            page, got, want = 1, 0, None
+            while page <= 200:
+                j = S.post(ORDER_API + "?version=1", json={
+                    "pageNumber": page, "pageSize": 200, "sortField": "createTime",
+                    "sortOrder": "desc", "startDate": s, "endDate": e}, timeout=30).json()
+                lst = j.get("data") or []
+                if page == 1:
+                    try:
+                        want = int(j.get("totalRow") or 0) or None
+                    except (TypeError, ValueError):
+                        want = None
+                    if j.get("message"):
+                        print(f"[fix249][WARN] 整改单段 {s}~{e} 接口提示：{j.get('message')}")
+                for it in lst:
+                    rid = str(it.get("reportId") or "")
+                    if rid:
+                        orders[rid].append(it)
+                got += len(lst)
+                n_pages += 1
+                n_items += len(lst)
+                if not lst or j.get("isLastPage"):
+                    break
+                if want and got >= want:
+                    break
+                if len(lst) < 200:
+                    break
+                page += 1
+            if want and got < want:
+                print(f"[fix249][WARN] 整改单段 {s}~{e} 只拉到 {got}/{want} 条，可能漏单！")
+            n_seg += 1
+            cur = nxt
+        # 分段边界可能重复返回同一整改项（endDate 闭区间），按 disqualifiedId 去重
+        for rid, its in list(orders.items()):
+            seen, uniq = set(), []
+            for it in its:
+                k = str(it.get("disqualifiedId") or it.get("itemId") or "")
+                if k and k in seen:
+                    continue
+                if k:
+                    seen.add(k)
+                uniq.append(it)
+            orders[rid] = uniq
+        print(f"[fix249] 整改单按月分段拉取：{n_seg} 段 / {n_pages} 页 / "
+              f"{n_items} 条（去重后 {sum(len(v) for v in orders.values())}）/ {len(orders)} 份报告有单")
+        return dict(orders), True
     except Exception as e:
-        print(f"[fix187][WARN] 整改单接口拉取失败，本轮跳过无单判定: {e}")
-        return set(), False
+        print(f"[fix249][WARN] 整改单接口拉取失败，本轮跳过反向补齐与无单判定: {e}")
+        return {}, False
+
+
+def order_status_counts(its):
+    """平台整改项 → (total, done, open, rev)。ifCorrected 取值：已整改/待整改/待审核。"""
+    c = {"已整改": 0, "待整改": 0, "待审核": 0}
+    for x in its:
+        k = str(x.get("ifCorrected") or "").strip()
+        if k in c:
+            c[k] += 1
+    return len(its), c["已整改"], c["待整改"], c["待审核"]
+
+
+def meta_from_order(rid, it):
+    """fix249：本地完全没有明细文件、但平台有整改单的报告，用整改单 + raw 反查构造 meta。
+    报告日期优先 RAW_D_MAP（raw 月度汇总里的真实报告日，避免用整改单 createTime
+    导致跨月区间错档）；门店/组织/类型取整改单字段。"""
+    src = str(it.get("source1") or "").upper()
+    typ = src if src in ("CG", "ZJ", "SP", "FI", "ZX", "AA") else "CG"
+    rg, ps = parse_nl(it.get("nameLink") or "")
+    return {
+        "typ": typ, "rid": rid,
+        "sn": (it.get("fullName") or "").strip(),
+        "sc": str(it.get("storeCode") or ""),
+        "d": RAW_D_MAP.get(rid) or to_date(it.get("createTime")),
+        "rg": rg, "ps": ps,
+    }
 
 
 def extract_report(fp):
@@ -260,6 +340,15 @@ def main():
         meta, items = extract_report(fp)
         if not meta:
             continue
+        # fix249：历史遗留「同一 rid 双写」空壳明细（如 VIDEO_10000001213422.json 与
+        # SP_10000001213422.json 其实是同一份视频巡检报告，VIDEO 那份 reportDate/
+        # storeName 全空、无不合格项）。旧逻辑因 items 空自然跳过；fix249 用平台整改单
+        # 反向补齐后它会被当成另一份报告，生成重复 rid 行 + 空 d 行（空 d 会被前端
+        # __rectByTypeMap 计入所有月份区间，数字虚高）。真正数据由同名 SP 明细提供；
+        # 若某 rid 只有空壳，下方 ② 会用整改单 + raw 反查补齐，不会漏。
+        # 注意：sn 可能被 RAW_SN_MAP 反查补上，不能拿 sn 判空；报告日 d 才是硬指标。
+        if not meta["d"]:
+            continue
         reports[(meta["typ"], meta["rid"])] = (meta, items)
 
     # ---- fix190：报告归属统一按门店组织 ----
@@ -285,14 +374,14 @@ def main():
     # ---- fix187：整改单存在性核验 ----
     # 报告日 ≤ 今天-2（出单最长约 1 天，留 2 天窗口）且整改单接口无此报告的 rid
     # → 该报告内 st=0 的项改标 st=3（无整改单）。st=1/st=2 不动（待审核预期不出单）。
-    order_rids, order_ok = fetch_order_rids()
+    orders, order_ok = fetch_orders()
     n_st3 = 0
     if order_ok:
         cutoff = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
         for (_t, _rid), (meta, items) in reports.items():
             if not items or not meta["d"] or meta["d"] > cutoff:
                 continue
-            if meta["rid"] in order_rids:
+            if meta["rid"] in orders:
                 continue
             for it in items:
                 if it.get("st") == 0:
@@ -330,23 +419,78 @@ def main():
         types[typ] = {"entries": ents}
     types["AI"] = {"entries": ai_entries}
 
-    # ---- rectify：每份有不合格项的报告一行 {typ,rid,sn,rg,ps,d,total,done} ----
+    # ---- rectify：每份报告一行 {typ,rid,sn,rg,ps,d,total,done,open,rev} ----
+    # fix249：以平台整改单为准反向补齐。
+    #   根因（正佳 10/12 实锤）：明细在报告当天抓取，那时报告还「未点评」(notcategoryList 空)，
+    #   次日督导点评并生成整改单后明细不回补重抓 → items 永远为空 → 原逻辑 continue，
+    #   看板「应整改单数」显示 0，而平台其实有单且已闭环。
+    #   规则：平台有单的 rid 一律按平台整改项生成行（total=条数，done/open/rev 取
+    #   ifCorrected 实时状态）；平台无单 / 接口失败则完整回退本地明细旧逻辑（含 fix187
+    #   无单项剔除）。另对「平台有单但本地根本没有明细文件」的报告补一行，保证一份不漏。
     rectify = []
+    n_from_order = 0   # 按平台整改单生成的行
+    n_order_only = 0   # 本地无明细文件、纯靠平台补齐的行
+    seen_rids = set()
+    order_used = set()
     for (t, _rid), (meta, items) in sorted(reports.items(), key=lambda kv: (kv[1][0]["d"], kv[0][0])):
+        rid = meta["rid"]
+        seen_rids.add(rid)
+        if order_ok and rid in orders and rid not in order_used:
+            order_used.add(rid)
+            total_n, done_n, open_n, rev_n = order_status_counts(orders[rid])
+            if total_n <= 0:
+                continue
+            rectify.append({
+                "typ": t, "rid": rid, "sn": meta["sn"],
+                "rg": meta["rg"], "ps": meta["ps"], "d": meta["d"],
+                "total": total_n, "done": done_n, "open": open_n, "rev": rev_n,
+            })
+            n_from_order += 1
+            continue
         if not items:
             continue
         n3 = sum(1 for it in items if it.get("st") == 3)  # fix187：无整改单项不计入应整改/待整改
         total_n = len(items) - n3
         if total_n <= 0:
-            continue  # 整份报告无整改单（如正佳 9/1），整改追踪不显示该行
+            continue  # 整份报告无整改单，整改追踪不显示该行
         rectify.append({
-            "typ": t, "rid": meta["rid"], "sn": meta["sn"],
+            "typ": t, "rid": rid, "sn": meta["sn"],
             "rg": meta["rg"], "ps": meta["ps"], "d": meta["d"],
             "total": total_n,
             "done": sum(1 for it in items if it["corrected"]),
             "open": sum(1 for it in items if it.get("st") == 0),  # fix186：待整改数
             "rev": sum(1 for it in items if it.get("st") == 2),   # fix186：待审核数（门店已提交待督导审核，与待整改同计未完成）
         })
+    # fix249 ②：平台有整改单但本地完全没有明细文件的报告（明细管线没抓到），
+    # 用整改单字段 + raw 月度汇总反查报告日构造 meta，同样生成一行。
+    if order_ok:
+        for rid, its in orders.items():
+            if rid in seen_rids or not its:
+                continue
+            m = meta_from_order(rid, its[0])
+            if not m["sn"]:
+                continue
+            total_n, done_n, open_n, rev_n = order_status_counts(its)
+            rectify.append({
+                "typ": m["typ"], "rid": rid, "sn": m["sn"],
+                "rg": m["rg"], "ps": m["ps"], "d": m["d"],
+                "total": total_n, "done": done_n, "open": open_n, "rev": rev_n,
+            })
+            n_from_order += 1
+            n_order_only += 1
+    # fix249：日期兜底——个别明细缺报告日时先用 raw 月度汇总反查，再退回整改单创建日。
+    # 空 d 会被前端 __rectByTypeMap 计入所有月份区间，必须杜绝。
+    n_dfix = 0
+    for r0 in rectify:
+        if not (r0.get("d") or "")[:10]:
+            rid0 = str(r0["rid"])
+            its0 = orders.get(rid0) or []
+            r0["d"] = RAW_D_MAP.get(rid0) or (to_date(its0[0].get("createTime")) if its0 else "")
+            if r0["d"]:
+                n_dfix += 1
+    if n_dfix:
+        print(f"[fix249] 报告日兜底补齐 {n_dfix} 行")
+    rectify.sort(key=lambda r: (r["d"], r["typ"], r["rid"]))
 
     # ---- cgCompare：同店相邻两次常规巡检对比 ----
     # fix205：自检报告不入对比链（①手动标记 ②直营自检表模板）——对比只反映真实巡检变化
@@ -437,6 +581,8 @@ def main():
         extra = f"  9月条目={sep_cg}" if sep_cg is not None else ""
         print(f"  {typ}: {len(ents)} 条  {min(ds) if ds else '-'} ~ {max(ds) if ds else '-'}{extra}")
     print(f"  rectify: {len(rectify)} 行（其中 9 月 {sum(1 for r in rectify if r['d']>='2026-09-01')} 行；无整改单剔除 {n_st3 if order_ok else 0} 条/{'已' if order_ok else '未'}判定）")
+    print(f"  [fix249] 平台整改单生成 {n_from_order} 行（其中本地无明细文件补齐 {n_order_only} 行）；"
+          f"平台有单报告 {len(orders) if order_ok else 0} 份；本地明细回退 {len(rectify) - n_from_order} 行")
     print(f"  cgCompare: {len(cg_compare)} 行（fix207 每店仅最新一次配对；本次巡检在 9 月的 {sum(1 for r in cg_compare if r['cd']>='2026-09-01')} 行）")
 
 
