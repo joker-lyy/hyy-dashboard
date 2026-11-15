@@ -4856,7 +4856,8 @@ window.addEventListener('resize', ()=>{
 // 右上角的「全部数据」按钮切换回 data.json 预生成快照；「上月/选择日期」走 raw。
 initDates();
 loadUnq2().catch(()=>{});   // fix191：预载整改明细（unqualified_v2.json），门店清单整改列按报告类型拆分用
-const __scMarksReady = loadSelfCheckMarks().catch(()=>{});   // fix195：预载自检标记（selfCheckMarks.json），聚合前就位避免首屏分数闪变
+// fix195+fix250：预载自检标记（selfCheckMarks.json）+ 自动自检 rid 集（selfCheckAuto.json），聚合前就位避免首屏分数闪变
+const __scMarksReady = Promise.all([loadSelfCheckMarks().catch(()=>{}), loadSelfCheckAuto().catch(()=>{})]);
 (async function boot(){
   $('loading').style.display = 'block';
   if(typeof aggregateRange === 'function'){
