@@ -475,6 +475,9 @@ function aggregateRegular(months, start, end, baselineStoreMap) {
 
     for (const [key, b] of Object.entries(storeBuckets)) {
       if (key.split('||')[0] !== posLabel) continue;
+      // fix251：区间内全部报告都是自检 → 该店不算 QSC（已巡检/分数/合格率/区域清单全剔除）。
+      // 否则分数会回退到平台汇总接口 sup.s（含自检分），把自检泄漏进首页卡片与排名。
+      if (b.reportCount === 0 && (b.reports || []).length > 0) continue;
       const sname = b.storeName;
       const region = rawMatchRegion(b.orgPath, regionNames);
       const sup = siMap[key] || {};

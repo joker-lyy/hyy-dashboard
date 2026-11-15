@@ -286,6 +286,31 @@ def _aggregate_item_rows(item_rows: List[Dict[str, Any]], pos_label: str) -> Lis
     return [{"position": pos_label, "category": k, "count": v} for k, v in agg.items()]
 
 
+# fix251：自检报告剔除（与前端 fix195/fix250 口径一致）
+#   「QSC常规巡检（直营自检表）」模板 = 门店自检行为（fix203 同款判定）
+SC_AUTO_TPL_IDS = {"10000001677588"}
+
+
+def _load_selfcheck_rids() -> set:
+    """自检 rid 集合 = selfCheckMarks.json 的 marks 键(rid:xxx) + selfCheckAuto.json 的 rids 列表。"""
+    rids: set = set()
+    data_dir = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data"))
+    for fname in ("selfCheckMarks.json", "selfCheckAuto.json"):
+        try:
+            with open(os.path.join(data_dir, fname), encoding="utf-8") as f:
+                m = json.load(f) or {}
+        except Exception:
+            continue
+        if fname == "selfCheckAuto.json":
+            rids.update(str(r) for r in (m.get("rids") or []))
+        else:
+            for k in (m.get("marks") or {}):
+                k = str(k)
+                if k.startswith("rid:"):
+                    rids.add(k[4:])
+    return rids
+
+
 def _aggregate_regular_regions(
     rows: List[Dict[str, Any]],
     leaves: List[Dict[str, Any]],
@@ -384,9 +409,15 @@ def _aggregate_regular_regions(
     # 2) 以完整的 report/list 为主，聚合门店与区域
     store_records = []
     cg_store_map: Dict[str, Dict[str, Any]] = {}
+    selfcheck_rids = _load_selfcheck_rids()  # fix251：自检报告不进 QSC 聚合
     for rep in (cg_reports or []):
         sname = (rep.get("fullName") or "").strip()
         if not sname or is_test_store(sname):
+            continue
+        # fix251：自检报告剔除——手动标记(888勾选) + 稽核三人组自动判定(fix250) + 直营自检表模板(fix203)
+        _rid = str(rep.get("reportId") or "")
+        _tid = str(rep.get("templateId") or "")
+        if (_rid and _rid in selfcheck_rids) or (_tid and _tid in SC_AUTO_TPL_IDS):
             continue
         region = match_region(rep.get("nameLink", ""), region_names)
         # fix225：角色 token 可能返回全公司报告（如「培训经理@培训组」未注入 organizeId），
@@ -1703,10 +1734,16 @@ def _fetch_region_ranking(type_name: str, start_date: str, end_date: str) -> Lis
                             "store_count": _region_store_count(rname),
                             "stores": {},  # storeCode -> 最新报告
                         }
+                _sc_rids_on_demand = _load_selfcheck_rids()  # fix251
                 for row in rows:
                     region = match_region(row.get("nameLink", ""), region_names)
                     store_name = row.get("fullName", "")
                     if is_test_store(store_name):
+                        continue
+                    # fix251：自检报告剔除，与 _aggregate_regular_regions / 前端口径一致
+                    _rid = str(row.get("reportId") or "")
+                    _tid = str(row.get("templateId") or "")
+                    if (_rid and _rid in _sc_rids_on_demand) or (_tid and _tid in SC_AUTO_TPL_IDS):
                         continue
                     sc = str(row.get("storeCode", "")).strip()
                     if not sc:
