@@ -4617,6 +4617,15 @@ function loadSelfCheckMarks(){
     .catch(()=>{ window.__SELF_CHECK_MARKS__ = localMarks || {}; });
 }
 
+// fix250：直营店 CG 报告非稽核三人组提交 = 门店自检（rid 集合，管线扫明细生成 selfCheckAuto.json）
+window.__SELF_CHECK_AUTO_RIDS__ = new Set();
+function loadSelfCheckAuto(){
+  return fetch(`${DATA_BASE}/selfCheckAuto.json?v=${Date.now()}`, {cache:'no-store'})
+    .then(r=> r.ok ? r.json() : {})
+    .then(json=>{ window.__SELF_CHECK_AUTO_RIDS__ = new Set((json && json.rids) || []); })
+    .catch(()=>{ window.__SELF_CHECK_AUTO_RIDS__ = new Set(); });
+}
+
 window.__toggleScMarkByRow = async function(cbEl, idx){
   const rep = (window.__curInspReports || [])[idx];
   if(!rep || !rep.mkKey){ cbEl.checked = !cbEl.checked; return; }

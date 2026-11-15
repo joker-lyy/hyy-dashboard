@@ -69,6 +69,10 @@ function isSelfCheckMarked(rep, sn) {
   try {
     // fix203：模板自动判定优先——不受手动标记影响（888 勾选框对该类报告禁用）
     if (isSelfCheckTplAuto(rep)) return true;
+    // fix250：直营店 CG 报告非稽核三人组提交 = 门店自检（selfCheckAuto.json，管线扫明细生成）
+    try {
+      if (rep && rep.rid && window.__SELF_CHECK_AUTO_RIDS__ && window.__SELF_CHECK_AUTO_RIDS__.has(String(rep.rid))) return true;
+    } catch (e2) {}
     const m = (typeof window !== 'undefined' && window.__SELF_CHECK_MARKS__) || {};
     return !!m[scMarkKey(rep, sn)];
   } catch (e) { return false; }

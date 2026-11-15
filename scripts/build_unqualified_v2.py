@@ -324,12 +324,16 @@ def extract_report(fp):
 
 
 def load_selfcheck_marks():
-    """fix205：读 fix195 手动自检标记（键格式 rid:<rid>）。文件缺失/损坏返回空集（不阻断重建）。"""
-    try:
-        j = json.load(open(os.path.join(BASE, "data", "selfCheckMarks.json"), encoding="utf-8"))
-        return set((j.get("marks") or {}).keys())
-    except Exception:
-        return set()
+    """fix205：读 fix195 手动自检标记（键格式 rid:<rid>）。文件缺失/损坏返回空集（不阻断重建）。
+    fix250：合并 selfCheckAuto.json（直营店 CG 报告非稽核三人组提交 = 自动自检）。"""
+    keys = set()
+    for fname in ("selfCheckMarks.json", "selfCheckAuto.json"):
+        try:
+            j = json.load(open(os.path.join(BASE, "data", fname), encoding="utf-8"))
+            keys |= set((j.get("marks") or {}).keys())
+        except Exception:
+            pass
+    return keys
 
 
 def main():
